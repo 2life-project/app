@@ -1,39 +1,47 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
 
 import { to } from '@/shared/nav';
-import { Button, Placeholder, Screen, Segmented, Stack, Text } from '@/shared/ui';
+import { InfoCard, LinkCard, PagedScreen, Stack } from '@/shared/ui';
 
-const TABS = [
-  { value: 'protocols', label: 'Протоколы' },
-  { value: 'goals', label: 'Цели' },
-] as const;
+import {
+  ACTIVE_PROTOCOLS,
+  FINISHED_PROTOCOLS,
+  GOALS,
+  PROTOCOLS_SECTIONS,
+  PROTOCOLS_VS_GOALS,
+} from '../model/protocols';
 
-type ProtocolsTab = (typeof TABS)[number]['value'];
+import { ProtocolCard, type ProtocolCardProps } from './protocol-card';
 
-const NOTE: Record<ProtocolsTab, string> = {
-  protocols: 'Активные протоколы и их прогресс.',
-  goals: 'Цели и связанные с ними показатели.',
-};
+function List({ items, action }: { items: readonly ProtocolCardProps[]; action: string }) {
+  return (
+    <Stack gap="md">
+      {items.map((item) => (
+        <ProtocolCard key={item.id} {...item} />
+      ))}
+
+      <InfoCard
+        title="Protocols vs goals"
+        text={PROTOCOLS_VS_GOALS}
+        link={{ label: 'Learn more', onPress: () => router.push(to.protocol('about')) }}
+      />
+
+      <LinkCard label={action} onPress={() => router.push(to.protocol('new'))} />
+    </Stack>
+  );
+}
 
 export function ProtocolsScreen() {
-  const [tab, setTab] = useState<ProtocolsTab>('protocols');
-
   return (
-    <Screen>
-      <Stack gap="lg">
-        <Text variant="display">Протоколы</Text>
-        <Segmented items={TABS} value={tab} onChange={setTab} />
-        <Placeholder note={NOTE[tab]}>
-          {tab === 'protocols' ? (
-            <Button
-              label="Открыть протокол"
-              variant="tonal"
-              onPress={() => router.push(to.protocol('demo'))}
-            />
-          ) : null}
-        </Placeholder>
-      </Stack>
-    </Screen>
+    <PagedScreen
+      title="Protocols"
+      subtitle="5 active · 2 finished"
+      sections={PROTOCOLS_SECTIONS}
+      pages={[
+        <List key="active" items={ACTIVE_PROTOCOLS} action="New protocol" />,
+        <List key="finished" items={FINISHED_PROTOCOLS} action="New protocol" />,
+        <List key="goals" items={GOALS} action="New goal" />,
+      ]}
+    />
   );
 }
