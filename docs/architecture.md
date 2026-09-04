@@ -129,6 +129,7 @@ export default HomeScreen;
 
 ## Откуда правила
 
+- [decisions.md](decisions.md) — что решено, что отложено и по какому триггеру
 - [Feature-Sliced Design: layers](https://feature-sliced.design/docs/reference/layers) — слои и направление зависимостей
 - [Expo SDK 57](https://docs.expo.dev/versions/v57.0.0/) — версия API, по которой писан код
 - [Design tokens](design-tokens.md) — цвет, текст, размеры, движение

@@ -20,6 +20,8 @@ setup: install hooks ## Первый запуск проекта: зависим
 install: ## Поставить зависимости строго по package-lock.json
 	$(NPM) ci
 
+# npm install включает хуки сам (скрипт prepare). Цель нужна, когда дерево
+# переклонировали или hooksPath сбросили руками.
 hooks: ## Включить git-хуки из .githooks
 	git config core.hooksPath .githooks
 

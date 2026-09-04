@@ -114,7 +114,12 @@ module.exports = defineConfig([
   },
   {
     // --- дисциплина токенов ---------------------------------------------
-    // Литеральные цвета живут только в палитре.
+    // Всё, что задаёт вид, приходит из темы. Правило держит линтер, а не ревью:
+    // литерал проникает тихо и размножается копипастой быстрее, чем его ловят.
+    //
+    // Все селекторы живут в одном блоке намеренно: flat config не объединяет
+    // `no-restricted-syntax` между блоками — последний матчащий затирает
+    // предыдущие, и разнесённые правила молча выключили бы друг друга.
     files: ['src/**/*.{ts,tsx}'],
     ignores: ['src/shared/theme/**'],
     rules: {
@@ -123,6 +128,31 @@ module.exports = defineConfig([
         {
           selector: 'Literal[value=/^#(?:[0-9a-fA-F]{3,4}){1,2}$/]',
           message: 'Цвет берётся из @/shared/theme, а не hex-литералом.',
+        },
+        {
+          selector: "Property[key.name='fontSize'][value.type='Literal']",
+          message: 'Кегль задаёт роль: <Text variant="..."> или textVariant из @/shared/theme.',
+        },
+        {
+          selector: "Property[key.name='lineHeight'][value.type='Literal']",
+          message: 'Интерлиньяж идёт в комплекте с ролью текста, отдельно его не задают.',
+        },
+        {
+          selector: "Property[key.name='fontWeight'][value.type='Literal']",
+          message: 'Начертание — из fontWeight в @/shared/theme, а не числом на месте.',
+        },
+        {
+          selector: "Property[key.name='fontFamily'][value.type='Literal']",
+          message: 'Гарнитура — из fontFamily в @/shared/theme.',
+        },
+        {
+          selector:
+            "Property[key.name=/^(margin|padding)(Top|Bottom|Left|Right|Horizontal|Vertical|Start|End)?$/][value.type='Literal'][value.value!=0]",
+          message: 'Отступ — шаг из space в @/shared/theme. Ручные числа ломают сетку.',
+        },
+        {
+          selector: "Property[key.name='borderRadius'][value.type='Literal']",
+          message: 'Скругление — из radius в @/shared/theme.',
         },
       ],
     },

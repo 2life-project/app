@@ -35,9 +35,10 @@ src/
 Зависимости текут в одну сторону — `app → features → shared → core`.
 Обратные импорты падают на линтере, а не на ревью.
 
-Подробнее: [docs/architecture.md](docs/architecture.md) — слои и как добавлять новое,
+Подробнее: [AGENTS.md](AGENTS.md) — закон проекта для людей и агентов,
+[docs/architecture.md](docs/architecture.md) — слои и как добавлять новое,
 [docs/design-tokens.md](docs/design-tokens.md) — токены и правила оформления,
-[AGENTS.md](AGENTS.md) — обязательные правила для людей и агентов.
+[docs/decisions.md](docs/decisions.md) — что решено и что отложено, с триггерами.
 
 ## Проверки
 
