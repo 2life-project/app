@@ -1,13 +1,8 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { ScrollView, StyleSheet, View, type ScrollViewProps } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { space, theme } from '@/shared/theme';
-
-// Наследуемся от ScrollViewProps, а не от ViewProps: иначе экран со списком
-// не сможет передать `refreshControl` — он есть только у скролла.
-/** Высота растворения у верхнего края: статус-бар плюс запас под ним. */
-const TOP_FADE = 96;
 
 export type ScreenProps = ScrollViewProps & {
   /** Экран длиннее телефона — оборачиваем в скролл. */
@@ -16,46 +11,47 @@ export type ScreenProps = ScrollViewProps & {
   padded?: boolean;
 };
 
+/** Высота растворения у верхнего края. */
+const FADE_HEIGHT = 64;
+const TRANSPARENT = `${theme.color.backdrop[0]}00`;
+
 /**
  * Корень любого экрана: фон темы, безопасные зоны и единые поля.
- * Экраны не рисуют свой фон и не считают отступы от края сами.
+ *
+ * Скролл намеренно НЕ обёрнут в безопасную зону: тогда он обрезал бы контент по
+ * её границе жёсткой линией. Вместо этого он занимает экран целиком, отступ
+ * сверху уходит в содержимое, а строки, уезжающие под статус-бар,
+ * растворяются в градиенте — так же, как внизу они уходят под панель.
  */
 export function Screen({ scroll = true, padded = true, style, children, ...rest }: ScreenProps) {
+  const insets = useSafeAreaInsets();
   const inner = padded ? [styles.padded, style] : style;
 
   return (
     <LinearGradient colors={theme.color.backdrop} style={styles.fill}>
-      <SafeAreaView style={styles.fill} edges={['top', 'left', 'right']}>
-        {scroll ? (
-          <ScrollView
-            contentContainerStyle={[styles.content, inner]}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-            // Контент обязан уезжать ПОД панель навигации, а не упираться в неё:
-            // стекло преломляет то, что под ним, и без этого выглядит плоским.
-            // Система сама добавит отступ снизу, чтобы низ списка оставался
-            // доступным.
-            contentInsetAdjustmentBehavior="automatic"
-            {...rest}>
-            {children}
-          </ScrollView>
-        ) : (
-          <View style={[styles.fill, inner]} {...rest}>
-            {children}
-          </View>
-        )}
-      </SafeAreaView>
+      {scroll ? (
+        <ScrollView
+          contentContainerStyle={[styles.content, { paddingTop: insets.top + space.sm }, inner]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          // Контент уезжает ПОД панель навигации, а не упирается в неё: стекло
+          // преломляет то, что под ним, и без этого выглядит плоским.
+          contentInsetAdjustmentBehavior="never"
+          {...rest}>
+          {children}
+        </ScrollView>
+      ) : (
+        <View style={[styles.fill, { paddingTop: insets.top }, inner]} {...rest}>
+          {children}
+        </View>
+      )}
 
-      {/*
-        Контент должен растворяться вверху так же, как внизу он уходит под
-        стеклянную панель. Без этого лента упирается в статус-бар обрезанной
-        строкой. Полоса лежит поверх скролла и не ловит касания.
-      */}
       {scroll ? (
         <LinearGradient
           pointerEvents="none"
-          colors={[theme.color.backdrop[0], `${theme.color.backdrop[0]}00`]}
-          style={styles.topFade}
+          colors={[theme.color.backdrop[0], theme.color.backdrop[0], TRANSPARENT]}
+          locations={[0, 0.55, 1]}
+          style={[styles.topFade, { height: insets.top + FADE_HEIGHT }]}
         />
       ) : null}
     </LinearGradient>
@@ -66,5 +62,5 @@ const styles = StyleSheet.create({
   fill: { flex: 1 },
   content: { flexGrow: 1, paddingBottom: space['3xl'] },
   padded: { paddingHorizontal: space.screen },
-  topFade: { position: 'absolute', top: 0, left: 0, right: 0, height: TOP_FADE },
+  topFade: { position: 'absolute', top: 0, left: 0, right: 0 },
 });

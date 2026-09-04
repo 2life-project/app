@@ -10,9 +10,9 @@ import {
   InfoCard,
   LinkCard,
   ListRow,
-  ProgressRing,
+  SectionCaption,
+  SectionSummary,
   Stack,
-  SummaryRow,
   Text,
   WidgetCard,
 } from '@/shared/ui';
@@ -24,37 +24,16 @@ export function Activity() {
     <Stack gap="md">
       <DatePager label="Today · July 13" />
 
-      <WidgetCard
+      <SectionSummary
         title="Activity"
-        action={{ label: 'Change', chevron: true, onPress: () => router.push(to.body()) }}>
-        <Stack gap="md">
-          <Text variant="caption" tone="muted">
-            STRAIN · above your 14-day average
-          </Text>
-          <View style={styles.body}>
-            <ProgressRing
-              size={132}
-              thickness={12}
-              value={14.2 / 21}
-              valueLabel="14.2"
-              note="of 21"
-              valueVariant="headline"
-            />
-            <View style={styles.summary}>
-              {ACTIVITY_SUMMARY.map((row, index) => (
-                <SummaryRow
-                  key={row.id}
-                  title={row.title}
-                  subtitle={row.subtitle}
-                  value={row.value}
-                  divider={index > 0}
-                  onPress={() => router.push(to.workout(row.id))}
-                />
-              ))}
-            </View>
-          </View>
-        </Stack>
-      </WidgetCard>
+        action={{ label: 'Change', chevron: true, onPress: () => router.push(to.body()) }}
+        caption={<SectionCaption>STRAIN · above your 14-day average</SectionCaption>}
+        ring={{ value: 14.2 / 21, valueLabel: '14.2', note: 'of 21' }}
+        rows={ACTIVITY_SUMMARY.map((row) => ({
+          ...row,
+          onPress: () => router.push(to.workout(row.id)),
+        }))}
+      />
 
       <WidgetCard
         title="What drove it"

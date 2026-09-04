@@ -1,12 +1,19 @@
+import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedProps,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
 
-import { theme, type Tone } from '@/shared/theme';
+import { duration, easing, theme, type Tone } from '@/shared/theme';
 
 import { Text } from './text';
 
-/** Зазор между кольцом и подписью — из макета. */
-const RING_LABEL_GAP = 6;
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+const CURVE = Easing.bezier(...easing.decelerate);
 
 export type ProgressRingProps = {
   /** Доля заполнения от 0 до 1. */
@@ -28,6 +35,9 @@ export type ProgressRingProps = {
 /**
  * Кольцо прогресса. Дуга рисуется штриховкой по окружности: так она остаётся
  * гладкой на любом размере и не требует пути под каждый процент.
+ *
+ * Заполнение приезжает анимацией на UI-потоке: кольцо, которое просто
+ * появилось заполненным, не читается как результат — глазу нужен сам ход.
  */
 export function ProgressRing({
   value,
@@ -36,12 +46,22 @@ export function ProgressRing({
   note,
   valueVariant = 'ringValue',
   tone = 'success',
-  size = 66,
-  thickness = 7,
+  size = 56,
+  thickness = 6,
 }: ProgressRingProps) {
   const radius = (size - thickness) / 2;
   const circumference = 2 * Math.PI * radius;
-  const filled = Math.max(0, Math.min(1, value)) * circumference;
+  const target = Math.max(0, Math.min(1, value));
+
+  const progress = useSharedValue(0);
+
+  useEffect(() => {
+    progress.set(withTiming(target, { duration: duration.slow, easing: CURVE }));
+  }, [progress, target]);
+
+  const arc = useAnimatedProps(() => ({
+    strokeDashoffset: circumference * (1 - progress.get()),
+  }));
 
   return (
     <View style={styles.column}>
@@ -55,14 +75,15 @@ export function ProgressRing({
             strokeWidth={thickness}
             fill="none"
           />
-          <Circle
+          <AnimatedCircle
             cx={size / 2}
             cy={size / 2}
             r={radius}
             stroke={theme.color[tone].solid}
             strokeWidth={thickness}
             strokeLinecap="round"
-            strokeDasharray={`${filled} ${circumference}`}
+            strokeDasharray={circumference}
+            animatedProps={arc}
             // Дуга начинается сверху, а не справа: считать от трёх часов
             // пользователь не станет.
             transform={`rotate(-90 ${size / 2} ${size / 2})`}
@@ -86,6 +107,8 @@ export function ProgressRing({
     </View>
   );
 }
+
+const RING_LABEL_GAP = 6;
 
 const styles = StyleSheet.create({
   column: { alignItems: 'center', gap: RING_LABEL_GAP },

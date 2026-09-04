@@ -9,10 +9,10 @@ import {
   InfoCard,
   LineChart,
   LinkCard,
-  ProgressRing,
+  SectionCaption,
+  SectionSummary,
   Stack,
   StatTile,
-  SummaryRow,
   Text,
   WidgetCard,
 } from '@/shared/ui';
@@ -29,42 +29,25 @@ export function Wellbeing() {
     <Stack gap="md">
       <DatePager label="Today · July 13" />
 
-      <WidgetCard
+      <SectionSummary
         title="Wellbeing"
-        action={{ label: 'Change', chevron: true, onPress: () => router.push(to.checkIn()) }}>
-        <Stack gap="md">
-          <Stack direction="row" gap="xs">
+        action={{ label: 'Change', chevron: true, onPress: () => router.push(to.checkIn()) }}
+        caption={
+          <SectionCaption>
             <Text variant="caption" tone="muted">
-              DAY SCORE ·
+              {'DAY SCORE · '}
             </Text>
             <Text variant="caption" tone="success">
               +0.6 vs weekly average
             </Text>
-          </Stack>
-          <View style={styles.body}>
-            <ProgressRing
-              size={132}
-              thickness={12}
-              value={0.78}
-              valueLabel="7.8"
-              note="a good day"
-              valueVariant="headline"
-            />
-            <View style={styles.summary}>
-              {WELLBEING_SUMMARY.map((row, index) => (
-                <SummaryRow
-                  key={row.id}
-                  title={row.title}
-                  subtitle={row.subtitle}
-                  value={row.value}
-                  divider={index > 0}
-                  onPress={() => router.push(to.checkIn())}
-                />
-              ))}
-            </View>
-          </View>
-        </Stack>
-      </WidgetCard>
+          </SectionCaption>
+        }
+        ring={{ value: 0.78, valueLabel: '7.8', note: 'a good day' }}
+        rows={WELLBEING_SUMMARY.map((row) => ({
+          ...row,
+          onPress: () => router.push(to.checkIn()),
+        }))}
+      />
 
       <WidgetCard title="What it is made of">
         <Stack gap="sm">

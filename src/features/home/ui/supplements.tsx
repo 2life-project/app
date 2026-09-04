@@ -1,8 +1,6 @@
 import { router } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
 
 import { to } from '@/shared/nav';
-import { space } from '@/shared/theme';
 import {
   Button,
   Card,
@@ -12,9 +10,9 @@ import {
   LinkCard,
   ListRow,
   ProgressBar,
-  ProgressRing,
+  SectionCaption,
+  SectionSummary,
   Stack,
-  SummaryRow,
   Text,
   WidgetCard,
 } from '@/shared/ui';
@@ -27,38 +25,16 @@ export function Supplements() {
     <Stack gap="md">
       <DatePager label="Today · July 13" />
 
-      <WidgetCard
+      <SectionSummary
         title="Supplements"
-        action={{ label: 'All', chevron: true, onPress: () => router.push(to.course('all')) }}>
-        <Stack gap="md">
-          <Text variant="caption" tone="muted">
-            COURSES TODAY · next at 14:00
-          </Text>
-          <View style={styles.body}>
-            <ProgressRing
-              size={132}
-              thickness={12}
-              value={1 / 3}
-              valueLabel="1/3"
-              note="taken"
-              tone="warning"
-              valueVariant="headline"
-            />
-            <View style={styles.summary}>
-              {SUPPLEMENTS_SUMMARY.map((row, index) => (
-                <SummaryRow
-                  key={row.id}
-                  title={row.title}
-                  subtitle={row.subtitle}
-                  value={row.value}
-                  divider={index > 0}
-                  onPress={() => router.push(to.course(row.id))}
-                />
-              ))}
-            </View>
-          </View>
-        </Stack>
-      </WidgetCard>
+        action={{ label: 'All', chevron: true, onPress: () => router.push(to.course('all')) }}
+        caption={<SectionCaption>COURSES TODAY · next at 14:00</SectionCaption>}
+        ring={{ value: 1 / 3, valueLabel: '1/3', note: 'taken', tone: 'warning' }}
+        rows={SUPPLEMENTS_SUMMARY.map((row) => ({
+          ...row,
+          onPress: () => router.push(to.course(row.id)),
+        }))}
+      />
 
       <WidgetCard
         title="Courses today"
@@ -114,8 +90,3 @@ export function Supplements() {
     </Stack>
   );
 }
-
-const styles = StyleSheet.create({
-  body: { flexDirection: 'row', alignItems: 'center', gap: space.lg },
-  summary: { flex: 1 },
-});

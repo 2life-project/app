@@ -12,11 +12,10 @@ import {
   InfoCard,
   LinkCard,
   ListRow,
-  ProgressRing,
+  SectionCaption,
+  SectionSummary,
   Stack,
   StatTile,
-  SummaryRow,
-  Text,
   WidgetCard,
 } from '@/shared/ui';
 
@@ -33,37 +32,16 @@ export function Nutrition() {
     <Stack gap="md">
       <DatePager label="Today · July 13" />
 
-      <WidgetCard
+      <SectionSummary
         title="Nutrition"
-        action={{ label: 'Change', chevron: true, onPress: () => router.push(to.meal('target')) }}>
-        <Stack gap="md">
-          <Text variant="caption" tone="muted">
-            CALORIES · 560 kcal left
-          </Text>
-          <View style={styles.body}>
-            <ProgressRing
-              size={132}
-              thickness={12}
-              value={1840 / 2400}
-              valueLabel="1,840"
-              note="of 2,400"
-              valueVariant="headline"
-            />
-            <View style={styles.summary}>
-              {NUTRITION_SUMMARY.map((row, index) => (
-                <SummaryRow
-                  key={row.id}
-                  title={row.title}
-                  subtitle={row.subtitle}
-                  value={row.value}
-                  divider={index > 0}
-                  onPress={() => router.push(to.meal(row.id))}
-                />
-              ))}
-            </View>
-          </View>
-        </Stack>
-      </WidgetCard>
+        action={{ label: 'Change', chevron: true, onPress: () => router.push(to.meal('target')) }}
+        caption={<SectionCaption>CALORIES · 560 kcal left</SectionCaption>}
+        ring={{ value: 1840 / 2400, valueLabel: '1,840', note: 'of 2,400' }}
+        rows={NUTRITION_SUMMARY.map((row) => ({
+          ...row,
+          onPress: () => router.push(to.meal(row.id)),
+        }))}
+      />
 
       <Card>
         <View style={styles.macros}>

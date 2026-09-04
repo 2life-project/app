@@ -25,6 +25,13 @@ export { Pressable, type PressableScaleProps } from './pressable';
 export { ProgressBar, type ProgressBarProps } from './progress-bar';
 export { ProgressRing, type ProgressRingProps } from './progress-ring';
 export { Screen, type ScreenProps } from './screen';
+export { SectionPager, type SectionPagerProps } from './section-pager';
+export {
+  SectionCaption,
+  SectionSummary,
+  type SectionSummaryProps,
+  type SectionSummaryRow,
+} from './section-summary';
 export { StatTile, type StatTileProps } from './stat-tile';
 export { SummaryRow, type SummaryRowProps } from './summary-row';
 export { Segmented, type SegmentedProps } from './segmented';

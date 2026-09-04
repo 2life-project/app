@@ -1,6 +1,15 @@
+import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 
-import { radius, theme, type Tone } from '@/shared/theme';
+import { duration, easing, radius, theme, type Tone } from '@/shared/theme';
+
+const CURVE = Easing.bezier(...easing.decelerate);
 
 export type ProgressBarProps = {
   /** Доля заполнения от 0 до 1. */
@@ -10,11 +19,18 @@ export type ProgressBarProps = {
 
 /** Полоса прогресса протокола или цели. */
 export function ProgressBar({ value, tone = 'success' }: ProgressBarProps) {
-  const filled = `${Math.max(0, Math.min(1, value)) * 100}%` as const;
+  const target = Math.max(0, Math.min(1, value));
+  const progress = useSharedValue(0);
+
+  useEffect(() => {
+    progress.set(withTiming(target, { duration: duration.slow, easing: CURVE }));
+  }, [progress, target]);
+
+  const fill = useAnimatedStyle(() => ({ width: `${progress.get() * 100}%` }));
 
   return (
     <View style={styles.track}>
-      <View style={[styles.fill, { width: filled, backgroundColor: theme.color[tone].solid }]} />
+      <Animated.View style={[styles.fill, fill, { backgroundColor: theme.color[tone].solid }]} />
     </View>
   );
 }
