@@ -6,8 +6,13 @@ import Constants from 'expo-constants';
  */
 const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8000';
 
-if (!__DEV__ && apiUrl.includes('localhost')) {
-  throw new Error('EXPO_PUBLIC_API_URL не задан: релизная сборка смотрит в localhost');
+/**
+ * В релизе адрес обязан быть по https. Проверка на слово «localhost» ловила бы
+ * только забытый дев-адрес и молча пропускала `http://api...` или адрес
+ * ноутбука в локальной сети — медицинские данные ушли бы открытым текстом.
+ */
+if (!__DEV__ && !apiUrl.startsWith('https://')) {
+  throw new Error(`EXPO_PUBLIC_API_URL должен быть https, получено: ${apiUrl}`);
 }
 
 export const env = {

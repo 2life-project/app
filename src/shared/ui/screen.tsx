@@ -1,9 +1,11 @@
-import { ScrollView, StyleSheet, View, type ViewProps } from 'react-native';
+import { ScrollView, StyleSheet, View, type ScrollViewProps } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { space, theme } from '@/shared/theme';
 
-export type ScreenProps = ViewProps & {
+// Наследуемся от ScrollViewProps, а не от ViewProps: иначе экран со списком
+// не сможет передать `refreshControl` — он есть только у скролла.
+export type ScreenProps = ScrollViewProps & {
   /** Экран длиннее телефона — оборачиваем в скролл. */
   scroll?: boolean;
   /** Выключить боковые поля, если контент идёт во всю ширину. */

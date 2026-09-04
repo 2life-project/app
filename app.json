@@ -10,7 +10,10 @@
     "icon": "./assets/images/icon.png",
     "ios": {
       "bundleIdentifier": "com.twolife.app",
-      "supportsTablet": false
+      "supportsTablet": false,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.twolife.app",

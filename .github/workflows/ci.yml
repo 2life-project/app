@@ -23,3 +23,7 @@ jobs:
       - run: make check
       # Сгенерированные шкалы обязаны совпадать с рецептом: правка руками не пройдёт.
       - run: make tokens && git diff --exit-code src/shared/theme/palette.gen.ts
+      # Формат, линтер и типы не видят битый импорт в ленивой ветке и упавший
+      # config-плагин. Бандлинг видит — и стоит секунды.
+      - name: Бандл собирается
+        run: npx expo export --platform ios --platform android --output-dir /tmp/export

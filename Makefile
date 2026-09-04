@@ -3,10 +3,12 @@
 # Скрипты в package.json — реализация; помнить их наизусть не нужно.
 
 NPM ?= npm
+PLATFORM ?= ios
 
 .DEFAULT_GOAL := help
 .PHONY: help setup install hooks start ios android web lint lint-fix format \
-        format-check typecheck test test-watch check doctor prebuild tokens clean reset
+        format-check typecheck test test-watch check doctor prebuild tokens clean reset \
+        build-dev build-preview
 
 help: ## Показать список команд
 	@grep -hE '^[a-z][a-zA-Z_-]*:.*?## ' $(MAKEFILE_LIST) \
@@ -25,10 +27,16 @@ start: ## Dev-сервер Expo (выбор платформы в термина
 	$(NPM) run start
 
 ios: ## Запустить на iOS-симуляторе
-	$(NPM) run ios
+	$(NPM) run start:ios
 
 android: ## Запустить на Android-эмуляторе
-	$(NPM) run android
+	$(NPM) run start:android
+
+build-dev: ## Дев-сборка с dev-client (PLATFORM=ios|android|all)
+	npx eas-cli build --profile development --platform $(PLATFORM)
+
+build-preview: ## Сборка, которую можно отдать в руки (PLATFORM=ios|android|all)
+	npx eas-cli build --profile preview --platform $(PLATFORM)
 
 web: ## Открыть веб-версию — быстрый способ посмотреть вёрстку
 	$(NPM) run web
@@ -63,6 +71,8 @@ check: format-check lint typecheck test ## Полный прогон — ров�
 doctor: ## Проверить, что версии пакетов совместимы с этим SDK
 	npx expo-doctor
 
+# Скрипты запуска называются start:ios / start:android намеренно: prebuild
+# переписывает их, только если значение дословно `expo start --ios`.
 prebuild: ## Сгенерировать нативные проекты ios/ и android/
 	npx expo prebuild --clean
 
