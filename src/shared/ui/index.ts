@@ -1,8 +1,10 @@
 export { ActionLink, type ActionLinkProps } from './action-link';
+export { BarChart, type BarChartProps } from './bar-chart';
 export { Button, type ButtonProps } from './button';
 export { Card, type CardProps } from './card';
 export { CheckCircle, type CheckCircleProps } from './check-circle';
 export { ContextMenu, type ContextMenuItem, type ContextMenuProps } from './context-menu';
+export { DatePager, type DatePagerProps } from './date-pager';
 export { EmptyState, type EmptyStateProps } from './empty-state';
 export {
   GLASS_BUTTON_SIZE,
@@ -12,6 +14,8 @@ export {
   type GlassButtonSize,
 } from './glass-button';
 export { Glass, supportsLiquidGlass, type GlassProps } from './glass';
+export { InfoCard, type InfoCardProps } from './info-card';
+export { LinkCard, type LinkCardProps } from './link-card';
 export { ListRow, type ListRowProps } from './list-row';
 export { MetricWidget, type MetricWidgetProps } from './metric-widget';
 export { Placeholder, type PlaceholderProps } from './placeholder';
@@ -20,6 +24,7 @@ export { ProgressBar, type ProgressBarProps } from './progress-bar';
 export { ProgressRing, type ProgressRingProps } from './progress-ring';
 export { Screen, type ScreenProps } from './screen';
 export { StatTile, type StatTileProps } from './stat-tile';
+export { SummaryRow, type SummaryRowProps } from './summary-row';
 export { Segmented, type SegmentedProps } from './segmented';
 export { Stack, type StackProps } from './stack';
 export { Tag, type TagProps } from './tag';

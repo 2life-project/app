@@ -9,6 +9,7 @@ import { ActionLink, GlassButton, Placeholder, Screen, Segmented, Stack, Text } 
 
 import { HOME_SECTION_NOTE, HOME_SECTIONS, type HomeSection } from '../model/sections';
 
+import { Activity } from './activity';
 import { Overview } from './overview';
 
 const HEADER_ACTIONS = [
@@ -61,9 +62,9 @@ export function HomeScreen() {
 
         <Segmented items={HOME_SECTIONS} value={section} onChange={setSection} />
 
-        {section === 'overview' ? (
-          <Overview />
-        ) : (
+        {section === 'overview' ? <Overview /> : null}
+        {section === 'activity' ? <Activity /> : null}
+        {section === 'overview' || section === 'activity' ? null : (
           <Placeholder note={HOME_SECTION_NOTE[section]}>
             {link ? <ActionLink label={link.label} chevron onPress={link.open} /> : null}
           </Placeholder>

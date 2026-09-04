@@ -15,6 +15,10 @@ export type ProgressRingProps = {
   valueLabel: string;
   /** Подпись под кольцом. В виджете системы её нет — там кольцо стоит в ряду. */
   label?: string;
+  /** Опора под числом внутри кольца: «из 21». */
+  note?: string;
+  /** Кегль числа: в крупном кольце оно больше. */
+  valueVariant?: 'ringValue' | 'headline';
   /** Статус: кольцо кодирует отклонение от нормы, а не категорию. */
   tone?: Extract<Tone, 'success' | 'warning' | 'danger'>;
   size?: number;
@@ -29,6 +33,8 @@ export function ProgressRing({
   value,
   valueLabel,
   label,
+  note,
+  valueVariant = 'ringValue',
   tone = 'success',
   size = 66,
   thickness = 7,
@@ -64,7 +70,12 @@ export function ProgressRing({
           />
         </Svg>
         <View style={styles.center}>
-          <Text variant="ringValue">{valueLabel}</Text>
+          <Text variant={valueVariant}>{valueLabel}</Text>
+          {note ? (
+            <Text variant="footnote" tone="muted">
+              {note}
+            </Text>
+          ) : null}
         </View>
       </View>
       {label ? (
