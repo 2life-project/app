@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
-import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { ScrollView, StyleSheet, useWindowDimensions } from 'react-native';
 
 import { space } from '@/shared/theme';
 
@@ -7,8 +7,6 @@ export type SectionPagerProps = {
   /** Текущая страница. Меняется и свайпом, и извне — из ряда чипов. */
   index: number;
   onIndexChange: (index: number) => void;
-  /** Отступ сверху: под неподвижной шапкой, чтобы контент начинался под ней. */
-  contentTop: number;
   pages: ReactNode[];
 };
 
@@ -20,7 +18,7 @@ export type SectionPagerProps = {
  * Каждая страница прокручивается по вертикали сама — вложение скроллов разной
  * ориентации конфликта не даёт.
  */
-export function SectionPager({ index, onIndexChange, contentTop, pages }: SectionPagerProps) {
+export function SectionPager({ index, onIndexChange, pages }: SectionPagerProps) {
   const { width } = useWindowDimensions();
   const ref = useRef<ScrollView>(null);
   const current = useRef(index);
@@ -59,12 +57,6 @@ export function SectionPager({ index, onIndexChange, contentTop, pages }: Sectio
           // высоту безопасной зоны сверху, и контент отъезжает от шапки.
           contentInsetAdjustmentBehavior="never"
           automaticallyAdjustContentInsets={false}>
-          {/*
-            Место под неподвижной шапкой держит распорка, а не верхний отступ:
-            к отступу система прибавляет свои вставки, и контент уезжает вниз на
-            высоту безопасной зоны. У блока с заданной высотой такого нет.
-          */}
-          <View style={{ height: contentTop }} />
           {page}
         </ScrollView>
       ))}
