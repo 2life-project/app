@@ -1,26 +1,28 @@
-import { StyleSheet, View, type ViewProps } from 'react-native';
+import { View, type ViewProps } from 'react-native';
 
-import { color, radius, shadow, spacing } from '@/shared/theme';
+import { createThemedStyles, radius, size, space } from '@/shared/theme';
 
 export type CardProps = ViewProps & {
-  padding?: keyof typeof spacing;
-  /** `glass` — полупрозрачная плашка поверх фона, `solid` — непрозрачная карточка. */
-  tone?: 'solid' | 'glass';
+  padding?: keyof typeof space;
+  /** `raised` отрывается от страницы тенью, `sunken` — углубление под контент. */
+  variant?: 'flat' | 'raised' | 'sunken';
 };
 
-export function Card({ padding = 'lg', tone = 'solid', style, ...rest }: CardProps) {
+export function Card({ padding = 'lg', variant = 'raised', style, ...rest }: CardProps) {
+  const styles = useStyles();
+
   return (
-    <View {...rest} style={[styles.base, styles[tone], { padding: spacing[padding] }, style]} />
+    <View {...rest} style={[styles.base, styles[variant], { padding: space[padding] }, style]} />
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = createThemedStyles((theme) => ({
   base: {
-    borderRadius: radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: color.surfaceEdge,
-    boxShadow: shadow.panel,
+    borderRadius: radius.lg,
+    borderWidth: size.border,
+    borderColor: theme.color.border,
   },
-  solid: { backgroundColor: color.surface },
-  glass: { backgroundColor: color.surfaceGlass },
-});
+  flat: { backgroundColor: theme.color.surface },
+  raised: { backgroundColor: theme.color.surface, boxShadow: theme.elevation.low },
+  sunken: { backgroundColor: theme.color.surfaceSunken, borderColor: 'transparent' },
+}));

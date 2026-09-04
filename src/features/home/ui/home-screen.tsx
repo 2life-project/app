@@ -6,8 +6,8 @@ export function HomeScreen() {
   return (
     <Screen>
       <Stack gap="xl">
-        <Stack gap="xxs">
-          <Text variant="caption" tone="faint">
+        <Stack gap="xs">
+          <Text variant="caption" tone="muted">
             {greetingFor(new Date()).toUpperCase()}
           </Text>
           <Text variant="display">Картина</Text>
@@ -17,7 +17,7 @@ export function HomeScreen() {
           <Stack gap="md">
             <Tag label="Данных пока нет" />
             <Text variant="subtitle">Загрузите первый анализ</Text>
-            <Text tone="soft">
+            <Text tone="muted">
               Соберём показатели в одну картину и покажем, что из этого важно.
             </Text>
             <Button label="Сфотографировать или выбрать" />
@@ -25,18 +25,18 @@ export function HomeScreen() {
         </Card>
 
         <Stack gap="md">
-          <Text variant="label" tone="faint">
+          <Text variant="label" tone="muted">
             ЗА 7 ДНЕЙ
           </Text>
-          <Card tone="glass">
+          <Card variant="sunken">
             <Stack direction="row" justify="space-between" align="center">
-              <Stack gap="xxs">
+              <Stack gap="xs">
                 <Text variant="metric">—</Text>
-                <Text variant="caption" tone="faint">
+                <Text variant="caption" tone="muted">
                   показателей обновилось
                 </Text>
               </Stack>
-              <Tag label="ждём данные" tone="watch" />
+              <Tag label="ждём данные" tone="warning" />
             </Stack>
           </Card>
         </Stack>

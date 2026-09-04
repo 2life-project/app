@@ -6,7 +6,7 @@ NPM ?= npm
 
 .DEFAULT_GOAL := help
 .PHONY: help setup install hooks start ios android web lint lint-fix format \
-        format-check typecheck test test-watch check doctor prebuild clean reset
+        format-check typecheck test test-watch check doctor prebuild tokens clean reset
 
 help: ## Показать список команд
 	@grep -hE '^[a-z][a-zA-Z_-]*:.*?## ' $(MAKEFILE_LIST) \
@@ -32,6 +32,10 @@ android: ## Запустить на Android-эмуляторе
 
 web: ## Открыть веб-версию — быстрый способ посмотреть вёрстку
 	$(NPM) run web
+
+tokens: ## Пересобрать цветовые шкалы из рецепта в scripts/generate-palette.mjs
+	node scripts/generate-palette.mjs
+	npx prettier --write src/shared/theme/palette.gen.ts
 
 lint: ## ESLint: границы слоёв, дисциплина токенов, гигиена импортов
 	$(NPM) run lint

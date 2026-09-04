@@ -1,17 +1,17 @@
 import { View, type FlexAlignType, type ViewProps } from 'react-native';
 
-import { spacing } from '@/shared/theme';
+import { space } from '@/shared/theme';
 
 export type StackProps = ViewProps & {
   direction?: 'row' | 'column';
-  gap?: keyof typeof spacing;
+  gap?: keyof typeof space;
   align?: FlexAlignType;
   justify?: 'flex-start' | 'center' | 'flex-end' | 'space-between';
   wrap?: boolean;
   grow?: boolean;
 };
 
-/** Раскладка через токены отступов вместо россыпи margin по компонентам. */
+/** Раскладка по шагу сетки вместо россыпи margin по компонентам. */
 export function Stack({
   direction = 'column',
   gap = 'none',
@@ -28,7 +28,7 @@ export function Stack({
       style={[
         {
           flexDirection: direction,
-          gap: spacing[gap],
+          gap: space[gap],
           alignItems: align,
           justifyContent: justify,
           flexWrap: wrap ? 'wrap' : 'nowrap',

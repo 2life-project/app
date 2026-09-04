@@ -7,7 +7,7 @@ export default function BodyRoute() {
         <Text variant="display">Тело</Text>
         <EmptyState
           title="Раздел ещё не собран"
-          description="Восстановление, сердце, дыхание и состав тела приедут сюда из веба."
+          description="Восстановление, сердце, дыхание и состав тела появятся здесь."
         />
       </Stack>
     </Screen>

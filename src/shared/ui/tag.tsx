@@ -1,34 +1,47 @@
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
-import { color, radius, spacing, type StatusTone } from '@/shared/theme';
+import { createThemedStyles, radius, size, space, type Tone } from '@/shared/theme';
 
 import { Text } from './text';
 
 export type TagProps = {
   label: string;
-  tone?: StatusTone | 'neutral';
+  tone?: Tone;
 };
 
+/** Короткая метка смысла: статус показателя, состояние загрузки. */
 export function Tag({ label, tone = 'neutral' }: TagProps) {
-  const paint =
-    tone === 'neutral'
-      ? { backgroundColor: color.surfaceSunken, color: color.textSoft }
-      : { backgroundColor: color.status[tone].soft, color: color.status[tone].deep };
+  const styles = useStyles();
 
   return (
-    <View style={[styles.base, { backgroundColor: paint.backgroundColor }]}>
-      <Text variant="caption" style={{ color: paint.color }}>
+    <View style={[styles.base, styles[tone]]}>
+      <Text variant="caption" tone={tone}>
         {label}
       </Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = createThemedStyles((theme) => ({
   base: {
     alignSelf: 'flex-start',
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+    borderRadius: radius.full,
+    borderWidth: size.border,
+    paddingHorizontal: space.sm,
+    paddingVertical: space.xs,
   },
-});
+  neutral: {
+    backgroundColor: theme.color.neutral.surface,
+    borderColor: theme.color.neutral.border,
+  },
+  accent: { backgroundColor: theme.color.accent.surface, borderColor: theme.color.accent.border },
+  success: {
+    backgroundColor: theme.color.success.surface,
+    borderColor: theme.color.success.border,
+  },
+  warning: {
+    backgroundColor: theme.color.warning.surface,
+    borderColor: theme.color.warning.border,
+  },
+  danger: { backgroundColor: theme.color.danger.surface, borderColor: theme.color.danger.border },
+}));

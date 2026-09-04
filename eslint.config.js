@@ -20,7 +20,7 @@ module.exports = defineConfig([
     ],
   },
   {
-    files: ['**/*.{ts,tsx,js}'],
+    files: ['**/*.{ts,tsx,js,mjs}'],
     // Плагин `import` уже зарегистрирован конфигом Expo — здесь только его правила.
     plugins: { 'unused-imports': unusedImports },
     rules: {

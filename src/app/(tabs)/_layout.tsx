@@ -1,66 +1,49 @@
 import Feather from '@expo/vector-icons/Feather';
 import { Tabs } from 'expo-router';
-import { StyleSheet } from 'react-native';
 
-import { color, fontFamily, textVariant } from '@/shared/theme';
+import { fontFamily, size, textVariant, useTheme } from '@/shared/theme';
 
-/**
- * Разделы Релиза 1 — по согласованному прототипу мобилки.
- * Новый таб = новый файл в этой группе плюс строка здесь; больше нигде.
- */
+type IconName = keyof typeof Feather.glyphMap;
+
+const TABS: { name: string; title: string; icon: IconName }[] = [
+  { name: 'index', title: 'Главная', icon: 'home' },
+  { name: 'body', title: 'Тело', icon: 'activity' },
+  { name: 'journal', title: 'Журнал', icon: 'calendar' },
+  { name: 'more', title: 'Ещё', icon: 'more-horizontal' },
+];
+
+/** Новый раздел = файл в этой группе плюс строка в TABS. Больше нигде. */
 export default function TabsLayout() {
+  const theme = useTheme();
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: color.accent,
-        tabBarInactiveTintColor: color.textFaint,
-        tabBarStyle: styles.bar,
-        tabBarLabelStyle: styles.label,
+        tabBarActiveTintColor: theme.color.accent.text,
+        tabBarInactiveTintColor: theme.color.textMuted,
+        tabBarStyle: {
+          backgroundColor: theme.color.surface,
+          borderTopWidth: size.border,
+          borderTopColor: theme.color.border,
+        },
+        tabBarLabelStyle: {
+          fontFamily: fontFamily.sans,
+          fontSize: textVariant.caption.fontSize,
+        },
       }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Главная',
-          tabBarIcon: ({ color: tint, size }) => <Feather name="home" size={size} color={tint} />,
-        }}
-      />
-      <Tabs.Screen
-        name="body"
-        options={{
-          title: 'Тело',
-          tabBarIcon: ({ color: tint, size }) => (
-            <Feather name="activity" size={size} color={tint} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="journal"
-        options={{
-          title: 'Журнал',
-          tabBarIcon: ({ color: tint, size }) => (
-            <Feather name="calendar" size={size} color={tint} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="more"
-        options={{
-          title: 'Ещё',
-          tabBarIcon: ({ color: tint, size }) => (
-            <Feather name="more-horizontal" size={size} color={tint} />
-          ),
-        }}
-      />
+      {TABS.map(({ name, title, icon }) => (
+        <Tabs.Screen
+          key={name}
+          name={name}
+          options={{
+            title,
+            tabBarIcon: ({ color, size: iconSize }) => (
+              <Feather name={icon} size={iconSize} color={color} />
+            ),
+          }}
+        />
+      ))}
     </Tabs>
   );
 }
-
-const styles = StyleSheet.create({
-  bar: {
-    backgroundColor: color.surface,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: color.border,
-  },
-  label: { fontFamily: fontFamily.ui, fontSize: textVariant.caption.fontSize },
-});

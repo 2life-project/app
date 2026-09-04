@@ -10,10 +10,10 @@ export type EmptyStateProps = {
 /** Честная заглушка: раздел есть в навигации, экрана пока нет. */
 export function EmptyState({ title, description }: EmptyStateProps) {
   return (
-    <Card tone="glass">
+    <Card variant="sunken">
       <Stack gap="sm">
         <Text variant="subtitle">{title}</Text>
-        <Text tone="soft">{description}</Text>
+        <Text tone="muted">{description}</Text>
       </Stack>
     </Card>
   );
