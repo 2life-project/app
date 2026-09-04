@@ -20,6 +20,7 @@ export { LinkCard, type LinkCardProps } from './link-card';
 export { LineChart, type LineChartProps } from './line-chart';
 export { ListRow, type ListRowProps } from './list-row';
 export { MetricWidget, type MetricWidgetProps } from './metric-widget';
+export { MonthCalendar, type CalendarDay, type MonthCalendarProps } from './month-calendar';
 export { PagedScreen, type PagedScreenProps } from './paged-screen';
 export { Placeholder, type PlaceholderProps } from './placeholder';
 export { Pressable, type PressableScaleProps } from './pressable';
