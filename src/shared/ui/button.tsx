@@ -63,6 +63,7 @@ export function Button({
 const onTone = {
   neutral: 'onNeutral',
   accent: 'onAccent',
+  highlight: 'onHighlight',
   success: 'onSuccess',
   warning: 'onWarning',
   danger: 'onDanger',

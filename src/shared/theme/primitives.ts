@@ -14,6 +14,14 @@ export const space = {
   xs: 4,
   sm: 8,
   md: 12,
+  /** Поле экрана — из макета. */
+  screen: 14,
+  /** Вертикальное поле карточки — из макета. */
+  cardY: 15,
+  /** Горизонтальное поле карточки — из макета. */
+  cardX: 16,
+  /** Зазор между строками внутри виджета — из макета. */
+  widget: 10,
   lg: 16,
   xl: 24,
   '2xl': 32,
@@ -61,15 +69,21 @@ export const tabularNumbers = { fontVariant: ['tabular-nums'] } satisfies TextSt
  * крупных, где буквы иначе разъезжаются.
  */
 export const textVariant = {
-  display: { fontSize: 34, lineHeight: 41, fontWeight: fontWeight.bold, letterSpacing: -0.5 },
-  headline: { fontSize: 28, lineHeight: 34, fontWeight: fontWeight.bold, letterSpacing: -0.3 },
-  title: { fontSize: 22, lineHeight: 28, fontWeight: fontWeight.semibold, letterSpacing: -0.2 },
-  subtitle: { fontSize: 17, lineHeight: 24, fontWeight: fontWeight.semibold },
-  body: { fontSize: 16, lineHeight: 24, fontWeight: fontWeight.regular },
-  bodySmall: { fontSize: 14, lineHeight: 20, fontWeight: fontWeight.regular },
-  label: { fontSize: 13, lineHeight: 18, fontWeight: fontWeight.medium },
-  caption: { fontSize: 11, lineHeight: 16, fontWeight: fontWeight.medium, letterSpacing: 0.3 },
-  metric: { fontSize: 30, lineHeight: 34, fontWeight: fontWeight.bold, ...tabularNumbers },
+  display: { fontSize: 30, lineHeight: 34, fontWeight: fontWeight.bold, letterSpacing: -0.4 },
+  headline: { fontSize: 24, lineHeight: 30, fontWeight: fontWeight.bold, letterSpacing: -0.3 },
+  title: { fontSize: 20, lineHeight: 26, fontWeight: fontWeight.semibold, letterSpacing: -0.2 },
+  subtitle: { fontSize: 17, lineHeight: 22, fontWeight: fontWeight.bold },
+  body: { fontSize: 15, lineHeight: 20, fontWeight: fontWeight.regular },
+  bodySmall: { fontSize: 13, lineHeight: 16, fontWeight: fontWeight.regular },
+  label: { fontSize: 13, lineHeight: 15, fontWeight: fontWeight.medium },
+  caption: { fontSize: 11, lineHeight: 14, fontWeight: fontWeight.bold, letterSpacing: 0.66 },
+  /** Ссылка-действие в шапке виджета. */
+  link: { fontSize: 12.5, lineHeight: 15, fontWeight: fontWeight.semibold },
+  /** Число внутри кольца и в плитке показателя. */
+  ringValue: { fontSize: 15, lineHeight: 18, fontWeight: fontWeight.bold, ...tabularNumbers },
+  /** Пояснение под значением: «из 8:00», «база 62». */
+  footnote: { fontSize: 11, lineHeight: 14, fontWeight: fontWeight.semibold },
+  metric: { fontSize: 20, lineHeight: 24, fontWeight: fontWeight.semibold, ...tabularNumbers },
 } satisfies Record<string, TextStyle>;
 
 export type TextVariant = keyof typeof textVariant;

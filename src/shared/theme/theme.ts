@@ -32,14 +32,27 @@ function tone(family: ColorScale) {
 
 export const theme = {
   color: {
-    /** Фон страницы. */
+    /** Фон страницы под градиентом — он же цвет за пределами прокрутки. */
     background: scales.neutral[2],
-    /** Фон карточки и всего, что лежит на странице. */
-    surface: scales.neutral[1],
+    /**
+     * Небо к траве: фон приложения из макета. Значения сняты пипеткой с
+     * эталона, поэтому лежат литералами — расчётной шкале они не принадлежат.
+     */
+    backdrop: ['#d1e9f6', '#d7e9f1', '#e3f2f0', '#deecd7', '#d7eabb'] as const,
+    /**
+     * Фон карточки. В макете она чуть просвечивает градиент — не глухая
+     * заливка, иначе лента выглядит наклеенной поверх фона.
+     */
+    surface: 'rgba(255, 255, 255, 0.62)',
     /** Углубление: поле ввода, неактивная плашка. */
     surfaceSunken: scales.neutral[3],
+    /** Плитка внутри карточки — светлее её самой, но всё ещё просвечивает. */
+    surfaceInner: 'rgba(255, 255, 255, 0.42)',
+    surfaceInnerEdge: 'rgba(255, 255, 255, 0.6)',
     surfacePressed: scales.neutral[4],
 
+    /** Кромка карточки — светлая, а не серая: она ловит свет, а не обводит. */
+    surfaceEdge: 'rgba(255, 255, 255, 0.75)',
     border: scales.neutral[6],
     borderStrong: scales.neutral[7],
     /**
@@ -49,7 +62,8 @@ export const theme = {
     focusRing: scales.accent[9],
 
     text: scales.neutral[12],
-    textMuted: scales.neutral[11],
+    /** Приглушённый текст — чернильный на 55%, как в макете. */
+    textMuted: 'rgba(8, 50, 79, 0.55)',
     /**
      * Выключенный элемент. Контраст здесь намеренно ниже AA — WCAG выводит
      * такие элементы из-под требования, — но не настолько, чтобы кнопка
@@ -59,21 +73,43 @@ export const theme = {
 
     /** Затемнение под шитом и модалкой. */
     overlay: 'rgba(9, 11, 13, 0.55)',
+    /**
+     * Подложка стекла там, где нет нативного эффекта. Без неё светлый контент
+     * за размытием просвечивает до нечитаемости, а на Android без blur-таргета
+     * она остаётся единственным, что отделяет плашку от фона.
+     */
+    glassVeil: 'rgba(255, 255, 255, 0.62)',
 
     neutral: tone(scales.neutral),
     accent: tone(scales.accent),
+    highlight: tone(scales.highlight),
     success: tone(scales.success),
     warning: tone(scales.warning),
     danger: tone(scales.danger),
   },
   elevation: {
     none: 'none',
-    low: '0 1px 2px rgba(16, 24, 32, 0.06), 0 1px 1px rgba(16, 24, 32, 0.04)',
+    /** Мелкие элементы: едва заметный отрыв от фона. */
+    low: '0 1px 2px rgba(16, 24, 32, 0.06)',
+    /** Карточка ленты — из макета: мягкая и заметная, она держит глубину. */
+    card: '0 1px 3px rgba(0, 0, 0, 0.05), 0 8px 20px rgba(0, 0, 0, 0.16)',
     medium: '0 4px 12px -4px rgba(16, 24, 32, 0.12), 0 2px 4px -2px rgba(16, 24, 32, 0.06)',
     high: '0 16px 32px -12px rgba(16, 24, 32, 0.2), 0 4px 8px -4px rgba(16, 24, 32, 0.08)',
   },
 } as const;
 
 export type Theme = typeof theme;
-/** Смысловые семейства, из которых компонент выбирает тон. */
-export type Tone = 'neutral' | 'accent' | 'success' | 'warning' | 'danger';
+/**
+ * Смысловые семейства. Правило макета: цветом кодируется отклонение от нормы,
+ * синий — только интерактив и никогда не статус.
+ *
+ * - `accent` — действие: ссылка, кнопка, активный чип и таб;
+ * - `highlight` — акцент интерфейса: ассистент, метка «дальше», выбор;
+ * - `success` / `warning` / `danger` — три ступени статуса. Ими красят кольца,
+ *   чипы, точки, графики и полосы. Текстом статус не бывает: рядом с цветом
+ *   всегда стоит слово, и читается именно слово.
+ */
+export type Tone = 'neutral' | 'accent' | 'highlight' | 'success' | 'warning' | 'danger';
+
+/** Семейства, на заливке которых пишут подпись. */
+export type TextSurfaceTone = 'neutral' | 'accent';

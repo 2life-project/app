@@ -5,10 +5,15 @@
 NPM ?= npm
 PLATFORM ?= ios
 
+# CocoaPods падает на нормализации пути, если локаль не UTF-8: ruby считает путь
+# ASCII-8BIT и роняет `pod install` изнутри, не объяснив причину. Задаём локаль
+# в целях, которые его дёргают.
+UTF8 := LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
+
 .DEFAULT_GOAL := help
 .PHONY: help setup install hooks start ios android web lint lint-fix format \
         format-check typecheck test test-watch check doctor prebuild tokens clean reset \
-        build-dev build-preview
+        build-dev build-preview run-native pods
 
 help: ## Показать список команд
 	@grep -hE '^[a-z][a-zA-Z_-]*:.*?## ' $(MAKEFILE_LIST) \
@@ -33,6 +38,12 @@ ios: ## Запустить на iOS-симуляторе
 
 android: ## Запустить на Android-эмуляторе
 	$(NPM) run start:android
+
+run-native: ## Собрать нативно и запустить на симуляторе (PLATFORM=ios|android)
+	$(UTF8) npx expo run:$(PLATFORM)
+
+pods: ## Переустановить CocoaPods после смены нативных зависимостей
+	cd ios && $(UTF8) pod install
 
 build-dev: ## Дев-сборка с dev-client (PLATFORM=ios|android|all)
 	npx eas-cli build --profile development --platform $(PLATFORM)
@@ -76,7 +87,7 @@ doctor: ## Проверить, что версии пакетов совмест
 # Скрипты запуска называются start:ios / start:android намеренно: prebuild
 # переписывает их, только если значение дословно `expo start --ios`.
 prebuild: ## Сгенерировать нативные проекты ios/ и android/
-	npx expo prebuild --clean
+	$(UTF8) npx expo prebuild --clean
 
 clean: ## Убрать сборочный мусор
 	rm -rf .expo dist coverage

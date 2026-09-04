@@ -10,6 +10,7 @@ type TextTone =
   | Tone
   | 'onNeutral'
   | 'onAccent'
+  | 'onHighlight'
   | 'onSuccess'
   | 'onWarning'
   | 'onDanger';
@@ -37,11 +38,13 @@ const styles = StyleSheet.create({
   disabled: { color: theme.color.textDisabled },
   neutral: { color: theme.color.neutral.text },
   accent: { color: theme.color.accent.text },
+  highlight: { color: theme.color.highlight.text },
   success: { color: theme.color.success.text },
   warning: { color: theme.color.warning.text },
   danger: { color: theme.color.danger.text },
   onNeutral: { color: theme.color.neutral.on },
   onAccent: { color: theme.color.accent.on },
+  onHighlight: { color: theme.color.highlight.on },
   onSuccess: { color: theme.color.success.on },
   onWarning: { color: theme.color.warning.on },
   onDanger: { color: theme.color.danger.on },

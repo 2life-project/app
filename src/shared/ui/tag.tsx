@@ -33,6 +33,10 @@ const styles = StyleSheet.create({
     borderColor: theme.color.neutral.border,
   },
   accent: { backgroundColor: theme.color.accent.surface, borderColor: theme.color.accent.border },
+  highlight: {
+    backgroundColor: theme.color.highlight.surface,
+    borderColor: theme.color.highlight.border,
+  },
   success: {
     backgroundColor: theme.color.success.surface,
     borderColor: theme.color.success.border,

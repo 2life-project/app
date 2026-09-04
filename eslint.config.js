@@ -165,6 +165,38 @@ module.exports = defineConfig([
     },
   },
   {
+    // Канон стекла: сырые примитивы живут в одном месте. Иначе детект
+    // платформы и три платформенных вида расползаются копипастой по экранам —
+    // ровно то, ради чего примитив и заводился.
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/shared/ui/glass/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'expo-glass-effect',
+              message:
+                'Сырое стекло — только в @/shared/ui/glass. Снаружи: <Glass> или <GlassButton>.',
+            },
+            {
+              name: 'expo-blur',
+              message:
+                'Сырой blur — только в @/shared/ui/glass. Снаружи: <Glass> или <GlassButton>.',
+            },
+          ],
+          patterns: [
+            {
+              group: ['@/features/*/*'],
+              message: 'Импортируйте фичу через её публичный вход: @/features/<имя>.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ['**/*.test.{ts,tsx}', 'jest.setup.ts'],
     rules: { 'no-restricted-syntax': 'off' },
   },
