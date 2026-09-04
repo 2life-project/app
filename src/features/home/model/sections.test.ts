@@ -1,4 +1,4 @@
-import { greetingFor } from './greeting';
+import { greetingFor, HOME_SECTION_NOTE, HOME_SECTIONS } from './sections';
 
 const at = (hour: number) => new Date(2026, 0, 1, hour, 0, 0);
 
@@ -12,5 +12,13 @@ describe('greetingFor', () => {
     expect(greetingFor(at(17))).toBe('Добрый день');
     expect(greetingFor(at(18))).toBe('Добрый вечер');
     expect(greetingFor(at(23))).toBe('Добрый вечер');
+  });
+});
+
+describe('разделы Главной', () => {
+  it('у каждого раздела есть описание — заглушка не должна врать пустотой', () => {
+    for (const section of HOME_SECTIONS) {
+      expect(HOME_SECTION_NOTE[section.value]).toBeTruthy();
+    }
   });
 });

@@ -154,6 +154,13 @@ module.exports = defineConfig([
           selector: "Property[key.name='borderRadius'][value.type='Literal']",
           message: 'Скругление — из radius в @/shared/theme.',
         },
+        {
+          // Путь строкой расходится с маршрутом молча: опечатку видно только
+          // на устройстве, а переименование маршрута ломает N мест разом.
+          selector:
+            "CallExpression[callee.object.name='router'][callee.property.name=/^(push|replace|navigate)$/] > Literal:first-child",
+          message: 'Адрес экрана — из `to` в @/shared/nav, а не строкой.',
+        },
       ],
     },
   },

@@ -1,7 +1,9 @@
 export { Button, type ButtonProps } from './button';
 export { Card, type CardProps } from './card';
 export { EmptyState, type EmptyStateProps } from './empty-state';
+export { Placeholder, type PlaceholderProps } from './placeholder';
 export { Screen, type ScreenProps } from './screen';
+export { Segmented, type SegmentedProps } from './segmented';
 export { Stack, type StackProps } from './stack';
 export { Tag, type TagProps } from './tag';
 export { Text, type TextProps } from './text';
