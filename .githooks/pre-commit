@@ -1,0 +1,10 @@
+#!/bin/sh
+# Дешёвая проверка перед коммитом: только изменённые файлы.
+# Полный прогон — make check, он же в CI.
+set -e
+
+files=$(git diff --cached --name-only --diff-filter=ACM -- '*.ts' '*.tsx' '*.js')
+[ -z "$files" ] && exit 0
+
+echo "$files" | xargs npx prettier --check
+echo "$files" | xargs npx eslint --max-warnings=0

@@ -41,3 +41,10 @@ example
 # generated native folders
 /ios
 /android
+
+# tests
+coverage/
+
+# local env (пример остаётся в репозитории)
+.env
+!.env.example
