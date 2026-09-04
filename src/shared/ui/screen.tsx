@@ -1,7 +1,7 @@
-import { ScrollView, View, type ViewProps } from 'react-native';
+import { ScrollView, StyleSheet, View, type ViewProps } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { createThemedStyles, space } from '@/shared/theme';
+import { space, theme } from '@/shared/theme';
 
 export type ScreenProps = ViewProps & {
   /** Экран длиннее телефона — оборачиваем в скролл. */
@@ -15,7 +15,6 @@ export type ScreenProps = ViewProps & {
  * Экраны не рисуют свой фон и не считают отступы от края сами.
  */
 export function Screen({ scroll = true, padded = true, style, children, ...rest }: ScreenProps) {
-  const styles = useStyles();
   const inner = padded ? [styles.padded, style] : style;
 
   return (
@@ -37,8 +36,8 @@ export function Screen({ scroll = true, padded = true, style, children, ...rest 
   );
 }
 
-const useStyles = createThemedStyles((theme) => ({
+const styles = StyleSheet.create({
   fill: { flex: 1, backgroundColor: theme.color.background },
   content: { flexGrow: 1, paddingTop: space.lg, paddingBottom: space['3xl'] },
   padded: { paddingHorizontal: space.lg },
-}));
+});

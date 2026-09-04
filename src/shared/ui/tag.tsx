@@ -1,6 +1,6 @@
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { createThemedStyles, radius, size, space, type Tone } from '@/shared/theme';
+import { radius, size, space, theme, type Tone } from '@/shared/theme';
 
 import { Text } from './text';
 
@@ -11,8 +11,6 @@ export type TagProps = {
 
 /** Короткая метка смысла: статус показателя, состояние загрузки. */
 export function Tag({ label, tone = 'neutral' }: TagProps) {
-  const styles = useStyles();
-
   return (
     <View style={[styles.base, styles[tone]]}>
       <Text variant="caption" tone={tone}>
@@ -22,7 +20,7 @@ export function Tag({ label, tone = 'neutral' }: TagProps) {
   );
 }
 
-const useStyles = createThemedStyles((theme) => ({
+const styles = StyleSheet.create({
   base: {
     alignSelf: 'flex-start',
     borderRadius: radius.full,
@@ -44,4 +42,4 @@ const useStyles = createThemedStyles((theme) => ({
     borderColor: theme.color.warning.border,
   },
   danger: { backgroundColor: theme.color.danger.surface, borderColor: theme.color.danger.border },
-}));
+});

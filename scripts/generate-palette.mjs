@@ -1,41 +1,55 @@
-// Генератор цветовых шкал. Запуск: make tokens
+// Генератор цветовых шкал — источник правды всей палитры. Запуск: make tokens
 //
-// Считает 12-ступенчатые шкалы в OKLCH и печатает их в src/shared/theme/palette.gen.ts.
-// OKLCH выбран потому, что в нём равный шаг светлоты выглядит равным на глаз —
-// в HSL «одинаковые» ступени разных оттенков дают разную контрастность.
-// Разбиение на 12 ступеней и роли ступеней — по шкале Radix Colors.
+// Считает 12-ступенчатые шкалы в OKLCH: в нём равный шаг светлоты выглядит
+// равным на глаз, чего не даёт HSL — там «одинаковые» ступени разных оттенков
+// получаются разной яркости. Разбиение на 12 ступеней и их роли — по шкале
+// Radix Colors.
 //
-// Ручная правка сгенерированного файла бессмысленна: следующий запуск затрёт.
+// Сгенерированный файл руками не правят: следующий запуск затрёт.
 // Меняют РЕЦЕПТ ниже.
 import { writeFileSync } from 'node:fs';
 
 /**
  * Оттенок в градусах OKLCH и предельная насыщенность семейства.
- * `solid*` — желаемая светлота ступеней 9–10; генератор подвинет её ровно настолько,
- * чтобы подпись на заливке прошла WCAG AA (4.5:1). Насколько подвинул — печатает.
+ *
+ * `solid` — желаемая светлота ступеней 9–10; генератор подвинет её ровно
+ * настолько, чтобы подпись на заливке прошла WCAG AA, и скажет, насколько.
+ *
+ * `brand` — необязательный фирменный цвет. Если он задан, ступень 9 берётся
+ * как есть, без подгонки: дизайн-макет важнее математики, и подбирается только
+ * подпись. Это тот шов, через который в систему входит цвет из макета,
+ * не ломая остальные одиннадцать ступеней.
  */
 const RECIPE = {
-  neutral: { hue: 248, peakChroma: 0.022, solidLight: 0.55, solidDark: 0.62 },
-  accent: { hue: 225, peakChroma: 0.155, solidLight: 0.62, solidDark: 0.66 },
-  success: { hue: 150, peakChroma: 0.145, solidLight: 0.68, solidDark: 0.72 },
-  warning: { hue: 82, peakChroma: 0.15, solidLight: 0.82, solidDark: 0.84 },
-  danger: { hue: 27, peakChroma: 0.17, solidLight: 0.6, solidDark: 0.64 },
+  neutral: { hue: 248, peakChroma: 0.022, solid: 0.55 },
+  accent: { hue: 225, peakChroma: 0.155, solid: 0.62 },
+  success: { hue: 150, peakChroma: 0.145, solid: 0.68 },
+  warning: { hue: 82, peakChroma: 0.15, solid: 0.82 },
+  danger: { hue: 27, peakChroma: 0.17, solid: 0.6 },
 };
 
 /** Контраст текста к фону обязан быть не ниже AA для основного размера. */
 const MIN_CONTRAST = 4.5;
 
-/** Насколько далеко можно увести заливку от рецепта ради предпочтительной подписи. */
+/** Насколько далеко можно увести заливку от рецепта ради белой подписи. */
 const LABEL_BUDGET = 0.15;
 
-// Ступени 1–12 по Radix: 1–2 фон, 3–5 фон компонента, 6–8 границы,
-// 9–10 сплошная заливка, 11–12 текст. Светлота ступеней 9–10 задаётся рецептом:
-// у жёлтого чистый цвет живёт заметно выше по светлоте, чем у синего.
-const LIGHT_L = [0.9925, 0.984, 0.964, 0.945, 0.925, 0.9, 0.865, 0.805, null, null, 0.515, 0.29];
-const DARK_L = [0.178, 0.213, 0.254, 0.286, 0.317, 0.356, 0.413, 0.5, null, null, 0.77, 0.945];
-
+/**
+ * Ступени 1–8: фон страницы, фон компонента, разделители, границы.
+ * Ступени 9–10 считаются от заливки, 11–12 — текст, см. `solveText`.
+ */
+const LIGHT_L = [0.9925, 0.984, 0.964, 0.945, 0.925, 0.9, 0.865, 0.805];
 const LIGHT_C = [0.03, 0.065, 0.14, 0.2, 0.255, 0.31, 0.38, 0.5, 1, 0.98, 0.66, 0.28];
-const DARK_C = [0.045, 0.075, 0.155, 0.215, 0.27, 0.325, 0.4, 0.52, 1, 1, 0.64, 0.23];
+
+/**
+ * Приглушённый текст (11) обязан быть отличим от нажатой заливки (10).
+ * Раньше 11-я была константой и всплывала выше подвинутой 10-й: две ступени
+ * становились одним цветом. Условие задаём не запасом по светлоте, а тем,
+ * ради чего оно нужно, — разницей, которую видно.
+ */
+const STEP_10_11_CONTRAST = 1.35;
+const MUTED_TEXT_L = 0.515;
+const STRONG_TEXT_L = 0.29;
 
 // --- OKLCH → sRGB ----------------------------------------------------------
 
@@ -65,18 +79,18 @@ const encode = (v) => {
 
 /** Сжимает насыщенность, пока цвет не влезет в sRGB: светлоту и оттенок сохраняем. */
 function toHex(L, C, hue) {
-  let lo = 0;
-  let hi = C;
+  let chroma = C;
   if (!inGamut(oklchToLinearRgb(L, C, hue))) {
+    let lo = 0;
+    let hi = C;
     for (let i = 0; i < 24; i += 1) {
       const mid = (lo + hi) / 2;
       if (inGamut(oklchToLinearRgb(L, mid, hue))) lo = mid;
       else hi = mid;
     }
-  } else {
-    lo = C;
+    chroma = lo;
   }
-  const [r, g, b] = oklchToLinearRgb(L, lo, hue);
+  const [r, g, b] = oklchToLinearRgb(L, chroma, hue);
   return `#${[r, g, b].map((v) => encode(v).toString(16).padStart(2, '0')).join('')}`;
 }
 
@@ -89,86 +103,113 @@ function luminance(hex) {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
-export function contrast(a, b) {
+function contrast(a, b) {
   const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
   return (hi + 0.05) / (lo + 0.05);
 }
 
 /**
- * Светлота заливки, при которой подпись на ней читается.
- *
- * На светлой теме заливка тёмная с белой подписью, на тёмной — светлая с тёмной:
- * так делает Material 3, и так кнопка одинаково читается в обеих темах.
- * Идём от значения из рецепта наружу шагами по 0.005 и берём первое, которое
- * проходит AA с предпочтительной подписью; если ради этого пришлось бы убить
- * цвет (случай жёлтого), оставляем цвет и меняем подпись.
+ * Светлота заливки, при которой подпись на ней читается. Идём от значения из
+ * рецепта наружу шагами по 0.005 и берём первое, которое проходит AA с белой
+ * подписью; если ради этого пришлось бы убить цвет — случай жёлтого, —
+ * оставляем цвет и берём тёмную подпись в тон семейству.
  */
-function solveSolid(recipe, wanted, preferred) {
+function solveSolid(recipe) {
   const ink = toHex(0.22, Math.min(recipe.peakChroma, 0.03), recipe.hue);
-  const candidates = [];
-  for (let l = 0.28; l <= 0.94; l += 0.005) candidates.push(Number(l.toFixed(3)));
-  candidates.sort((a, b) => Math.abs(a - wanted) - Math.abs(b - wanted));
 
-  const label = preferred === 'light' ? '#ffffff' : ink;
-
-  for (const L of candidates) {
-    if (Math.abs(L - wanted) > LABEL_BUDGET) continue;
-    const hex = toHex(L, recipe.peakChroma, recipe.hue);
-    if (contrast(label, hex) >= MIN_CONTRAST) return { L, hex, on: label };
+  if (recipe.brand) {
+    const onLight = contrast('#ffffff', recipe.brand);
+    const onDark = contrast(ink, recipe.brand);
+    if (Math.max(onLight, onDark) < MIN_CONTRAST) {
+      throw new Error(
+        `Фирменный цвет ${recipe.brand} не держит подпись: лучший контраст ` +
+          `${Math.max(onLight, onDark).toFixed(2)} при пороге ${MIN_CONTRAST}. ` +
+          'Такой цвет нельзя использовать как заливку под текст.',
+      );
+    }
+    return { L: null, hex: recipe.brand, on: onLight >= onDark ? '#ffffff' : ink, moved: 0 };
   }
 
-  // Не вышло без потери цвета — оставляем цвет и меняем подпись.
+  const candidates = [];
+  for (let l = 0.28; l <= 0.94; l += 0.005) candidates.push(Number(l.toFixed(3)));
+  candidates.sort((a, b) => Math.abs(a - recipe.solid) - Math.abs(b - recipe.solid));
+
+  for (const L of candidates) {
+    if (Math.abs(L - recipe.solid) > LABEL_BUDGET) continue;
+    const hex = toHex(L, recipe.peakChroma, recipe.hue);
+    if (contrast('#ffffff', hex) >= MIN_CONTRAST) {
+      return { L, hex, on: '#ffffff', moved: Math.abs(L - recipe.solid) };
+    }
+  }
+
   for (const L of candidates) {
     const hex = toHex(L, recipe.peakChroma, recipe.hue);
     const onLight = contrast('#ffffff', hex);
     const onDark = contrast(ink, hex);
     if (Math.max(onLight, onDark) >= MIN_CONTRAST) {
-      return { L, hex, on: onLight >= onDark ? '#ffffff' : ink };
+      return { L, hex, on: onLight >= onDark ? '#ffffff' : ink, moved: Math.abs(L - recipe.solid) };
     }
   }
+
   throw new Error(`Не нашлась читаемая заливка для оттенка ${recipe.hue}`);
+}
+
+/** Светлота фирменного цвета нужна, чтобы поставить текстовые ступени ниже него. */
+function lightnessOf(hex, recipe) {
+  let best = 0.5;
+  let bestDelta = Infinity;
+  for (let l = 0.1; l <= 0.99; l += 0.002) {
+    const delta = Math.abs(luminance(toHex(l, recipe.peakChroma, recipe.hue)) - luminance(hex));
+    if (delta < bestDelta) {
+      bestDelta = delta;
+      best = l;
+    }
+  }
+  return best;
 }
 
 // --- сборка ----------------------------------------------------------------
 
-function scale(recipe, mode) {
-  const lightness = mode === 'light' ? LIGHT_L : DARK_L;
-  const chroma = mode === 'light' ? LIGHT_C : DARK_C;
+function scale(recipe) {
+  const solid = solveSolid(recipe);
+  const solidL = solid.L ?? lightnessOf(solid.hex, recipe);
+  const pressedL = solidL - 0.045;
 
-  const wanted = mode === 'light' ? recipe.solidLight : recipe.solidDark;
-  const solid = solveSolid(recipe, wanted, mode === 'light' ? 'light' : 'dark');
-  const shift = mode === 'light' ? -0.045 : 0.045;
+  const pressed = toHex(pressedL, LIGHT_C[9] * recipe.peakChroma, recipe.hue);
+
+  // Опускаем текстовую ступень, пока её не станет видно отдельно от заливки.
+  let mutedL = Math.min(MUTED_TEXT_L, pressedL - 0.02);
+  let muted = toHex(mutedL, LIGHT_C[10] * recipe.peakChroma, recipe.hue);
+  while (contrast(pressed, muted) < STEP_10_11_CONTRAST && mutedL > 0.2) {
+    mutedL -= 0.005;
+    muted = toHex(mutedL, LIGHT_C[10] * recipe.peakChroma, recipe.hue);
+  }
+  const strongL = Math.min(STRONG_TEXT_L, mutedL - 0.12);
 
   const steps = {};
-  for (let i = 0; i < 12; i += 1) {
-    if (i === 8) {
-      steps[9] = solid.hex;
-    } else if (i === 9) {
-      steps[10] = toHex(solid.L + shift, chroma[9] * recipe.peakChroma, recipe.hue);
-    } else {
-      steps[i + 1] = toHex(lightness[i], chroma[i] * recipe.peakChroma, recipe.hue);
-    }
+  for (let i = 0; i < 8; i += 1) {
+    steps[i + 1] = toHex(LIGHT_L[i], LIGHT_C[i] * recipe.peakChroma, recipe.hue);
   }
-  return { steps, on: solid.on, moved: Math.abs(solid.L - wanted) };
+  steps[9] = solid.hex;
+  steps[10] = pressed;
+  steps[11] = muted;
+  steps[12] = toHex(strongL, LIGHT_C[11] * recipe.peakChroma, recipe.hue);
+
+  return { steps, on: solid.on, moved: solid.moved };
 }
 
-const modes = ['light', 'dark'];
 const report = [];
+const families = Object.entries(RECIPE)
+  .map(([name, recipe]) => {
+    const { steps, on, moved } = scale(recipe);
+    if (recipe.brand) report.push(`${name}: заливка взята из макета (${recipe.brand})`);
+    else if (moved > 0.004)
+      report.push(`${name}: заливка сдвинута на ${moved.toFixed(3)} ради контраста`);
 
-const body = modes
-  .map((mode) => {
-    const families = Object.entries(RECIPE)
-      .map(([name, recipe]) => {
-        const { steps, on, moved } = scale(recipe, mode);
-        if (moved > 0.004)
-          report.push(`${mode}/${name}: заливка сдвинута на ${moved.toFixed(3)} ради контраста`);
-        const rows = Object.entries(steps)
-          .map(([step, hex]) => `      ${step}: '${hex}',`)
-          .join('\n');
-        return `    ${name}: {\n${rows}\n      on: '${on}',\n    },`;
-      })
+    const rows = Object.entries(steps)
+      .map(([step, hex]) => `    ${step}: '${hex}',`)
       .join('\n');
-    return `  ${mode}: {\n${families}\n  },`;
+    return `  ${name}: {\n${rows}\n    on: '${on}',\n  },`;
   })
   .join('\n');
 
@@ -177,15 +218,15 @@ const file = `// СГЕНЕРИРОВАНО scripts/generate-palette.mjs — н�
 //
 // Ступени по шкале Radix Colors:
 //  1–2  фон страницы            7–8   границы интерактивных элементов
-//  3–5  фон компонента          9–10  сплошная заливка (кнопка, индикатор)
+//  3–5  фон компонента          9–10  сплошная заливка и её нажатое состояние
 //  6    разделители             11–12 текст: приглушённый и основной
 //  on   подпись, которая читается на ступенях 9–10 (проверено на 4.5:1)
 export type ColorStep = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 export type ColorFamily = 'neutral' | 'accent' | 'success' | 'warning' | 'danger';
 export type ColorScale = Readonly<Record<ColorStep, string> & { on: string }>;
 
-export const scales: Readonly<Record<'light' | 'dark', Readonly<Record<ColorFamily, ColorScale>>>> = {
-${body}
+export const scales: Readonly<Record<ColorFamily, ColorScale>> = {
+${families}
 };
 `;
 

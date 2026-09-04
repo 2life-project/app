@@ -1,15 +1,18 @@
-import { Text as RNText, type TextProps as RNTextProps } from 'react-native';
+import { Text as RNText, StyleSheet, type TextProps as RNTextProps } from 'react-native';
 
-import {
-  createThemedStyles,
-  fontFamily,
-  textVariant,
-  type TextVariant,
-  type Tone,
-} from '@/shared/theme';
+import { fontFamily, textVariant, theme, type TextVariant, type Tone } from '@/shared/theme';
 
-/** Роль текста по смыслу, а не по цвету: «приглушённый», «ошибка». */
-type TextTone = 'default' | 'muted' | 'disabled' | Tone;
+/** Роль текста по смыслу, а не по цвету. `onX` — подпись поверх заливки семейства. */
+type TextTone =
+  | 'default'
+  | 'muted'
+  | 'disabled'
+  | Tone
+  | 'onNeutral'
+  | 'onAccent'
+  | 'onSuccess'
+  | 'onWarning'
+  | 'onDanger';
 
 export type TextProps = RNTextProps & {
   variant?: TextVariant;
@@ -21,13 +24,14 @@ export type TextProps = RNTextProps & {
  * нужен другой размер — добавляется роль в `textVariant`.
  */
 export function Text({ variant = 'body', tone = 'default', style, ...rest }: TextProps) {
-  const styles = useStyles();
-
   return <RNText {...rest} style={[styles.base, textVariant[variant], styles[tone], style]} />;
 }
 
-const useStyles = createThemedStyles((theme) => ({
-  base: { fontFamily: fontFamily.sans },
+const styles = StyleSheet.create({
+  // Без flexShrink текст в строке не сжимается: в RN, в отличие от веба,
+  // значение по умолчанию 0, и при системном увеличении шрифта строка
+  // вылезает за карточку вместо переноса.
+  base: { fontFamily: fontFamily.sans, flexShrink: 1 },
   default: { color: theme.color.text },
   muted: { color: theme.color.textMuted },
   disabled: { color: theme.color.textDisabled },
@@ -36,4 +40,9 @@ const useStyles = createThemedStyles((theme) => ({
   success: { color: theme.color.success.text },
   warning: { color: theme.color.warning.text },
   danger: { color: theme.color.danger.text },
-}));
+  onNeutral: { color: theme.color.neutral.on },
+  onAccent: { color: theme.color.accent.on },
+  onSuccess: { color: theme.color.success.on },
+  onWarning: { color: theme.color.warning.on },
+  onDanger: { color: theme.color.danger.on },
+});

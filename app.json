@@ -5,7 +5,7 @@
     "version": "0.1.0",
     "scheme": "twolife",
     "orientation": "portrait",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "backgroundColor": "#f9fafb",
     "icon": "./assets/images/icon.png",
     "ios": {
@@ -33,10 +33,7 @@
         {
           "backgroundColor": "#f9fafb",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 96,
-          "dark": {
-            "backgroundColor": "#111112"
-          }
+          "imageWidth": 96
         }
       ]
     ],

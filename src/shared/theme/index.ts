@@ -12,5 +12,4 @@ export {
   textVariant,
   type TextVariant,
 } from './primitives';
-export { type Theme, type ThemeMode, type Tone } from './semantic';
-export { createThemedStyles, ThemeProvider, themes, useTheme } from './theme';
+export { theme, type Theme, type Tone } from './theme';

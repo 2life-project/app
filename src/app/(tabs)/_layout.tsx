@@ -1,7 +1,8 @@
 import Feather from '@expo/vector-icons/Feather';
 import { Tabs } from 'expo-router';
+import { StyleSheet } from 'react-native';
 
-import { fontFamily, size, textVariant, useTheme } from '@/shared/theme';
+import { fontFamily, size, textVariant, theme } from '@/shared/theme';
 
 type IconName = keyof typeof Feather.glyphMap;
 
@@ -14,23 +15,14 @@ const TABS: { name: string; title: string; icon: IconName }[] = [
 
 /** Новый раздел = файл в этой группе плюс строка в TABS. Больше нигде. */
 export default function TabsLayout() {
-  const theme = useTheme();
-
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: theme.color.accent.text,
         tabBarInactiveTintColor: theme.color.textMuted,
-        tabBarStyle: {
-          backgroundColor: theme.color.surface,
-          borderTopWidth: size.border,
-          borderTopColor: theme.color.border,
-        },
-        tabBarLabelStyle: {
-          fontFamily: fontFamily.sans,
-          fontSize: textVariant.caption.fontSize,
-        },
+        tabBarStyle: styles.bar,
+        tabBarLabelStyle: styles.label,
       }}>
       {TABS.map(({ name, title, icon }) => (
         <Tabs.Screen
@@ -47,3 +39,13 @@ export default function TabsLayout() {
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  bar: {
+    backgroundColor: theme.color.surface,
+    borderTopWidth: size.border,
+    borderTopColor: theme.color.border,
+  },
+  // Роль текста берётся целиком: кегль без интерлиньяжа и начертания — половина токена.
+  label: { fontFamily: fontFamily.sans, ...textVariant.caption },
+});

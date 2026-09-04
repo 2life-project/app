@@ -1,6 +1,6 @@
-import { View, type ViewProps } from 'react-native';
+import { StyleSheet, View, type ViewProps } from 'react-native';
 
-import { createThemedStyles, radius, size, space } from '@/shared/theme';
+import { radius, size, space, theme } from '@/shared/theme';
 
 export type CardProps = ViewProps & {
   padding?: keyof typeof space;
@@ -9,14 +9,12 @@ export type CardProps = ViewProps & {
 };
 
 export function Card({ padding = 'lg', variant = 'raised', style, ...rest }: CardProps) {
-  const styles = useStyles();
-
   return (
     <View {...rest} style={[styles.base, styles[variant], { padding: space[padding] }, style]} />
   );
 }
 
-const useStyles = createThemedStyles((theme) => ({
+const styles = StyleSheet.create({
   base: {
     borderRadius: radius.lg,
     borderWidth: size.border,
@@ -25,4 +23,4 @@ const useStyles = createThemedStyles((theme) => ({
   flat: { backgroundColor: theme.color.surface },
   raised: { backgroundColor: theme.color.surface, boxShadow: theme.elevation.low },
   sunken: { backgroundColor: theme.color.surfaceSunken, borderColor: 'transparent' },
-}));
+});
