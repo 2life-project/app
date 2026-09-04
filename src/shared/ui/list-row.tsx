@@ -20,6 +20,8 @@ export type ListRowProps = {
   trailingCaption?: string;
   /** Слева: иконка, кружок отметки, аватар. */
   leading?: ReactNode;
+  /** Справа вместо значения: кнопка, переключатель. */
+  trailingSlot?: ReactNode;
   onPress?: () => void;
   /** Строка выполнена: содержимое приглушается, но остаётся читаемым. */
   done?: boolean;
@@ -34,6 +36,7 @@ export function ListRow({
   trailing,
   trailingCaption,
   leading,
+  trailingSlot,
   onPress,
   done = false,
 }: ListRowProps) {
@@ -55,6 +58,7 @@ export function ListRow({
           </Text>
         ) : null}
       </View>
+      {trailingSlot}
       {trailing || trailingCaption ? (
         <View style={styles.trailing}>
           {trailing ? <Text variant="bodySmall">{trailing}</Text> : null}

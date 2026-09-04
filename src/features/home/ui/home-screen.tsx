@@ -5,12 +5,15 @@ import { StyleSheet } from 'react-native';
 
 import { to } from '@/shared/nav';
 import { theme } from '@/shared/theme';
-import { ActionLink, GlassButton, Placeholder, Screen, Segmented, Stack, Text } from '@/shared/ui';
+import { ActionLink, GlassButton, Screen, Segmented, Stack, Text } from '@/shared/ui';
 
-import { HOME_SECTION_NOTE, HOME_SECTIONS, type HomeSection } from '../model/sections';
+import { HOME_SECTIONS, type HomeSection } from '../model/sections';
 
 import { Activity } from './activity';
+import { Nutrition } from './nutrition';
 import { Overview } from './overview';
+import { Supplements } from './supplements';
+import { Wellbeing } from './wellbeing';
 
 const HEADER_ACTIONS = [
   { icon: 'watch', label: 'Устройство', href: to.device(), status: true },
@@ -18,16 +21,18 @@ const HEADER_ACTIONS = [
   { icon: 'edit-2', label: 'Настроить виджеты', href: to.widgets(), status: false },
 ] as const;
 
-const SECTION_LINK: Partial<Record<HomeSection, { label: string; open: () => void }>> = {
-  activity: { label: 'Тренировка', open: () => router.push(to.workout('demo')) },
-  nutrition: { label: 'Приём пищи', open: () => router.push(to.meal('demo')) },
-  supplements: { label: 'Курс добавок', open: () => router.push(to.course('demo')) },
-  wellbeing: { label: 'Чек-ин вечера', open: () => router.push(to.checkIn()) },
+/** Каждому суб-разделу — свой экран. Порядок и состав из макета. */
+const SECTIONS: Record<HomeSection, () => React.ReactElement> = {
+  overview: Overview,
+  activity: Activity,
+  nutrition: Nutrition,
+  supplements: Supplements,
+  wellbeing: Wellbeing,
 };
 
 export function HomeScreen() {
   const [section, setSection] = useState<HomeSection>('overview');
-  const link = SECTION_LINK[section];
+  const Section = SECTIONS[section];
 
   return (
     <Screen>
@@ -62,13 +67,7 @@ export function HomeScreen() {
 
         <Segmented items={HOME_SECTIONS} value={section} onChange={setSection} />
 
-        {section === 'overview' ? <Overview /> : null}
-        {section === 'activity' ? <Activity /> : null}
-        {section === 'overview' || section === 'activity' ? null : (
-          <Placeholder note={HOME_SECTION_NOTE[section]}>
-            {link ? <ActionLink label={link.label} chevron onPress={link.open} /> : null}
-          </Placeholder>
-        )}
+        <Section />
       </Stack>
     </Screen>
   );

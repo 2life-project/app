@@ -1,4 +1,5 @@
 export { ActionLink, type ActionLinkProps } from './action-link';
+export { Banner, type BannerProps } from './banner';
 export { BarChart, type BarChartProps } from './bar-chart';
 export { Button, type ButtonProps } from './button';
 export { Card, type CardProps } from './card';
@@ -16,6 +17,7 @@ export {
 export { Glass, supportsLiquidGlass, type GlassProps } from './glass';
 export { InfoCard, type InfoCardProps } from './info-card';
 export { LinkCard, type LinkCardProps } from './link-card';
+export { LineChart, type LineChartProps } from './line-chart';
 export { ListRow, type ListRowProps } from './list-row';
 export { MetricWidget, type MetricWidgetProps } from './metric-widget';
 export { Placeholder, type PlaceholderProps } from './placeholder';
