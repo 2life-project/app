@@ -12,11 +12,14 @@ export const to = {
   journal: (): Href => '/journal',
   body: (): Href => '/body',
   records: (): Href => '/records',
+  /** Медкарта до первого документа: объясняет, с чего она начинается. */
+  recordsIntro: (): Href => '/records-intro',
   protocols: (): Href => '/protocols',
 
   assistant: (): Href => '/assistant',
   settings: (): Href => '/settings',
-  device: (): Href => '/device',
+  /** Без вида — наш браслет; с видом — экран стороннего трекера. */
+  device: (kind?: string): Href => (kind ? `/device?kind=${kind}` : '/device'),
   checkIn: (): Href => '/check-in',
   widgets: (): Href => '/widgets',
 

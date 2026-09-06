@@ -43,3 +43,15 @@ export const VACCINES = [
 
 export const WHY_RECORDS =
   'Everything a doctor asks for in the first minute — allergies, last panel, documents — in one place you can open in the room.';
+
+/** Медкарта до первого документа: с чего она начинается. Текст из макета. */
+export const RECORDS_INTRO = {
+  title: 'Medical card',
+  subtitle: 'empty for now',
+  search: 'Search starts working after the first document',
+  empty: {
+    title: 'No documents yet',
+    text: 'Upload your first lab panel, conclusion or ultrasound — and the card starts collecting metrics, risks and history.',
+  },
+  action: 'Upload — in the web version',
+} as const;

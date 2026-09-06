@@ -31,6 +31,11 @@ const DOTS: Record<number, CalendarDay['dots']> = {
   31: ['success'],
 };
 
+/** Дни без отметок: за них ничего не записано — журнал показывает пустой день. */
+export function hasMarks(day: number): boolean {
+  return (DOTS[day]?.length ?? 0) > 0;
+}
+
 export const JULY = Array.from({ length: 31 }, (_, index) => ({
   day: index + 1,
   dots: DOTS[index + 1],
@@ -97,3 +102,15 @@ export const JOURNAL_LAYERS = [
     on: false,
   },
 ] as const;
+
+/** Пустой день: что предлагаем добавить, когда за день ничего не записано. */
+export const EMPTY_DAY = {
+  title: 'Nothing logged this day',
+  text: 'An empty day is a fact too — but if something was there, add it now while you remember.',
+  quick: [
+    { id: 'workout', icon: 'activity', title: 'A workout', subtitle: 'the band missed it' },
+    { id: 'meal', icon: 'coffee', title: 'A meal', subtitle: 'photo or search' },
+    { id: 'stack', icon: 'package', title: 'A stack', subtitle: 'morning, day or evening' },
+    { id: 'note', icon: 'edit-3', title: 'A note', subtitle: 'voice or text' },
+  ],
+} as const;

@@ -158,3 +158,35 @@ export const RING_OPTIONS: Record<
 
 export const RING_NOTE =
   'The ring shows one metric — the one you steer this system by. The rest stay in the summary below.';
+
+/** Что показываем вместо систем, когда браслета нет. Содержимое из макета. */
+export const NO_BAND = {
+  title: 'Connect a band to see Body',
+  text: 'Recovery, heart, breathing and composition are read from a worn device — without one there is nothing to show here.',
+  features: [
+    {
+      id: 'recovery',
+      tone: 'success',
+      title: 'Recovery',
+      subtitle: 'sleep, HRV and resting heart rate',
+    },
+    {
+      id: 'strain',
+      tone: 'highlight',
+      title: 'Strain',
+      subtitle: 'how much load the day actually took',
+    },
+    {
+      id: 'breathing',
+      tone: 'accent',
+      title: 'Breathing',
+      subtitle: 'SpO₂ and respiratory rate at night',
+    },
+    {
+      id: 'streams',
+      tone: 'warning',
+      title: 'Live streams',
+      subtitle: 'what your body is doing right now',
+    },
+  ],
+} as const;

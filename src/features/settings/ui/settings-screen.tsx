@@ -1,13 +1,20 @@
+import { router } from 'expo-router';
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { to } from '@/shared/nav';
 import { radius, space, theme } from '@/shared/theme';
 import {
+  ActionLink,
   BackButton,
+  Button,
   Card,
   IconTile,
   ListRow,
   Screen,
+  RadioRow,
   SectionCaption,
+  Sheet,
   Stack,
   Tag,
   Text,
@@ -15,6 +22,8 @@ import {
 
 import {
   ADD_DEVICE,
+  SETTINGS_CHOICES,
+  SIGN_OUT_CONFIRM,
   APP_ROWS,
   DATA_ROWS,
   DEVICES,
@@ -33,6 +42,19 @@ export const SettingsScreenOptions = { headerShown: false };
 
 /** Настройки: профиль, источники данных, приложение, данные, аккаунт. */
 export function SettingsScreen() {
+  const [choice, setChoice] = useState<string | null>(null);
+  const [picked, setPicked] = useState<Record<string, string>>({});
+  const [signOut, setSignOut] = useState(false);
+
+  const open = (row: SettingsRow) => {
+    if (row.opens === 'device') router.push(to.device(row.id));
+    else if (row.opens === 'records') router.push(to.recordsIntro());
+    else if (row.opens === 'confirm') setSignOut(true);
+    else if (row.opens === 'choice') setChoice(row.id);
+  };
+
+  const sheet = choice ? SETTINGS_CHOICES[choice] : undefined;
+
   return (
     <Screen>
       <Stack gap="lg">
@@ -58,20 +80,64 @@ export function SettingsScreen() {
           </View>
         </Card>
 
-        <Section caption="DEVICES" rows={[...DEVICES, ADD_DEVICE]} />
-        <Section caption="APP" rows={APP_ROWS} />
-        <Section caption="DATA" rows={DATA_ROWS} />
-        <Section caption="ACCOUNT" rows={[SIGN_OUT]} />
+        <Section caption="DEVICES" rows={[...DEVICES, ADD_DEVICE]} onOpen={open} />
+        <Section caption="APP" rows={APP_ROWS} onOpen={open} />
+        <Section caption="DATA" rows={DATA_ROWS} onOpen={open} />
+        <Section caption="ACCOUNT" rows={[SIGN_OUT]} onOpen={open} />
 
         <Text variant="footnote" tone="muted" style={styles.version}>
           {VERSION}
         </Text>
       </Stack>
+
+      <Sheet
+        visible={sheet !== undefined}
+        onClose={() => setChoice(null)}
+        title={sheet?.title ?? ''}
+        action={<ActionLink label="Done" onPress={() => setChoice(null)} />}>
+        <Stack gap="md">
+          {sheet?.options.map((option) => (
+            <RadioRow
+              key={option.id}
+              title={option.title}
+              subtitle={option.subtitle}
+              selected={(picked[choice ?? ''] ?? sheet.options[0]?.id) === option.id}
+              onPress={() => {
+                if (choice === 'add') {
+                  setChoice(null);
+                  router.push(to.device(option.id));
+                  return;
+                }
+                setPicked((previous) => ({ ...previous, [choice ?? '']: option.id }));
+              }}
+            />
+          ))}
+        </Stack>
+      </Sheet>
+
+      <Sheet
+        visible={signOut}
+        onClose={() => setSignOut(false)}
+        title={SIGN_OUT_CONFIRM.title}
+        action={<ActionLink label="Cancel" onPress={() => setSignOut(false)} />}>
+        <Stack gap="md">
+          <Text tone="muted">{SIGN_OUT_CONFIRM.text}</Text>
+          <Button label="Sign out" tone="danger" onPress={() => setSignOut(false)} />
+        </Stack>
+      </Sheet>
     </Screen>
   );
 }
 
-function Section({ caption, rows }: { caption: string; rows: readonly SettingsRow[] }) {
+function Section({
+  caption,
+  rows,
+  onOpen,
+}: {
+  caption: string;
+  rows: readonly SettingsRow[];
+  onOpen: (row: SettingsRow) => void;
+}) {
   return (
     <Stack gap="sm">
       <SectionCaption>{caption}</SectionCaption>
@@ -86,6 +152,7 @@ function Section({ caption, rows }: { caption: string; rows: readonly SettingsRo
               subtitle={row.subtitle}
               trailing={row.value}
               trailingSlot={row.connected ? <View style={styles.dot} /> : undefined}
+              onPress={row.opens ? () => onOpen(row) : undefined}
             />
           ))}
         </Stack>

@@ -11,7 +11,9 @@ import {
   ActionLink,
   Card,
   CheckCircle,
+  EmptyPanel,
   GlassButton,
+  IconTile,
   ListRow,
   MonthCalendar,
   ProgressBar,
@@ -27,6 +29,8 @@ import {
   AGENDA,
   DAY_ENTRIES,
   DAY_PROTOCOL,
+  EMPTY_DAY,
+  hasMarks,
   JOURNAL_LAYERS,
   JULY,
   JULY_FIRST_WEEKDAY,
@@ -102,42 +106,65 @@ export function JournalScreen() {
                 onSelect={setSelected}
               />
 
-              <Card>
-                <Stack gap="md">
-                  <Stack direction="row" justify="space-between" align="center">
-                    <Text variant="subtitle">Monday, July {selected}</Text>
-                    <Text variant="bodySmall" tone="muted">
-                      3 of 5 done
-                    </Text>
+              {hasMarks(selected) ? null : (
+                <EmptyPanel icon="calendar" title={EMPTY_DAY.title} text={EMPTY_DAY.text} />
+              )}
+
+              {hasMarks(selected) ? (
+                <Card>
+                  <Stack gap="md">
+                    <Stack direction="row" justify="space-between" align="center">
+                      <Text variant="subtitle">July {selected}</Text>
+                      <Text variant="bodySmall" tone="muted">
+                        3 of 5 done
+                      </Text>
+                    </Stack>
+                    <Stack gap="sm">
+                      {DAY_ENTRIES.map((entry) => (
+                        <ListRow
+                          key={entry.id}
+                          leading={<CheckCircle checked={entry.done} />}
+                          title={entry.title}
+                          subtitle={entry.subtitle}
+                          done={entry.done}
+                        />
+                      ))}
+                    </Stack>
                   </Stack>
+                </Card>
+              ) : (
+                <Card>
                   <Stack gap="sm">
-                    {DAY_ENTRIES.map((entry) => (
+                    <Text variant="subtitle">Add what you remember</Text>
+                    {EMPTY_DAY.quick.map((item) => (
                       <ListRow
-                        key={entry.id}
-                        leading={<CheckCircle checked={entry.done} />}
-                        title={entry.title}
-                        subtitle={entry.subtitle}
-                        done={entry.done}
+                        key={item.id}
+                        leading={<IconTile name={item.icon} tone="accent" size={QUICK_ICON} />}
+                        title={item.title}
+                        subtitle={item.subtitle}
+                        onPress={() => router.push(quickAddHref(item.id))}
                       />
                     ))}
                   </Stack>
-                </Stack>
-              </Card>
+                </Card>
+              )}
 
-              <Card>
-                <Stack gap="sm">
-                  <Stack direction="row" justify="space-between" align="center">
-                    <Text variant="subtitle">{DAY_PROTOCOL.title}</Text>
+              {hasMarks(selected) ? (
+                <Card>
+                  <Stack gap="sm">
+                    <Stack direction="row" justify="space-between" align="center">
+                      <Text variant="subtitle">{DAY_PROTOCOL.title}</Text>
+                      <Text variant="bodySmall" tone="muted">
+                        {DAY_PROTOCOL.progressLabel}
+                      </Text>
+                    </Stack>
+                    <ProgressBar value={DAY_PROTOCOL.value} />
                     <Text variant="bodySmall" tone="muted">
-                      {DAY_PROTOCOL.progressLabel}
+                      {DAY_PROTOCOL.streak}
                     </Text>
                   </Stack>
-                  <ProgressBar value={DAY_PROTOCOL.value} />
-                  <Text variant="bodySmall" tone="muted">
-                    {DAY_PROTOCOL.streak}
-                  </Text>
-                </Stack>
-              </Card>
+                </Card>
+              ) : null}
             </Stack>,
 
             <Stack key="agenda" gap="md">
@@ -199,6 +226,15 @@ function dotStyle(tone: (typeof JOURNAL_LAYERS)[number]['tone']) {
 }
 
 const LAYER_DOT = 9;
+const QUICK_ICON = 32;
+
+/** Куда ведёт быстрое добавление: у каждого пункта свой экран создания. */
+function quickAddHref(id: string) {
+  if (id === 'workout') return to.workout('new');
+  if (id === 'meal') return to.meal('new');
+  if (id === 'stack') return to.course('all');
+  return to.checkIn();
+}
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },

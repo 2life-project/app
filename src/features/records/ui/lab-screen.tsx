@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { to } from '@/shared/nav';
@@ -12,6 +13,7 @@ import {
   ListRow,
   Screen,
   ScreenHeader,
+  Sheet,
   Stack,
   StatTile,
   Tag,
@@ -25,6 +27,8 @@ export const LabScreenOptions = { headerShown: false };
 
 /** Показатель биохимии: значение против цели, динамика, измерения, связи. */
 export function LabScreen({ id: _id }: { id: string }) {
+  const [sources, setSources] = useState(false);
+
   return (
     <Screen>
       <Stack gap="md">
@@ -114,13 +118,37 @@ export function LabScreen({ id: _id }: { id: string }) {
         <InfoCard
           title={MARKER.about.title}
           text={MARKER.about.text}
-          link={{ label: 'Learn more', onPress: () => {} }}
+          link={{ label: 'Learn more', onPress: () => router.push(to.assistant()) }}
         />
 
         <Card variant="flat">
-          <ActionLink label="All measurements and sources" chevron onPress={() => {}} />
+          <ActionLink
+            label="All measurements and sources"
+            chevron
+            onPress={() => setSources(true)}
+          />
         </Card>
       </Stack>
+
+      <Sheet
+        visible={sources}
+        onClose={() => setSources(false)}
+        title="All measurements"
+        action={<ActionLink label="Done" onPress={() => setSources(false)} />}>
+        <Stack gap="sm">
+          {MARKER.measurements.map((measurement) => (
+            <ListRow
+              key={measurement.id}
+              title={measurement.date}
+              subtitle={measurement.source}
+              trailing={measurement.value}
+            />
+          ))}
+          <Text variant="footnote" tone="muted">
+            Recognised documents keep the lab as the source; a manual entry stays marked as yours.
+          </Text>
+        </Stack>
+      </Sheet>
     </Screen>
   );
 }

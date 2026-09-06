@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { to } from '@/shared/nav';
@@ -16,6 +17,7 @@ import {
   Screen,
   ScreenHeader,
   SectionCaption,
+  Sheet,
   Stack,
   Tag,
   Text,
@@ -33,6 +35,8 @@ export const CourseScreenOptions = { headerShown: false };
  * значило бы завести три адреса там, где у продукта одно понятие.
  */
 export function CourseScreen({ id }: { id: string }) {
+  const [editing, setEditing] = useState(false);
+
   if (id === 'all') return <CourseList />;
   if (id === 'new') return <NewCourse />;
 
@@ -42,7 +46,7 @@ export function CourseScreen({ id }: { id: string }) {
         <ScreenHeader
           title={COURSE.title}
           subtitle={COURSE.when}
-          action={<ActionLink label="Edit" onPress={() => {}} />}
+          action={<ActionLink label="Edit" onPress={() => setEditing(true)} />}
         />
 
         <Card>
@@ -89,7 +93,7 @@ export function CourseScreen({ id }: { id: string }) {
                 label={protocol}
                 variant="tonal"
                 size="sm"
-                onPress={() => {}}
+                onPress={() => router.push(to.protocol(protocol))}
               />
             ))}
           </Stack>
@@ -97,6 +101,18 @@ export function CourseScreen({ id }: { id: string }) {
 
         <InfoCard title={COURSE.about.title} text={COURSE.about.text} />
       </Stack>
+
+      <Sheet
+        visible={editing}
+        onClose={() => setEditing(false)}
+        title="Edit the course"
+        action={<ActionLink label="Done" onPress={() => setEditing(false)} />}>
+        <Stack gap="md">
+          {NEW_COURSE_FIELDS.map((field) => (
+            <Field key={field.id} label={field.label} hint={field.hint} />
+          ))}
+        </Stack>
+      </Sheet>
     </Screen>
   );
 }
@@ -121,7 +137,7 @@ function CourseList() {
         <ScreenHeader
           title="Supplement courses"
           subtitle={COURSES_SUMMARY}
-          action={<ActionLink label="Edit" onPress={() => {}} />}
+          action={<ActionLink label="Add" onPress={() => router.push(to.course('new'))} />}
         />
 
         {COURSE_GROUPS.map((group) => (

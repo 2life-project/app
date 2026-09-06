@@ -83,3 +83,49 @@ export const CARE = {
 } as const;
 
 export const UNPAIR = 'Unpair the band';
+
+/** Сторонний трекер: что синхронизируется, чего не будет, и наш браслет. */
+export const TRACKER = {
+  name: 'Whoop 4.0',
+  status: 'third-party tracker · synced 07:42',
+  chip: 'WORKING',
+  connection:
+    'Data comes through your Whoop account: we read what their app has already computed and never talk to the band itself.',
+  link: 'Open the Whoop app',
+  syncs: [
+    {
+      id: 'sleep',
+      icon: 'moon',
+      title: 'Sleep and recovery',
+      subtitle: 'stages, HRV, resting heart rate',
+    },
+    {
+      id: 'workouts',
+      icon: 'activity',
+      title: 'Workouts',
+      subtitle: 'type, duration, heart-rate zones',
+    },
+    { id: 'hr', icon: 'heart', title: 'Heart rate', subtitle: 'continuous, all day' },
+    { id: 'spo2', icon: 'wind', title: 'SpO₂', subtitle: 'nightly readings' },
+  ],
+  missing: [
+    {
+      id: 'battery',
+      title: 'Battery and firmware here',
+      subtitle: 'the maker’s app owns the device',
+    },
+    {
+      id: 'alarm',
+      title: 'Silent alarm by vibration',
+      subtitle: 'no access to another band’s motor',
+    },
+    { id: 'voice', title: 'Voice notes from the band', subtitle: 'no microphone in our loop' },
+    { id: 'temp', title: 'Skin temperature', subtitle: 'Whoop does not expose it' },
+  ],
+  ours: {
+    title: '2Life band',
+    text: 'With our band, battery and firmware live here, the silent alarm works, and a voice note is one long press away.',
+    action: 'Learn about the band',
+  },
+  disconnect: 'Disconnect Whoop',
+} as const;

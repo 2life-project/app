@@ -1,11 +1,15 @@
+import { router } from 'expo-router';
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { to } from '@/shared/nav';
 import { space } from '@/shared/theme';
 import {
   ActionLink,
   BarChart,
   Card,
   CheckCircle,
+  Field,
   InfoCard,
   LineChart,
   ListRow,
@@ -13,6 +17,7 @@ import {
   RingPanel,
   Screen,
   ScreenHeader,
+  Sheet,
   Stack,
   Text,
   WidgetCard,
@@ -24,6 +29,12 @@ export const ProtocolScreenOptions = { headerShown: false };
 
 /** Протокол: приверженность, куда двигаются показатели, день, динамика. */
 export function ProtocolScreen({ id: _id }: { id: string }) {
+  const [done, setDone] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(PROTOCOL.today.tasks.map((task) => [task.id, task.done])),
+  );
+  const [editing, setEditing] = useState(false);
+  const left = PROTOCOL.today.tasks.filter((task) => done[task.id]).length;
+
   return (
     <Screen>
       <Stack gap="md">
@@ -32,7 +43,7 @@ export function ProtocolScreen({ id: _id }: { id: string }) {
         <RingPanel
           title={PROTOCOL.title}
           caption={PROTOCOL.adherence.caption}
-          action={<ActionLink label="Edit" onPress={() => {}} />}
+          action={<ActionLink label="Edit" onPress={() => setEditing(true)} />}
           ring={{
             value: PROTOCOL.adherence.percent,
             valueLabel: PROTOCOL.adherence.label,
@@ -65,16 +76,18 @@ export function ProtocolScreen({ id: _id }: { id: string }) {
           </Stack>
         </WidgetCard>
 
-        <WidgetCard title="Today" caption={PROTOCOL.today.caption}>
+        <WidgetCard title="Today" caption={`${left} of ${PROTOCOL.today.tasks.length} done`}>
           <Stack gap="sm">
             {PROTOCOL.today.tasks.map((task) => (
               <ListRow
                 key={task.id}
-                leading={<CheckCircle checked={task.done} />}
+                leading={<CheckCircle checked={done[task.id] ?? false} />}
                 title={task.title}
                 subtitle={task.subtitle}
-                done={task.done}
-                onPress={() => {}}
+                done={done[task.id] ?? false}
+                onPress={() =>
+                  setDone((previous) => ({ ...previous, [task.id]: !previous[task.id] }))
+                }
               />
             ))}
           </Stack>
@@ -91,15 +104,27 @@ export function ProtocolScreen({ id: _id }: { id: string }) {
         <InfoCard
           title={PROTOCOL.about.title}
           text={PROTOCOL.about.text}
-          link={{ label: 'Learn more', onPress: () => {} }}
+          link={{ label: 'Learn more', onPress: () => router.push(to.assistant()) }}
         />
 
         <Card variant="flat">
           <View style={styles.edit}>
-            <ActionLink label="Edit protocol" chevron onPress={() => {}} />
+            <ActionLink label="Edit protocol" chevron onPress={() => setEditing(true)} />
           </View>
         </Card>
       </Stack>
+
+      <Sheet
+        visible={editing}
+        onClose={() => setEditing(false)}
+        title="Edit protocol"
+        action={<ActionLink label="Done" onPress={() => setEditing(false)} />}>
+        <Stack gap="md">
+          <Field label="Name" hint={PROTOCOL.title} />
+          <Field label="Until" hint="Sep 28" />
+          <Field label="What it moves" hint="ApoB, LDL" />
+        </Stack>
+      </Sheet>
     </Screen>
   );
 }

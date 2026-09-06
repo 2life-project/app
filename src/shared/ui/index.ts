@@ -8,6 +8,7 @@ export { Card, type CardProps } from './card';
 export { CheckCircle, type CheckCircleProps } from './check-circle';
 export { ContextMenu, type ContextMenuItem, type ContextMenuProps } from './context-menu';
 export { DatePager, type DatePagerProps } from './date-pager';
+export { EmptyPanel, type EmptyPanelProps } from './empty-panel';
 export { EmptyState, type EmptyStateProps } from './empty-state';
 export { Field, type FieldProps } from './field';
 export {

@@ -14,6 +14,7 @@ import {
   RingPanel,
   Screen,
   ScreenHeader,
+  Sheet,
   Stack,
   StatTile,
   Text,
@@ -32,6 +33,8 @@ export const WorkoutScreenOptions = { headerShown: false };
 
 /** `new` — ручное добавление, иначе разбор уже записанной тренировки. */
 export function WorkoutScreen({ id }: { id: string }) {
+  const [editing, setEditing] = useState(false);
+
   if (id === 'new') return <AddWorkout />;
 
   return (
@@ -102,10 +105,22 @@ export function WorkoutScreen({ id }: { id: string }) {
             <Text variant="bodySmall" tone="muted">
               {WORKOUT.source}
             </Text>
-            <ActionLink label="Edit" onPress={() => {}} />
+            <ActionLink label="Edit" onPress={() => setEditing(true)} />
           </Stack>
         </Card>
       </Stack>
+
+      <Sheet
+        visible={editing}
+        onClose={() => setEditing(false)}
+        title="Edit the session"
+        action={<ActionLink label="Done" onPress={() => setEditing(false)} />}>
+        <Stack gap="md">
+          {WORKOUT_FIELDS.map((field) => (
+            <Field key={field.id} label={field.label} hint={field.hint} />
+          ))}
+        </Stack>
+      </Sheet>
     </Screen>
   );
 }
