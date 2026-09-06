@@ -2,7 +2,8 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { usePersistentState } from '@/shared/lib/store';
+import { setBandConnected } from '@/shared/domain';
+import { clearStore, usePersistentState } from '@/shared/lib/store';
 import { to } from '@/shared/nav';
 import { radius, space, theme } from '@/shared/theme';
 import {
@@ -23,6 +24,8 @@ import {
 
 import {
   ADD_DEVICE,
+  RESET,
+  RESET_CONFIRM,
   SETTINGS_CHOICES,
   SIGN_OUT_CONFIRM,
   APP_ROWS,
@@ -45,12 +48,12 @@ export const SettingsScreenOptions = { headerShown: false };
 export function SettingsScreen() {
   const [choice, setChoice] = useState<string | null>(null);
   const [picked, setPicked] = usePersistentState<Record<string, string>>('settings', {});
-  const [signOut, setSignOut] = useState(false);
+  const [confirm, setConfirm] = useState<string | null>(null);
 
   const open = (row: SettingsRow) => {
     if (row.opens === 'device') router.push(to.device(row.id));
     else if (row.opens === 'records') router.push(to.recordsIntro());
-    else if (row.opens === 'confirm') setSignOut(true);
+    else if (row.opens === 'confirm') setConfirm(row.id);
     else if (row.opens === 'choice') setChoice(row.id);
   };
 
@@ -84,7 +87,7 @@ export function SettingsScreen() {
         <Section caption="DEVICES" rows={[...DEVICES, ADD_DEVICE]} onOpen={open} />
         <Section caption="APP" rows={APP_ROWS} onOpen={open} />
         <Section caption="DATA" rows={DATA_ROWS} onOpen={open} />
-        <Section caption="ACCOUNT" rows={[SIGN_OUT]} onOpen={open} />
+        <Section caption="ACCOUNT" rows={[SIGN_OUT, RESET]} onOpen={open} />
 
         <Text variant="footnote" tone="muted" style={styles.version}>
           {VERSION}
@@ -117,13 +120,33 @@ export function SettingsScreen() {
       </Sheet>
 
       <Sheet
-        visible={signOut}
-        onClose={() => setSignOut(false)}
+        visible={confirm === 'sign-out'}
+        onClose={() => setConfirm(null)}
         title={SIGN_OUT_CONFIRM.title}
-        action={<ActionLink label="Cancel" onPress={() => setSignOut(false)} />}>
+        action={<ActionLink label="Cancel" onPress={() => setConfirm(null)} />}>
         <Stack gap="md">
           <Text tone="muted">{SIGN_OUT_CONFIRM.text}</Text>
-          <Button label="Sign out" tone="danger" onPress={() => setSignOut(false)} />
+          <Button label="Sign out" tone="danger" onPress={() => setConfirm(null)} />
+        </Stack>
+      </Sheet>
+
+      {/* Единственный способ вернуться к первому запуску: макет помнит всё,
+          что человек нажал, и без сброса краевые состояния уже не увидеть. */}
+      <Sheet
+        visible={confirm === 'reset'}
+        onClose={() => setConfirm(null)}
+        title={RESET_CONFIRM.title}
+        action={<ActionLink label="Cancel" onPress={() => setConfirm(null)} />}>
+        <Stack gap="md">
+          <Text tone="muted">{RESET_CONFIRM.text}</Text>
+          <Button
+            label="Reset"
+            tone="warning"
+            onPress={() => {
+              void clearStore().then(() => setBandConnected(true));
+              setConfirm(null);
+            }}
+          />
         </Stack>
       </Sheet>
     </Screen>

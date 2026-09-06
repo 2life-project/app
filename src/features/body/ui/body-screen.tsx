@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
-import { useBandConnected } from '@/shared/domain';
+import { setBandConnected, useBandConnected } from '@/shared/domain';
 import { to } from '@/shared/nav';
 import { radius, theme } from '@/shared/theme';
 import {
@@ -54,7 +54,13 @@ function NoBand() {
 
         <EmptyPanel icon="watch" title={NO_BAND.title} text={NO_BAND.text} />
 
-        <Button label="Connect a device" onPress={() => router.push(to.device())} />
+        <Button
+          label="Connect a device"
+          onPress={() => {
+            setBandConnected(true);
+            router.push(to.device());
+          }}
+        />
         <ActionLink label="Enter measurements by hand" onPress={() => router.push(to.checkIn())} />
 
         <Card>

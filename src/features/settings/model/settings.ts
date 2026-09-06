@@ -1,4 +1,8 @@
+import type Feather from '@expo/vector-icons/Feather';
+
 import type { Tone } from '@/shared/theme';
+
+type IconName = keyof typeof Feather.glyphMap;
 
 /**
  * Содержимое настроек из макета. Устройства и значения приедут с сервера —
@@ -15,19 +19,7 @@ type Row = {
   id: string;
   /** Что открывает строка: экран источника, шит выбора или другой раздел. */
   opens?: 'device' | 'choice' | 'records' | 'confirm';
-  icon:
-    | 'watch'
-    | 'circle'
-    | 'cloud'
-    | 'clock'
-    | 'heart'
-    | 'plus'
-    | 'bell'
-    | 'sliders'
-    | 'globe'
-    | 'download'
-    | 'file-text'
-    | 'log-out';
+  icon: IconName;
   tone?: Tone;
   title: string;
   /** Цвет заголовка: выход из аккаунта — необратимое действие, и это видно. */
@@ -145,6 +137,20 @@ export const SIGN_OUT: Row = {
   tone: 'danger',
   titleTone: 'danger',
   title: 'Sign out',
+};
+
+export const RESET: Row = {
+  id: 'reset',
+  opens: 'confirm',
+  icon: 'rotate-ccw',
+  tone: 'warning',
+  title: 'Reset the mockup',
+  subtitle: 'back to the state of a first launch',
+};
+
+export const RESET_CONFIRM = {
+  title: 'Reset the mockup?',
+  text: 'Everything the app remembers on this phone — marks, answers, chosen settings — goes back to how it looks on a first launch.',
 };
 
 export const VERSION = '2Life · 0.4 core';
