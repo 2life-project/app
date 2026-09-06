@@ -21,18 +21,13 @@ export type PagedScreenProps<T extends string> = {
   pages: ReactNode[];
 };
 
-/** Полоса, в которой контент растворяется под шапкой. */
-const FADE = 24;
-
 /**
  * Экран с суб-навигацией: шапка сверху, под ней листаемые разделы.
  *
  * Шапка стоит в обычном потоке, а не поверх страниц. Наложение выглядело
  * так же, но требовало вручную считать её высоту и вычитать системные
  * вставки — и промахивалось то в отступ, то в спрятанную под шапкой строку.
- * Растворение при этом сохранено: полоса градиента лежит поверх верхнего
- * края области страниц, и уезжающие строки тают в ней, как внизу тают под
- * панелью навигации.
+ * Растворение уезжающих строк держит сам пейджер — вместе с отступом под него.
  */
 export function PagedScreen<T extends string>({
   title,
@@ -70,20 +65,12 @@ export function PagedScreen<T extends string>({
         </Stack>
       </View>
 
-      <View style={styles.fill}>
-        <SectionPager index={index} onIndexChange={setIndex} pages={pages} />
-        <LinearGradient
-          pointerEvents="none"
-          colors={[theme.color.backdrop[0], `${theme.color.backdrop[0]}00`]}
-          style={styles.fade}
-        />
-      </View>
+      <SectionPager index={index} onIndexChange={setIndex} pages={pages} />
     </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
-  header: { paddingHorizontal: space.screen, paddingBottom: space.md },
-  fade: { position: 'absolute', top: 0, left: 0, right: 0, height: FADE },
+  header: { paddingHorizontal: space.screen },
 });

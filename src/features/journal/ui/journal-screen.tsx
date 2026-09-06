@@ -147,11 +147,6 @@ export function JournalScreen() {
             </Stack>,
           ]}
         />
-        <LinearGradient
-          pointerEvents="none"
-          colors={[theme.color.backdrop[0], `${theme.color.backdrop[0]}00`]}
-          style={styles.fade}
-        />
       </View>
     </LinearGradient>
   );
@@ -159,8 +154,7 @@ export function JournalScreen() {
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
-  header: { paddingHorizontal: space.screen, paddingBottom: space.md, gap: space.sm },
+  header: { paddingHorizontal: space.screen, gap: space.sm },
   layers: { alignItems: 'flex-end' },
   layersSurface: { paddingHorizontal: space.md },
-  fade: { position: 'absolute', top: 0, left: 0, right: 0, height: 24 },
 });
