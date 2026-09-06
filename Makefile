@@ -97,16 +97,17 @@ reset: clean ## Снести node_modules и поставить заново
 	$(NPM) install
 
 # --- Релизная сборка iOS ------------------------------------------------------
-# Локально, без облака: xcodebuild archive → export .ipa → загрузка в TestFlight.
-# Версия и номер сборки живут в app.json — это единственный источник правды,
+# Локально, без облака: xcodebuild archive → export с загрузкой в TestFlight.
+# Версия и номер сборки живут в app.json — единственный источник правды,
 # перед сборкой они синкаются в нативный проект.
 #
 #   make build-ipa ENV=prod     собрать и залить в TestFlight
+#   make build-ipa UPLOAD=0     только собрать .ipa, никуда не отправляя
 #   make set-build N=2          поднять номер сборки
 #
-# Загрузка идёт ключом App Store Connect API: пароль в терминал не вводят и в
-# репозиторий не кладут. Ключ (.p8) лежит в ~/.appstoreconnect/private_keys/,
-# идентификаторы — в переменных окружения или в .env.release (он в .gitignore).
+# Загружает сам Xcode учётной записью, которая в нём уже вошла: ни ключей, ни
+# паролей в терминале и в репозитории. Подпись автоматическая,
+# `-allowProvisioningUpdates` сам заводит и обновляет профиль.
 
 WORKSPACE   := ios/2Life.xcworkspace
 SCHEME      := 2Life
@@ -118,6 +119,7 @@ PBXPROJ     := ios/2Life.xcodeproj/project.pbxproj
 
 APP_VERSION := $(shell node -p "require('./app.json').expo.version")
 BUILD_NUM   := $(shell node -p "require('./app.json').expo.ios.buildNumber || 1")
+
 # Команда подписи. Expo prebuild её не проставляет, поэтому значение живёт
 # здесь и уезжает в нативный проект при сборке. Переопределить:
 # make build-ipa TEAM_ID=XXXXXXXXXX
@@ -129,18 +131,22 @@ API_URL_prod    := https://2life.blackshift.dev
 API_URL_staging := https://2life.blackshift.dev
 API_URL         := $(API_URL_$(ENV))
 
-.PHONY: set-build build-ipa upload-ipa
+# Куда девать собранное: upload — сразу в TestFlight, export — .ipa на диск.
+UPLOAD      ?= 1
+DESTINATION := $(if $(filter 1,$(UPLOAD)),upload,export)
+
+.PHONY: set-build build-ipa
 
 set-build: ## Выставить номер сборки в app.json (N=<число>)
 	@[ -n "$(N)" ] || { echo "Использование: make set-build N=<номер сборки>"; exit 1; }
 	@node -e "const fs=require('fs'),f='app.json',j=JSON.parse(fs.readFileSync(f));j.expo.ios.buildNumber=String($(N));j.expo.android.versionCode=Number($(N));fs.writeFileSync(f,JSON.stringify(j,null,2)+'\n');console.log('→ номер сборки:',$(N));"
 
-build-ipa: ## Собрать .ipa и залить в TestFlight (ENV=prod|staging)
+build-ipa: ## Собрать и залить в TestFlight (ENV=prod|staging, UPLOAD=0 — только .ipa)
 	@[ -n "$(API_URL)" ] || { echo "✗ Неизвестный контур ENV=$(ENV). Есть: prod, staging"; exit 1; }
 	@[ -d ios ] || { echo "✗ Нет каталога ios/. Сначала: make prebuild"; exit 1; }
 	@echo ""
 	@echo "  2Life $(APP_VERSION) ($(BUILD_NUM)) · контур $(ENV) · $(API_URL)"
-	@echo "  Team: $(TEAM_ID) · ветка $$(git rev-parse --abbrev-ref HEAD)"
+	@echo "  Team: $(TEAM_ID) · ветка $$(git rev-parse --abbrev-ref HEAD) · назначение: $(DESTINATION)"
 	@echo ""
 	@echo "→ Синк версии и команды подписи из app.json в нативный проект"
 	@sed -i '' -E 's/CURRENT_PROJECT_VERSION = [0-9.]+;/CURRENT_PROJECT_VERSION = $(BUILD_NUM);/g' $(PBXPROJ)
@@ -156,11 +162,12 @@ build-ipa: ## Собрать .ipa и залить в TestFlight (ENV=prod|stagin
 	  '<plist version="1.0">' \
 	  '<dict>' \
 	  '  <key>method</key><string>app-store-connect</string>' \
+	  '  <key>destination</key><string>$(DESTINATION)</string>' \
 	  '  <key>teamID</key><string>$(TEAM_ID)</string>' \
 	  '  <key>signingStyle</key><string>automatic</string>' \
 	  '  <key>stripSwiftSymbols</key><true/>' \
 	  '  <key>uploadSymbols</key><true/>' \
-	  '  <key>destination</key><string>export</string>' \
+	  '  <key>manageAppVersionAndBuildNumber</key><false/>' \
 	  '</dict>' \
 	  '</plist>' > build/ios/ExportOptions.plist
 	@echo "→ Архивирую ($(SCHEME), Release)…"
@@ -171,35 +178,17 @@ build-ipa: ## Собрать .ipa и залить в TestFlight (ENV=prod|stagin
 	  -archivePath $(ARCHIVE) -derivedDataPath $(DERIVED) \
 	  DEVELOPMENT_TEAM=$(TEAM_ID) \
 	  -allowProvisioningUpdates
-	@echo "→ Экспортирую .ipa…"
+	@echo "→ $(if $(filter 1,$(UPLOAD)),Заливаю в TestFlight…,Экспортирую .ipa…)"
 	@rm -rf $(IPA_DIR)
 	@set -o pipefail; \
-	xcodebuild -exportArchive \
+	$(UTF8) xcodebuild -exportArchive \
 	  -archivePath $(ARCHIVE) -exportPath $(IPA_DIR) \
 	  -exportOptionsPlist build/ios/ExportOptions.plist \
 	  -allowProvisioningUpdates
-	@$(MAKE) --no-print-directory upload-ipa
-
-upload-ipa: ## Залить собранный .ipa в TestFlight
-	@[ -f .env.release ] && . ./.env.release || true; \
-	key="$${ASC_KEY_ID}"; issuer="$${ASC_ISSUER_ID}"; \
-	if [ -z "$$key" ] || [ -z "$$issuer" ]; then \
-	  echo ""; \
-	  echo "✗ Нет ключа App Store Connect API — заливать нечем."; \
-	  echo "  App Store Connect → Users and Access → Integrations → App Store Connect API,"; \
-	  echo "  роль App Manager. Скачанный AuthKey_XXXX.p8 положить в"; \
-	  echo "  ~/.appstoreconnect/private_keys/ и создать .env.release рядом с Makefile:"; \
-	  echo ""; \
-	  echo "    ASC_KEY_ID=XXXXXXXXXX"; \
-	  echo "    ASC_ISSUER_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"; \
-	  echo ""; \
-	  echo "  Готовый .ipa лежит здесь: $(IPA_DIR)"; \
-	  exit 1; \
-	fi; \
-	ipa=$$(ls $(IPA_DIR)/*.ipa 2>/dev/null | head -1); \
-	[ -n "$$ipa" ] || { echo "✗ .ipa не найден в $(IPA_DIR). Сначала: make build-ipa"; exit 1; }; \
-	echo "→ Заливаю $$ipa в TestFlight…"; \
-	xcrun altool --upload-app -f "$$ipa" -t ios --apiKey "$$key" --apiIssuer "$$issuer"; \
-	echo ""; \
-	echo "✅ 2Life $(APP_VERSION) ($(BUILD_NUM)) ушёл в TestFlight."; \
-	echo "   Обработка занимает 5–15 минут, потом сборка появится в App Store Connect."
+	@echo ""
+	@if [ "$(UPLOAD)" = "1" ]; then \
+	  echo "✅ 2Life $(APP_VERSION) ($(BUILD_NUM)) ушёл в TestFlight."; \
+	  echo "   Обработка занимает 5-15 минут, потом сборка появится в App Store Connect."; \
+	else \
+	  echo "✅ .ipa готов: $(IPA_DIR)"; \
+	fi
