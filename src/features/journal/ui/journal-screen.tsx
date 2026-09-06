@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { usePersistentState } from '@/shared/lib/store';
 import { to } from '@/shared/nav';
 import { size, space, theme } from '@/shared/theme';
 import {
@@ -48,8 +49,13 @@ export function JournalScreen() {
   const [view, setView] = useState<JournalView>('calendar');
   const [selected, setSelected] = useState(13);
   const [layersOpen, setLayersOpen] = useState(false);
-  const [layers, setLayers] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(JOURNAL_LAYERS.map((layer) => [layer.id, layer.on])),
+  const [entries, setEntries] = usePersistentState<Record<string, boolean>>(
+    'journal:entries',
+    INITIAL_ENTRIES,
+  );
+  const [layers, setLayers] = usePersistentState<Record<string, boolean>>(
+    'journal:layers',
+    INITIAL_LAYERS,
   );
   const shownLayers = JOURNAL_LAYERS.filter((layer) => layers[layer.id]).length;
   const index = VIEWS.findIndex((item) => item.value === view);
@@ -123,10 +129,11 @@ export function JournalScreen() {
                       {DAY_ENTRIES.map((entry) => (
                         <ListRow
                           key={entry.id}
-                          leading={<CheckCircle checked={entry.done} />}
+                          leading={<CheckCircle checked={entries[entry.id] ?? false} />}
                           title={entry.title}
                           subtitle={entry.subtitle}
-                          done={entry.done}
+                          done={entries[entry.id] ?? false}
+                          onPress={() => setEntries({ ...entries, [entry.id]: !entries[entry.id] })}
                         />
                       ))}
                     </Stack>
@@ -176,10 +183,11 @@ export function JournalScreen() {
                       {group.entries.map((entry) => (
                         <ListRow
                           key={entry.id}
-                          leading={<CheckCircle checked={entry.done} />}
+                          leading={<CheckCircle checked={entries[entry.id] ?? false} />}
                           title={entry.title}
                           subtitle={entry.subtitle}
-                          done={entry.done}
+                          done={entries[entry.id] ?? false}
+                          onPress={() => setEntries({ ...entries, [entry.id]: !entries[entry.id] })}
                         />
                       ))}
                     </Stack>
@@ -207,9 +215,7 @@ export function JournalScreen() {
                 <Toggle
                   value={layers[layer.id] ?? false}
                   accessibilityLabel={layer.title}
-                  onValueChange={(value) =>
-                    setLayers((previous) => ({ ...previous, [layer.id]: value }))
-                  }
+                  onValueChange={(value) => setLayers({ ...layers, [layer.id]: value })}
                 />
               }
             />
@@ -226,6 +232,14 @@ function dotStyle(tone: (typeof JOURNAL_LAYERS)[number]['tone']) {
 }
 
 const LAYER_DOT = 9;
+
+const INITIAL_ENTRIES: Record<string, boolean> = Object.fromEntries(
+  DAY_ENTRIES.map((entry) => [entry.id, entry.done]),
+);
+
+const INITIAL_LAYERS: Record<string, boolean> = Object.fromEntries(
+  JOURNAL_LAYERS.map((layer) => [layer.id, layer.on]),
+);
 const QUICK_ICON = 32;
 
 /** Куда ведёт быстрое добавление: у каждого пункта свой экран создания. */

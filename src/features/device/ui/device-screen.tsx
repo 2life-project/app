@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { setBandConnected } from '@/shared/domain';
+import { usePersistentState } from '@/shared/lib/store';
 import { to } from '@/shared/nav';
 import { theme } from '@/shared/theme';
 import {
@@ -40,6 +41,7 @@ export const DeviceScreenOptions = { headerShown: false };
 /** Браслет: заряд, датчики, вибрация, синхронизация и уход. */
 export function DeviceScreen({ kind }: { kind?: string }) {
   const [synced, setSynced] = useState<string>(SYNC.last.subtitle);
+  const [haptics, setHaptics] = usePersistentState<Record<string, boolean>>('device:haptics', {});
   const [firmware, setFirmware] = useState(false);
 
   if (kind && kind !== 'band') return <ThirdParty />;
@@ -87,7 +89,13 @@ export function DeviceScreen({ kind }: { kind?: string }) {
                 key={row.id}
                 title={row.title}
                 subtitle={row.subtitle}
-                trailingSlot={<Toggle value={row.on} accessibilityLabel={row.title} />}
+                trailingSlot={
+                  <Toggle
+                    value={haptics[row.id] ?? row.on}
+                    accessibilityLabel={row.title}
+                    onValueChange={(value) => setHaptics({ ...haptics, [row.id]: value })}
+                  />
+                }
               />
             ))}
           </Stack>
@@ -114,7 +122,11 @@ export function DeviceScreen({ kind }: { kind?: string }) {
               title={SYNC.background.title}
               subtitle={SYNC.background.subtitle}
               trailingSlot={
-                <Toggle value={SYNC.background.on} accessibilityLabel={SYNC.background.title} />
+                <Toggle
+                  value={haptics[SYNC.background.id] ?? SYNC.background.on}
+                  accessibilityLabel={SYNC.background.title}
+                  onValueChange={(value) => setHaptics({ ...haptics, [SYNC.background.id]: value })}
+                />
               }
             />
           </Stack>

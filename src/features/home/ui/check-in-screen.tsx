@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
 import { StyleSheet, TextInput } from 'react-native';
 
+import { usePersistentState } from '@/shared/lib/store';
 import { radius, space, theme } from '@/shared/theme';
 import {
   ActionLink,
@@ -19,12 +19,18 @@ import { CHECK_IN_FORMS, CLOSING_NOTE, NOTE, QUESTIONS, type CheckInForm } from 
 
 export const CheckInScreenOptions = { headerShown: false };
 
+const INITIAL_ANSWERS: Record<string, number> = Object.fromEntries(
+  QUESTIONS.map((question) => [question.key, question.initial]),
+);
+
 /** Чек-ин вечера: три шкалы и заметка. Ответы не подставляются за человека. */
 export function CheckInScreen() {
-  const [form, setForm] = useState<CheckInForm>('short');
-  const [answers, setAnswers] = useState<Record<string, number>>(() =>
-    Object.fromEntries(QUESTIONS.map((question) => [question.key, question.initial])),
+  const [form, setForm] = usePersistentState<CheckInForm>('checkin:form', 'short');
+  const [answers, setAnswers] = usePersistentState<Record<string, number>>(
+    'checkin:answers',
+    INITIAL_ANSWERS,
   );
+  const [note, setNote] = usePersistentState('checkin:note', '');
 
   return (
     <Screen>
@@ -52,9 +58,7 @@ export function CheckInScreen() {
                 value={answers[question.key] ?? question.initial}
                 minimum={question.minimum}
                 maximum={question.maximum}
-                onChange={(value) =>
-                  setAnswers((previous) => ({ ...previous, [question.key]: value }))
-                }
+                onChange={(value) => setAnswers({ ...answers, [question.key]: value })}
               />
 
               <Stack direction="row" justify="space-between">
@@ -77,6 +81,8 @@ export function CheckInScreen() {
               style={styles.note}
               placeholder={NOTE.hint}
               placeholderTextColor={theme.color.textMuted}
+              value={note}
+              onChangeText={setNote}
               multiline
             />
           </Stack>

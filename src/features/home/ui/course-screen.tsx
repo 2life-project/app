@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { usePersistentState } from '@/shared/lib/store';
 import { to } from '@/shared/nav';
 import { radius, theme } from '@/shared/theme';
 import {
@@ -131,6 +132,8 @@ const styles = StyleSheet.create({
 
 /** Список курсов: активные и на паузе, каждый с составом и приверженностью. */
 function CourseList() {
+  const [active, setActive] = usePersistentState<Record<string, boolean>>('courses', {});
+
   return (
     <Screen>
       <Stack gap="md">
@@ -149,7 +152,13 @@ function CourseList() {
                   <ListRow
                     title={course.title}
                     subtitle={course.when}
-                    trailingSlot={<Toggle value={course.on} accessibilityLabel={course.title} />}
+                    trailingSlot={
+                      <Toggle
+                        value={active[course.id] ?? course.on}
+                        accessibilityLabel={course.title}
+                        onValueChange={(value) => setActive({ ...active, [course.id]: value })}
+                      />
+                    }
                   />
                   <Stack direction="row" gap="xs" wrap>
                     {course.items.map((item) => (

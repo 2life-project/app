@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSyncExternalStore } from 'react';
 
 /**
@@ -6,15 +7,29 @@ import { useSyncExternalStore } from 'react';
  * он живёт здесь, а не в одной из фич: фича фиче не видна.
  *
  * Это не состояние-менеджер, а один флаг с подпиской: пока фактов столько,
- * заводить под них библиотеку не на чем.
+ * заводить под них библиотеку не на чем. Значение переживает перезапуск —
+ * иначе снятый браслет возвращается сам, и проверить сценарий нельзя.
  */
+const KEY = '2life:band';
+
 let connected = true;
 const listeners = new Set<() => void>();
+
+function publish() {
+  for (const listener of listeners) listener();
+}
+
+void AsyncStorage.getItem(KEY).then((raw) => {
+  if (raw === null) return;
+  connected = raw === 'true';
+  publish();
+});
 
 export function setBandConnected(next: boolean): void {
   if (connected === next) return;
   connected = next;
-  for (const listener of listeners) listener();
+  publish();
+  void AsyncStorage.setItem(KEY, String(next));
 }
 
 export function useBandConnected(): boolean {

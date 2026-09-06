@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { usePersistentState } from '@/shared/lib/store';
 import { to } from '@/shared/nav';
 import { radius, space, theme } from '@/shared/theme';
 import {
@@ -43,7 +44,7 @@ export const SettingsScreenOptions = { headerShown: false };
 /** Настройки: профиль, источники данных, приложение, данные, аккаунт. */
 export function SettingsScreen() {
   const [choice, setChoice] = useState<string | null>(null);
-  const [picked, setPicked] = useState<Record<string, string>>({});
+  const [picked, setPicked] = usePersistentState<Record<string, string>>('settings', {});
   const [signOut, setSignOut] = useState(false);
 
   const open = (row: SettingsRow) => {
@@ -108,7 +109,7 @@ export function SettingsScreen() {
                   router.push(to.device(option.id));
                   return;
                 }
-                setPicked((previous) => ({ ...previous, [choice ?? '']: option.id }));
+                setPicked({ ...picked, [choice ?? '']: option.id });
               }}
             />
           ))}

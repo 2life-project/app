@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 
 import { to } from '@/shared/nav';
 import {
+  ActionLink,
   Button,
   CheckCircle,
   IconTile,
@@ -16,6 +17,7 @@ import {
   WidgetCard,
 } from '@/shared/ui';
 
+import { useDoses } from '../model/doses';
 import {
   BODY_SYSTEMS,
   LIVE_STREAMS,
@@ -27,21 +29,29 @@ import {
 
 /** Лента виджетов Обзора — порядок и содержимое из макета. */
 export function Overview() {
+  const doses = useDoses();
+
   return (
     <Stack gap="md">
       <WidgetCard
         title="Four rings"
         action={{ label: 'Details', onPress: () => router.push(to.body()) }}>
         <Stack direction="row" justify="space-between">
-          {RINGS.map((ring) => (
-            <ProgressRing
-              key={ring.id}
-              value={ring.value}
-              valueLabel={ring.valueLabel}
-              label={ring.label}
-              tone={ring.tone}
-            />
-          ))}
+          {RINGS.map((ring) => {
+            // Кольцо приёмов считается по отметкам, а не стоит числом: оно и
+            // есть обратная связь на единственное ежедневное действие.
+            const taken = ring.id === 'doses';
+
+            return (
+              <ProgressRing
+                key={ring.id}
+                value={taken ? doses.done / doses.total : ring.value}
+                valueLabel={taken ? `${doses.done}/${doses.total}` : ring.valueLabel}
+                label={ring.label}
+                tone={ring.tone}
+              />
+            );
+          })}
         </Stack>
       </WidgetCard>
 
@@ -63,7 +73,7 @@ export function Overview() {
 
       <WidgetCard
         title="Supplements"
-        caption="1 of 3 taken today"
+        caption={`${doses.done} of ${doses.total} taken today`}
         action={{
           label: 'Supplements',
           chevron: true,
@@ -73,13 +83,16 @@ export function Overview() {
           {SUPPLEMENT_STACKS.map((stack) => (
             <ListRow
               key={stack.id}
-              leading={<CheckCircle checked={stack.taken} />}
+              leading={<CheckCircle checked={doses.taken[stack.id] ?? false} />}
               title={stack.title}
               subtitle={stack.subtitle}
-              note={stack.status}
-              noteTone={stack.taken ? 'success' : 'muted'}
-              done={stack.taken}
-              onPress={() => router.push(to.course(stack.id))}
+              note={doses.taken[stack.id] ? stack.status : stack.time}
+              noteTone={doses.taken[stack.id] ? 'success' : 'muted'}
+              done={doses.taken[stack.id] ?? false}
+              onPress={() => doses.toggle(stack.id)}
+              trailingSlot={
+                <ActionLink label="Course" onPress={() => router.push(to.course(stack.id))} />
+              }
             />
           ))}
         </Stack>

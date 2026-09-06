@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { usePersistentState } from '@/shared/lib/store';
 import { to } from '@/shared/nav';
 import { space } from '@/shared/theme';
 import {
@@ -27,10 +28,15 @@ import { PROTOCOL } from '../model/protocol';
 
 export const ProtocolScreenOptions = { headerShown: false };
 
+const INITIAL_TASKS: Record<string, boolean> = Object.fromEntries(
+  PROTOCOL.today.tasks.map((task) => [task.id, task.done]),
+);
+
 /** Протокол: приверженность, куда двигаются показатели, день, динамика. */
 export function ProtocolScreen({ id: _id }: { id: string }) {
-  const [done, setDone] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(PROTOCOL.today.tasks.map((task) => [task.id, task.done])),
+  const [done, setDone] = usePersistentState<Record<string, boolean>>(
+    'protocol:today',
+    INITIAL_TASKS,
   );
   const [editing, setEditing] = useState(false);
   const left = PROTOCOL.today.tasks.filter((task) => done[task.id]).length;
@@ -85,9 +91,7 @@ export function ProtocolScreen({ id: _id }: { id: string }) {
                 title={task.title}
                 subtitle={task.subtitle}
                 done={done[task.id] ?? false}
-                onPress={() =>
-                  setDone((previous) => ({ ...previous, [task.id]: !previous[task.id] }))
-                }
+                onPress={() => setDone({ ...done, [task.id]: !done[task.id] })}
               />
             ))}
           </Stack>

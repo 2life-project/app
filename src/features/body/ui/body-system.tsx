@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { usePersistentState } from '@/shared/lib/store';
 import { to } from '@/shared/nav';
 import { space } from '@/shared/theme';
 import {
@@ -30,7 +31,10 @@ import { BODY_SYSTEM, RING_NOTE, RING_OPTIONS, type BodySection } from '../model
 export function BodySystem({ section }: { section: BodySection }) {
   const options = RING_OPTIONS[section];
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [ringMetric, setRingMetric] = useState(options[0]?.id ?? '');
+  const [ringMetric, setRingMetric] = usePersistentState(
+    `body:ring:${section}`,
+    options[0]?.id ?? '',
+  );
   const data = BODY_SYSTEM[section];
 
   return (

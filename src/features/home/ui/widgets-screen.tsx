@@ -1,16 +1,17 @@
-import { useState } from 'react';
-
+import { usePersistentState } from '@/shared/lib/store';
 import { Card, InfoCard, ListRow, Screen, ScreenHeader, Stack, Toggle } from '@/shared/ui';
 
 import { WIDGET_CHOICES, WIDGETS_NOTE } from '../model/widgets';
 
 export const WidgetsScreenOptions = { headerShown: false };
 
+const INITIAL: Record<string, boolean> = Object.fromEntries(
+  WIDGET_CHOICES.map((widget) => [widget.id, widget.on]),
+);
+
 /** Настройка ленты Главной: какие виджеты показывать и в каком порядке. */
 export function WidgetsScreen() {
-  const [on, setOn] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(WIDGET_CHOICES.map((widget) => [widget.id, widget.on])),
-  );
+  const [on, setOn] = usePersistentState<Record<string, boolean>>('widgets', INITIAL);
 
   const shown = WIDGET_CHOICES.filter((widget) => on[widget.id]).length;
 
@@ -30,9 +31,7 @@ export function WidgetsScreen() {
                   <Toggle
                     value={on[widget.id] ?? false}
                     accessibilityLabel={widget.title}
-                    onValueChange={(value) =>
-                      setOn((previous) => ({ ...previous, [widget.id]: value }))
-                    }
+                    onValueChange={(value) => setOn({ ...on, [widget.id]: value })}
                   />
                 }
               />

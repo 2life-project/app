@@ -9,20 +9,33 @@ export const RINGS = [
   { id: 'doses', value: 0.33, valueLabel: '1/3', label: 'DOSES', tone: 'warning' },
 ] as const;
 
+/**
+ * Приёмы дня. `time` — когда положено, `status` — что показать после отметки:
+ * до отметки строка говорит «когда», после — «когда принял».
+ */
 export const SUPPLEMENT_STACKS = [
   {
     id: 'morning',
     title: 'Morning stack',
     subtitle: 'Omega-3, D3 2,000 IU, Mg',
+    time: '08:00',
     status: 'taken 08:04',
     taken: true,
   },
-  { id: 'day', title: 'Day stack', subtitle: 'Zinc, B-complex', status: '14:00', taken: false },
+  {
+    id: 'day',
+    title: 'Day stack',
+    subtitle: 'Zinc, B-complex',
+    time: '14:00',
+    status: 'taken 14:12',
+    taken: false,
+  },
   {
     id: 'evening',
     title: 'Evening stack',
     subtitle: 'Magnesium glycinate',
-    status: '21:00',
+    time: '21:00',
+    status: 'taken 21:05',
     taken: false,
   },
 ] as const;
