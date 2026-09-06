@@ -11,8 +11,12 @@ export type ScreenProps = ScrollViewProps & {
   padded?: boolean;
 };
 
-/** Высота растворения у верхнего края. */
-const FADE_HEIGHT = 64;
+/**
+ * Зазор между статус-баром и первой строкой. Полоса растворения кончается ровно
+ * здесь: если она заходит на содержимое, то гасит не уезжающие строки, а
+ * заголовок экрана, который никуда не уезжает.
+ */
+const CONTENT_TOP = space.sm;
 const TRANSPARENT = `${theme.color.backdrop[0]}00`;
 
 /**
@@ -31,7 +35,7 @@ export function Screen({ scroll = true, padded = true, style, children, ...rest 
     <LinearGradient colors={theme.color.backdrop} style={styles.fill}>
       {scroll ? (
         <ScrollView
-          contentContainerStyle={[styles.content, { paddingTop: insets.top + space.sm }, inner]}
+          contentContainerStyle={[styles.content, { paddingTop: insets.top + CONTENT_TOP }, inner]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           // Контент уезжает ПОД панель навигации, а не упирается в неё: стекло
@@ -51,7 +55,7 @@ export function Screen({ scroll = true, padded = true, style, children, ...rest 
           pointerEvents="none"
           colors={[theme.color.backdrop[0], theme.color.backdrop[0], TRANSPARENT]}
           locations={[0, 0.55, 1]}
-          style={[styles.topFade, { height: insets.top + FADE_HEIGHT }]}
+          style={[styles.topFade, { height: insets.top + CONTENT_TOP }]}
         />
       ) : null}
     </LinearGradient>

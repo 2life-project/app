@@ -1,7 +1,17 @@
 import { StyleSheet, View } from 'react-native';
 
 import { radius, space, theme } from '@/shared/theme';
-import { Card, IconTile, ListRow, Screen, SectionCaption, Stack, Tag, Text } from '@/shared/ui';
+import {
+  BackButton,
+  Card,
+  IconTile,
+  ListRow,
+  Screen,
+  SectionCaption,
+  Stack,
+  Tag,
+  Text,
+} from '@/shared/ui';
 
 import {
   ADD_DEVICE,
@@ -18,20 +28,18 @@ import {
  * Заголовок экрана стоит в содержимом, как в макете, поэтому в шапке остаётся
  * только возврат. Сама шапка прозрачна: под ней должен идти тот же градиент.
  */
-export const SettingsScreenOptions = {
-  title: '',
-  headerTransparent: true,
-  // Прозрачной шапке нужен и прозрачный фон: цвет из общих настроек шапки
-  // иначе закрашивает градиент белой полосой.
-  headerStyle: { backgroundColor: 'transparent' },
-};
+/** Шапки нет: заголовок стоит в содержимом, как в макете, возврат — кнопкой. */
+export const SettingsScreenOptions = { headerShown: false };
 
 /** Настройки: профиль, источники данных, приложение, данные, аккаунт. */
 export function SettingsScreen() {
   return (
     <Screen>
       <Stack gap="lg">
-        <Text variant="display">Settings</Text>
+        <Stack direction="row" gap="md" align="center">
+          <BackButton />
+          <Text variant="display">Settings</Text>
+        </Stack>
 
         <Card>
           <View style={styles.profile}>
