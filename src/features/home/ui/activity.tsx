@@ -1,12 +1,12 @@
-import Feather from '@expo/vector-icons/Feather';
 import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
 import { to } from '@/shared/nav';
-import { radius, size, space, theme } from '@/shared/theme';
+import { space } from '@/shared/theme';
 import {
   BarChart,
   DatePager,
+  IconTile,
   InfoCard,
   LinkCard,
   ListRow,
@@ -42,11 +42,7 @@ export function Activity() {
           {WORKOUTS.map((workout) => (
             <ListRow
               key={workout.id}
-              leading={
-                <View style={styles.icon}>
-                  <Feather name={workout.icon} size={size.icon.md} color={theme.color.textMuted} />
-                </View>
-              }
+              leading={<IconTile name={workout.icon} shape="circle" />}
               title={workout.title}
               subtitle={workout.subtitle}
               trailing={workout.value}
@@ -88,12 +84,4 @@ const styles = StyleSheet.create({
   body: { flexDirection: 'row', alignItems: 'center', gap: space.lg },
   summary: { flex: 1 },
   footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  icon: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.full,
-    backgroundColor: theme.color.neutral.surface,
-  },
 });

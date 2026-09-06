@@ -1,14 +1,14 @@
-import Feather from '@expo/vector-icons/Feather';
 import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
 import { to } from '@/shared/nav';
-import { radius, size, space, theme } from '@/shared/theme';
+import { space } from '@/shared/theme';
 import {
   BarChart,
   Button,
   Card,
   DatePager,
+  IconTile,
   InfoCard,
   LinkCard,
   ListRow,
@@ -56,11 +56,7 @@ export function Nutrition() {
           {MEALS.map((meal) => (
             <ListRow
               key={meal.id}
-              leading={
-                <View style={styles.icon}>
-                  <Feather name={meal.icon} size={size.icon.md} color={theme.color.textMuted} />
-                </View>
-              }
+              leading={<IconTile name={meal.icon} shape="circle" />}
               title={meal.title}
               subtitle={meal.subtitle}
               trailing={meal.value ?? undefined}
@@ -100,12 +96,4 @@ const styles = StyleSheet.create({
   body: { flexDirection: 'row', alignItems: 'center', gap: space.lg },
   summary: { flex: 1 },
   macros: { flexDirection: 'row', gap: space.sm },
-  icon: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.full,
-    backgroundColor: theme.color.neutral.surface,
-  },
 });

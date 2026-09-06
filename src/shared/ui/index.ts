@@ -15,6 +15,7 @@ export {
   type GlassButtonSize,
 } from './glass-button';
 export { Glass, supportsLiquidGlass, type GlassProps } from './glass';
+export { IconTile, type IconTileProps } from './icon-tile';
 export { InfoCard, type InfoCardProps } from './info-card';
 export { LinkCard, type LinkCardProps } from './link-card';
 export { LineChart, type LineChartProps } from './line-chart';

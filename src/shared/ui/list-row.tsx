@@ -2,7 +2,7 @@ import Feather from '@expo/vector-icons/Feather';
 import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { radius, size, space, theme } from '@/shared/theme';
+import { radius, size, space, theme, type Tone } from '@/shared/theme';
 
 import { Pressable } from './pressable';
 import { Text } from './text';
@@ -25,6 +25,8 @@ export type ListRowProps = {
   onPress?: () => void;
   /** Строка выполнена: содержимое приглушается, но остаётся читаемым. */
   done?: boolean;
+  /** Цвет заголовка: у необратимого действия он свой, а не общий чернильный. */
+  titleTone?: Tone;
 };
 
 /** Строка списка внутри виджета: приём добавки, событие дня, показатель. */
@@ -39,16 +41,19 @@ export function ListRow({
   trailingSlot,
   onPress,
   done = false,
+  titleTone,
 }: ListRowProps) {
   const body = (
     <View style={styles.row}>
       {leading}
       <View style={styles.body}>
-        <Text variant="body" tone={done ? 'muted' : 'default'}>
+        <Text variant="body" tone={done ? 'muted' : (titleTone ?? 'default')}>
           {title}
         </Text>
         {subtitle ? (
-          <Text variant="bodySmall" tone="muted">
+          // Одна строка: в макете подпись обрезается, а не переносится — иначе
+          // соседние строки списка разъезжаются по высоте и ряд теряет ритм.
+          <Text variant="bodySmall" tone="muted" numberOfLines={1}>
             {subtitle}
           </Text>
         ) : null}

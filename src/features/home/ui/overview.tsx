@@ -1,12 +1,10 @@
-import Feather from '@expo/vector-icons/Feather';
 import { router } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
 
 import { to } from '@/shared/nav';
-import { radius, size, theme } from '@/shared/theme';
 import {
   Button,
   CheckCircle,
+  IconTile,
   ListRow,
   MetricWidget,
   ProgressBar,
@@ -53,11 +51,7 @@ export function Overview() {
         action={{ label: 'Journal', chevron: true, onPress: () => router.push(to.journal()) }}>
         <Stack gap="md">
           <ListRow
-            leading={
-              <View style={styles.icon}>
-                <Feather name="video" size={size.icon.md} color={theme.color.textMuted} />
-              </View>
-            }
+            leading={<IconTile name="video" shape="circle" />}
             title="Video visit · Anna Smirnova"
             subtitle="blood pressure follow-up · 30 min"
             trailing="15:30"
@@ -160,14 +154,3 @@ export function Overview() {
     </Stack>
   );
 }
-
-const styles = StyleSheet.create({
-  icon: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.md,
-    backgroundColor: theme.color.neutral.surface,
-  },
-});
