@@ -42,6 +42,12 @@ export const size = {
   tapTarget: Platform.select({ ios: 44, default: 48 }),
   border: Platform.select({ ios: 0.5, default: 1 }),
   icon: { sm: 16, md: 20, lg: 24 },
+  /**
+   * Сколько нижняя панель навигации отъедает у содержимого. Контент уезжает
+   * ПОД неё намеренно — стекло преломляет то, что под ним, — но последняя
+   * строка обязана оставаться выше панели, иначе до неё не дотянуться.
+   */
+  tabBar: 72,
 } as const;
 
 export const fontFamily = {

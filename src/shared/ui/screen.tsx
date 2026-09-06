@@ -2,7 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { ScrollView, StyleSheet, View, type ScrollViewProps } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { space, theme } from '@/shared/theme';
+import { size, space, theme } from '@/shared/theme';
 
 export type ScreenProps = ScrollViewProps & {
   /** Экран длиннее телефона — оборачиваем в скролл. */
@@ -35,7 +35,11 @@ export function Screen({ scroll = true, padded = true, style, children, ...rest 
     <LinearGradient colors={theme.color.backdrop} style={styles.fill}>
       {scroll ? (
         <ScrollView
-          contentContainerStyle={[styles.content, { paddingTop: insets.top + CONTENT_TOP }, inner]}
+          contentContainerStyle={[
+            styles.content,
+            { paddingTop: insets.top + CONTENT_TOP, paddingBottom: insets.bottom + size.tabBar },
+            inner,
+          ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           // Контент уезжает ПОД панель навигации, а не упирается в неё: стекло
@@ -64,7 +68,7 @@ export function Screen({ scroll = true, padded = true, style, children, ...rest 
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
-  content: { flexGrow: 1, paddingBottom: space['3xl'] },
+  content: { flexGrow: 1 },
   padded: { paddingHorizontal: space.screen },
   topFade: { position: 'absolute', top: 0, left: 0, right: 0 },
 });
