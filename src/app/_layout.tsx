@@ -5,6 +5,7 @@ import { StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { AssistantScreenOptions } from '@/features/assistant';
 import { to } from '@/shared/nav';
 import { fontFamily, size, space, textVariant, theme } from '@/shared/theme';
 import { GlassButton } from '@/shared/ui';
@@ -33,6 +34,9 @@ export default function RootLayout() {
             contentStyle: { backgroundColor: theme.color.background },
           }}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          {/* Способ показа экрана нужен навигатору до его появления, поэтому
+              шиты объявлены здесь, а не внутри самого маршрута. */}
+          <Stack.Screen name="assistant" options={AssistantScreenOptions} />
         </Stack>
 
         {TAB_ROOTS.has(pathname) ? (
