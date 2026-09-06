@@ -37,7 +37,7 @@ export function Screen({ scroll = true, padded = true, style, children, ...rest 
         <ScrollView
           contentContainerStyle={[
             styles.content,
-            { paddingTop: insets.top + CONTENT_TOP, paddingBottom: insets.bottom + size.tabBar },
+            { paddingTop: insets.top + CONTENT_TOP, paddingBottom: size.tabBar },
             inner,
           ]}
           keyboardShouldPersistTaps="handled"

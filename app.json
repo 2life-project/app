@@ -2,7 +2,7 @@
   "expo": {
     "name": "2Life",
     "slug": "2life",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "scheme": "twolife",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
@@ -13,7 +13,8 @@
       "supportsTablet": false,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "buildNumber": "1"
     },
     "android": {
       "package": "com.twolife.app",
@@ -23,7 +24,8 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "versionCode": 1
     },
     "web": {
       "output": "static",

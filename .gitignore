@@ -48,3 +48,7 @@ coverage/
 # local env (пример остаётся в репозитории)
 .env
 !.env.example
+
+# ключи загрузки в стор — только локально
+.env.release
+build/

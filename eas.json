@@ -1,7 +1,6 @@
 {
   "cli": {
-    "version": ">= 16.0.0",
-    "appVersionSource": "remote"
+    "version": ">= 16.0.0"
   },
   "build": {
     "development": {
@@ -19,9 +18,8 @@
     },
     "preview": {
       "distribution": "internal",
-      "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.staging.2life.app"
+        "EXPO_PUBLIC_API_URL": "https://2life.blackshift.dev"
       },
       "ios": {
         "simulator": false
@@ -31,13 +29,17 @@
       }
     },
     "production": {
-      "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.2life.app"
+        "EXPO_PUBLIC_API_URL": "https://2life.blackshift.dev"
       }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "ascAppId": "6808543577",
+        "sku": "2life-health"
+      }
+    }
   }
 }

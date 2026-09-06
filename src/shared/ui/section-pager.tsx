@@ -1,7 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, type ReactNode } from 'react';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { size, space, theme } from '@/shared/theme';
 
@@ -27,7 +26,6 @@ export type SectionPagerProps = {
  */
 export function SectionPager({ index, onIndexChange, pages }: SectionPagerProps) {
   const { width } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
   const ref = useRef<ScrollView>(null);
   const current = useRef(index);
 
@@ -60,7 +58,7 @@ export function SectionPager({ index, onIndexChange, pages }: SectionPagerProps)
           <ScrollView
             key={pageIndex}
             style={{ width }}
-            contentContainerStyle={[styles.page, { paddingBottom: insets.bottom + size.tabBar }]}
+            contentContainerStyle={styles.page}
             showsVerticalScrollIndicator={false}
             // Обе вставки выключены осознанно: система иначе добавляет странице
             // высоту безопасной зоны сверху, и контент отъезжает от шапки.
@@ -84,6 +82,7 @@ const styles = StyleSheet.create({
   fill: { flex: 1 },
   page: {
     paddingHorizontal: space.screen,
+    paddingBottom: size.tabBar,
     // Ровно высота полосы: содержимое начинается там, где она уже прозрачна.
     paddingTop: space.lg,
   },
