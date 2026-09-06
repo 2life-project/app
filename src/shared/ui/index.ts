@@ -1,4 +1,5 @@
 export { ActionLink, type ActionLinkProps } from './action-link';
+export { ActionTile, type ActionTileProps } from './action-tile';
 export { BackButton } from './back-button';
 export { Banner, type BannerProps } from './banner';
 export { BarChart, type BarChartProps } from './bar-chart';
@@ -8,6 +9,7 @@ export { CheckCircle, type CheckCircleProps } from './check-circle';
 export { ContextMenu, type ContextMenuItem, type ContextMenuProps } from './context-menu';
 export { DatePager, type DatePagerProps } from './date-pager';
 export { EmptyState, type EmptyStateProps } from './empty-state';
+export { Field, type FieldProps } from './field';
 export {
   GLASS_BUTTON_SIZE,
   GlassButton,
@@ -24,11 +26,13 @@ export { ListRow, type ListRowProps } from './list-row';
 export { MetricWidget, type MetricWidgetProps } from './metric-widget';
 export { MonthCalendar, type CalendarDay, type MonthCalendarProps } from './month-calendar';
 export { PagedScreen, type PagedScreenProps } from './paged-screen';
-export { Placeholder, type PlaceholderProps } from './placeholder';
 export { Pressable, type PressableScaleProps } from './pressable';
 export { ProgressBar, type ProgressBarProps } from './progress-bar';
 export { ProgressRing, type ProgressRingProps } from './progress-ring';
+export { RingPanel, type RingPanelProps } from './ring-panel';
+export { RadioRow, type RadioRowProps } from './radio-row';
 export { Screen, type ScreenProps } from './screen';
+export { ScreenHeader, type ScreenHeaderProps } from './screen-header';
 export { SectionPager, type SectionPagerProps } from './section-pager';
 export {
   SectionCaption,
@@ -39,6 +43,8 @@ export {
 export { StatTile, type StatTileProps } from './stat-tile';
 export { SummaryRow, type SummaryRowProps } from './summary-row';
 export { Segmented, type SegmentedProps } from './segmented';
+export { Sheet, type SheetProps } from './sheet';
+export { Slider, type SliderProps } from './slider';
 export { Stack, type StackProps } from './stack';
 export { Tag, type TagProps } from './tag';
 export { Text, type TextProps } from './text';

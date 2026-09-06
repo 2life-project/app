@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { to } from '@/shared/nav';
 import { size, space, theme } from '@/shared/theme';
 import {
+  ActionLink,
   Card,
   CheckCircle,
   GlassButton,
@@ -16,11 +17,20 @@ import {
   ProgressBar,
   SectionPager,
   Segmented,
+  Sheet,
   Stack,
   Text,
+  Toggle,
 } from '@/shared/ui';
 
-import { AGENDA, DAY_ENTRIES, DAY_PROTOCOL, JULY, JULY_FIRST_WEEKDAY } from '../model/journal';
+import {
+  AGENDA,
+  DAY_ENTRIES,
+  DAY_PROTOCOL,
+  JOURNAL_LAYERS,
+  JULY,
+  JULY_FIRST_WEEKDAY,
+} from '../model/journal';
 
 const VIEWS = [
   { value: 'calendar', label: 'Calendar' },
@@ -33,6 +43,11 @@ export function JournalScreen() {
   const insets = useSafeAreaInsets();
   const [view, setView] = useState<JournalView>('calendar');
   const [selected, setSelected] = useState(13);
+  const [layersOpen, setLayersOpen] = useState(false);
+  const [layers, setLayers] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(JOURNAL_LAYERS.map((layer) => [layer.id, layer.on])),
+  );
+  const shownLayers = JOURNAL_LAYERS.filter((layer) => layers[layer.id]).length;
   const index = VIEWS.findIndex((item) => item.value === view);
 
   return (
@@ -61,12 +76,12 @@ export function JournalScreen() {
             shape="pill"
             size="sm"
             accessibilityLabel="Слои журнала"
-            onPress={() => router.push(to.journal())}
+            onPress={() => setLayersOpen(true)}
             surfaceStyle={styles.layersSurface}>
             <Stack direction="row" gap="xs" align="center">
               <Feather name="layers" size={size.icon.sm} color={theme.color.accent.text} />
               <Text variant="link" tone="accent">
-                Layers · 4
+                {`Layers · ${shownLayers}`}
               </Text>
             </Stack>
           </GlassButton>
@@ -148,13 +163,47 @@ export function JournalScreen() {
           ]}
         />
       </View>
+
+      <Sheet
+        visible={layersOpen}
+        onClose={() => setLayersOpen(false)}
+        title="Layers"
+        action={<ActionLink label="Done" onPress={() => setLayersOpen(false)} />}>
+        <Stack gap="sm">
+          {JOURNAL_LAYERS.map((layer) => (
+            <ListRow
+              key={layer.id}
+              leading={<View style={[styles.layerDot, dotStyle(layer.tone)]} />}
+              title={layer.title}
+              subtitle={layer.subtitle}
+              trailingSlot={
+                <Toggle
+                  value={layers[layer.id] ?? false}
+                  accessibilityLabel={layer.title}
+                  onValueChange={(value) =>
+                    setLayers((previous) => ({ ...previous, [layer.id]: value }))
+                  }
+                />
+              }
+            />
+          ))}
+        </Stack>
+      </Sheet>
     </LinearGradient>
   );
 }
+
+/** Цвет точки слоя — из его семейства: он кодирует слой, а не состояние. */
+function dotStyle(tone: (typeof JOURNAL_LAYERS)[number]['tone']) {
+  return { backgroundColor: theme.color[tone].solid };
+}
+
+const LAYER_DOT = 9;
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
   header: { paddingHorizontal: space.screen, gap: space.sm },
   layers: { alignItems: 'flex-end' },
   layersSurface: { paddingHorizontal: space.md },
+  layerDot: { width: LAYER_DOT, height: LAYER_DOT, borderRadius: LAYER_DOT / 2 },
 });

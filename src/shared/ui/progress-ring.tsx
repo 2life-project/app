@@ -16,8 +16,12 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 const CURVE = Easing.bezier(...easing.decelerate);
 
 export type ProgressRingProps = {
-  /** Доля заполнения от 0 до 1. */
-  value: number;
+  /**
+   * Доля заполнения от 0 до 1. `null` — основания для дуги нет: у показателя
+   * не названы ни цель, ни шкала. Кольцо тогда остаётся дорожкой с числом в
+   * центре, а не рисует долю, которой никто не считал.
+   */
+  value: number | null;
   /** Что написано в центре кольца. */
   valueLabel: string;
   /** Подпись под кольцом. В виджете системы её нет — там кольцо стоит в ряду. */
@@ -51,7 +55,7 @@ export function ProgressRing({
 }: ProgressRingProps) {
   const radius = (size - thickness) / 2;
   const circumference = 2 * Math.PI * radius;
-  const target = Math.max(0, Math.min(1, value));
+  const target = value === null ? 0 : Math.max(0, Math.min(1, value));
 
   const progress = useSharedValue(0);
 

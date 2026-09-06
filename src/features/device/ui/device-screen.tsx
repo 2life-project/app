@@ -1,18 +1,16 @@
-import Feather from '@expo/vector-icons/Feather';
 import { StyleSheet, View } from 'react-native';
 
-import { size, space, theme } from '@/shared/theme';
+import { theme } from '@/shared/theme';
 import {
   ActionLink,
-  BackButton,
   Card,
   IconTile,
   InfoCard,
   ListRow,
-  ProgressRing,
+  RingPanel,
   Screen,
+  ScreenHeader,
   Stack,
-  SummaryRow,
   Tag,
   Text,
   Toggle,
@@ -28,43 +26,14 @@ export function DeviceScreen() {
   return (
     <Screen>
       <Stack gap="md">
-        <Stack direction="row" gap="md" align="center">
-          <BackButton />
-          <Stack gap="xs">
-            <Text variant="headline">{BAND.name}</Text>
-            <Text variant="bodySmall" tone="muted">
-              {BAND.status}
-            </Text>
-          </Stack>
-        </Stack>
+        <ScreenHeader title={BAND.name} subtitle={BAND.status} />
 
-        <Card>
-          <Stack gap="md">
-            <Stack direction="row" justify="space-between" align="center">
-              <Stack direction="row" gap="sm" align="center">
-                <Feather name="battery" size={size.icon.md} color={theme.color.text} />
-                <Text variant="subtitle">Battery</Text>
-              </Stack>
-              <Tag label={BAND.chip} tone="success" dot />
-            </Stack>
-
-            <View style={styles.hero}>
-              <ProgressRing
-                size={RING}
-                thickness={RING_THICKNESS}
-                value={BAND.battery / 100}
-                valueLabel={String(BAND.battery)}
-                note="%"
-                valueVariant="headline"
-              />
-              <View style={styles.heroRows}>
-                {BAND.rows.map((row, index) => (
-                  <SummaryRow key={row.id} {...row} divider={index > 0} />
-                ))}
-              </View>
-            </View>
-          </Stack>
-        </Card>
+        <RingPanel
+          title="Battery"
+          action={<Tag label={BAND.chip} tone="success" dot />}
+          ring={{ value: BAND.battery / 100, valueLabel: String(BAND.battery), note: '%' }}
+          rows={BAND.rows}
+        />
 
         <Card>
           <Stack gap="sm">
@@ -145,14 +114,10 @@ export function DeviceScreen() {
   );
 }
 
-const RING = 124;
-const RING_THICKNESS = 12;
 const SENSOR_ICON = 32;
 const DOT = 8;
 
 const styles = StyleSheet.create({
-  hero: { flexDirection: 'row', alignItems: 'center', gap: space.lg },
-  heroRows: { flex: 1 },
   dot: {
     width: DOT,
     height: DOT,

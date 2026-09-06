@@ -1,17 +1,22 @@
 import Feather from '@expo/vector-icons/Feather';
 import { StyleSheet, View } from 'react-native';
 
-import { radius, size, theme } from '@/shared/theme';
+import { radius, theme } from '@/shared/theme';
 
 export type CheckCircleProps = {
   checked: boolean;
+  /** Крупный кружок — когда отметка сама и есть содержимое экрана. */
+  size?: number;
 };
 
 /** Отметка выполнения: залитый кружок против пустого контура. */
-export function CheckCircle({ checked }: CheckCircleProps) {
+export function CheckCircle({ checked, size: box = CIRCLE }: CheckCircleProps) {
   return (
-    <View style={[styles.base, checked ? styles.checked : styles.empty]}>
-      {checked ? <Feather name="check" size={size.icon.sm} color={theme.color.success.on} /> : null}
+    <View
+      style={[styles.base, { width: box, height: box }, checked ? styles.checked : styles.empty]}>
+      {checked ? (
+        <Feather name="check" size={Math.round(box * 0.58)} color={theme.color.success.on} />
+      ) : null}
     </View>
   );
 }
@@ -20,8 +25,6 @@ const CIRCLE = 26;
 
 const styles = StyleSheet.create({
   base: {
-    width: CIRCLE,
-    height: CIRCLE,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.full,

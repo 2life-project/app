@@ -1,29 +1,36 @@
 import { router } from 'expo-router';
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { to } from '@/shared/nav';
 import { space } from '@/shared/theme';
 import {
+  ActionLink,
   BarChart,
   DatePager,
   InfoCard,
   LineChart,
   LinkCard,
+  RadioRow,
   SectionCaption,
   SectionSummary,
+  Sheet,
   Stack,
   StatTile,
   Text,
   WidgetCard,
 } from '@/shared/ui';
 
-import { BODY_SYSTEM, type BodySection } from '../model/systems';
+import { BODY_SYSTEM, RING_NOTE, RING_OPTIONS, type BodySection } from '../model/systems';
 
 /**
  * Единый шаблон системы тела. В макете четыре системы отличаются только
  * содержимым, поэтому разметка одна: расхождения между ними были бы багом.
  */
 export function BodySystem({ section }: { section: BodySection }) {
+  const options = RING_OPTIONS[section];
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [ringMetric, setRingMetric] = useState(options[0]?.id ?? '');
   const data = BODY_SYSTEM[section];
 
   return (
@@ -32,7 +39,7 @@ export function BodySystem({ section }: { section: BodySection }) {
 
       <SectionSummary
         title={data.title}
-        action={{ label: 'Change', chevron: true, onPress: () => router.push(to.metric(section)) }}
+        action={{ label: 'Change', chevron: true, onPress: () => setPickerOpen(true) }}
         caption={
           <SectionCaption>
             <Text variant="caption" tone="muted">
@@ -73,6 +80,27 @@ export function BodySystem({ section }: { section: BodySection }) {
       />
 
       <LinkCard label="More charts" onPress={() => router.push(to.metric(section))} />
+
+      <Sheet
+        visible={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        title="Track in the ring"
+        action={<ActionLink label="Done" onPress={() => setPickerOpen(false)} />}>
+        <Stack gap="md">
+          {options.map((option) => (
+            <RadioRow
+              key={option.id}
+              title={option.title}
+              subtitle={option.subtitle}
+              selected={option.id === ringMetric}
+              onPress={() => setRingMetric(option.id)}
+            />
+          ))}
+          <Text variant="bodySmall" tone="muted">
+            {RING_NOTE}
+          </Text>
+        </Stack>
+      </Sheet>
     </Stack>
   );
 }

@@ -16,7 +16,7 @@ export type MetricWidgetProps = {
   title: string;
   action: { label: string; onPress: () => void };
   ring: {
-    value: number;
+    value: number | null;
     valueLabel: string;
     tone: Extract<Tone, 'success' | 'warning' | 'danger'>;
   };

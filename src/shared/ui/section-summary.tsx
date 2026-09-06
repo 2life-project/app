@@ -22,7 +22,8 @@ export type SectionSummaryProps = {
   /** Строка под заголовком. Всегда одна строка — иначе кольцо съезжает вниз. */
   caption: ReactNode;
   ring: {
-    value: number;
+    /** `null` — шкалы для дуги нет: кольцо остаётся дорожкой с числом. */
+    value: number | null;
     valueLabel: string;
     note?: string;
     tone?: Extract<Tone, 'success' | 'warning' | 'danger'>;

@@ -124,3 +124,37 @@ export const BODY_SYSTEM = {
       'Weight moves down slowly while muscle holds — that is the shape you want. A single morning reading means little; the seven-day mean is what the protocol reads.',
   },
 } as const;
+
+/**
+ * Что показывать в кольце системы. Кольцо показывает один показатель — тот,
+ * по которому человек ведёт эту систему; остальные остаются в сводке ниже.
+ */
+export const RING_OPTIONS: Record<
+  BodySection,
+  readonly { id: string; title: string; subtitle: string }[]
+> = {
+  heart: [
+    { id: 'vo2max', title: 'VO₂max', subtitle: '48.2 · updated today' },
+    { id: 'rhr', title: 'Resting heart rate', subtitle: '54 bpm · base 58' },
+    { id: 'hrv', title: 'HRV', subtitle: '48 ms · base 62' },
+    { id: 'bp', title: 'Blood pressure', subtitle: '118/74 · manual' },
+    { id: 'zones', title: 'Heart-rate zones', subtitle: '62 min in zone 2' },
+  ],
+  breathing: [
+    { id: 'spo2', title: 'SpO₂', subtitle: '96 % · in range' },
+    { id: 'rate', title: 'Respiratory rate', subtitle: '14.2 per min' },
+  ],
+  recovery: [
+    { id: 'recovery', title: 'Recovery', subtitle: '68 · below base' },
+    { id: 'sleep', title: 'Sleep duration', subtitle: '7:42 of 8:00' },
+    { id: 'hrv', title: 'HRV', subtitle: '48 ms · base 62' },
+  ],
+  composition: [
+    { id: 'weight', title: 'Weight', subtitle: '82.1 kg · −0.4' },
+    { id: 'fat', title: 'Body fat', subtitle: '15.1 % · −1.1' },
+    { id: 'muscle', title: 'Muscle mass', subtitle: '66.4 kg' },
+  ],
+};
+
+export const RING_NOTE =
+  'The ring shows one metric — the one you steer this system by. The rest stay in the summary below.';

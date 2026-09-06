@@ -70,3 +70,30 @@ export const AGENDA = [
     ],
   },
 ] as const;
+
+/** Слои журнала: что показывать на календаре и в агенде. Состав из макета. */
+export const JOURNAL_LAYERS = [
+  {
+    id: 'protocols',
+    tone: 'success',
+    title: 'Protocols and courses',
+    subtitle: '26 marks this month',
+    on: true,
+  },
+  { id: 'supplements', tone: 'accent', title: 'Supplements', subtitle: '3 stacks a day', on: true },
+  {
+    id: 'workouts',
+    tone: 'highlight',
+    title: 'Workouts',
+    subtitle: 'from Whoop and manual',
+    on: true,
+  },
+  { id: 'visits', tone: 'warning', title: 'Visits and labs', subtitle: '2 in July', on: true },
+  {
+    id: 'checkins',
+    tone: 'neutral',
+    title: 'Evening check-ins',
+    subtitle: '29-day streak',
+    on: false,
+  },
+] as const;
