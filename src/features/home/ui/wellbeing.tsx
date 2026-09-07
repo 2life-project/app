@@ -24,6 +24,8 @@ import { checkinKey, fetchCheckin } from '../api/checkin';
 import type { HomeData } from '../api/contract';
 import { checkinCaption, wellbeingOf } from '../model/wellbeing';
 
+const FORM = 'short';
+
 export function Wellbeing({
   home,
   date,
@@ -35,8 +37,8 @@ export function Wellbeing({
 }) {
   // Анкета лежит отдельно от ленты: её перечитывают после ответа, а не вместе
   // со всей Главной.
-  const checkin = useQuery(checkinKey(date, timeZone), (signal) =>
-    fetchCheckin(date, timeZone, signal),
+  const checkin = useQuery(checkinKey(date, timeZone, FORM), (signal) =>
+    fetchCheckin(date, timeZone, FORM, signal),
   );
   const view = wellbeingOf(home);
 

@@ -9,8 +9,11 @@ import { Text } from './text';
 
 export type CalendarDay = {
   day: number;
-  /** Точки слоёв под числом: сколько записей какого рода в этот день. */
-  dots?: Extract<Tone, 'success' | 'warning' | 'danger' | 'highlight'>[];
+  /**
+   * Точки слоёв под числом: какие роды записей были в этот день. Цвет здесь
+   * кодирует слой, а не состояние, поэтому семейства не только статусные.
+   */
+  dots?: Tone[];
 };
 
 export type MonthCalendarProps = {

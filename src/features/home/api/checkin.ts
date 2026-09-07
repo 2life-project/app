@@ -1,4 +1,5 @@
 import { request } from '@/core/http/client';
+import { requestId } from '@/shared/lib/id';
 
 /**
  * Чек-ин самочувствия. Каждый ответ несёт свою шкалу и версию анкеты: старые
@@ -33,21 +34,66 @@ export type Checkin = {
   progress: { completed: number; total: number; status: string };
 };
 
-export function checkinKey(date: string, timeZone: string): string {
-  return `checkin:${date}:${timeZone}`;
+function query(date: string, timeZone: string, form: string): string {
+  return new URLSearchParams({
+    schemaVersion: '2',
+    date,
+    timezone: timeZone,
+    form,
+  }).toString();
+}
+
+export function checkinKey(date: string, timeZone: string, form: string): string {
+  return `checkin:${date}:${timeZone}:${form}`;
 }
 
 export function fetchCheckin(
   date: string,
   timeZone: string,
+  form: string,
   signal?: AbortSignal,
 ): Promise<Checkin> {
-  const query = new URLSearchParams({
-    schemaVersion: '2',
-    date,
-    timezone: timeZone,
-    form: 'short',
-  }).toString();
+  return request<Checkin>(`/api/v2/wellbeing/checkin?${query(date, timeZone, form)}`, { signal });
+}
 
-  return request<Checkin>(`/api/v2/wellbeing/checkin?${query}`, { signal });
+/**
+ * Сохраняются только явно заполненные ответы: пустой вопрос остаётся пустым,
+ * а не уезжает на сервер нулём. Ревизия обязательна — она отличает запись
+ * поверх свежих ответов от повторной отправки тех же.
+ */
+export function saveCheckin(
+  checkin: Checkin,
+  answers: Record<string, number>,
+  measuredAt: string,
+): Promise<Checkin> {
+  const path = `/api/v2/wellbeing/checkin?${query(checkin.date, checkin.timezone, checkin.form)}`;
+
+  return request<Checkin>(path, {
+    method: 'PUT',
+    body: {
+      requestId: requestId(),
+      questionnaireVersion: checkin.questionnaire.version,
+      revision: checkin.revision,
+      measuredAt,
+      answers,
+    },
+  });
+}
+
+/** Заметка дня. Своего поля у чек-ина нет — она уходит событием журнала. */
+export function createNote(
+  text: string,
+  startAt: string,
+  timeZone: string,
+): Promise<{ id: string; date: string }> {
+  return request<{ id: string; date: string }>('/api/v2/journal/events', {
+    method: 'POST',
+    body: {
+      requestId: requestId(),
+      title: 'Note from the check-in',
+      startAt,
+      timezone: timeZone,
+      event: { kind: 'note', text, tags: [] },
+    },
+  });
 }
