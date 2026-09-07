@@ -2,17 +2,27 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSyncExternalStore } from 'react';
 
 /**
- * Подключён ли браслет. Факт читают три места — «Тело» (что показывать вместо
- * колец), «Устройство» (сам экран) и «Настройки» (список источников), — поэтому
- * он живёт здесь, а не в одной из фич: фича фиче не видна.
+ * Какой браслет привязан. Факт читают три места — «Тело» (что показывать
+ * вместо колец), «Устройство» (сам экран) и «Настройки» (список источников), —
+ * поэтому он живёт здесь, а не в одной из фич: фича фиче не видна.
  *
- * Это не состояние-менеджер, а один флаг с подпиской: пока фактов столько,
- * заводить под них библиотеку не на чем. Значение переживает перезапуск —
- * иначе снятый браслет возвращается сам, и проверить сценарий нельзя.
+ * Хранится идентификатор, а не «да/нет»: без него после перезапуска непонятно,
+ * к чему подключаться, и привязку пришлось бы проходить заново каждый раз.
+ *
+ * Идентификатор платформенный, не MAC. iOS не отдаёт адрес устройства — он
+ * выдаёт свой UUID, и на другом телефоне тот же браслет будет другим. Поэтому
+ * это локальная память телефона, а не общая привязка аккаунта.
  */
+export type PairedBand = {
+  id: string;
+  name: string;
+  /** Когда привязали — на экране это «с 4 сентября». */
+  pairedAt: string;
+};
+
 const KEY = '2life:band';
 
-let connected = true;
+let paired: PairedBand | null = null;
 const listeners = new Set<() => void>();
 
 function publish() {
@@ -21,23 +31,27 @@ function publish() {
 
 void AsyncStorage.getItem(KEY).then((raw) => {
   if (raw === null) return;
-  connected = raw === 'true';
+  paired = JSON.parse(raw) as PairedBand;
   publish();
 });
 
-export function setBandConnected(next: boolean): void {
-  if (connected === next) return;
-  connected = next;
+export function setPairedBand(next: PairedBand | null): void {
+  paired = next;
   publish();
-  void AsyncStorage.setItem(KEY, String(next));
+  void (next ? AsyncStorage.setItem(KEY, JSON.stringify(next)) : AsyncStorage.removeItem(KEY));
 }
 
-export function useBandConnected(): boolean {
+export function usePairedBand(): PairedBand | null {
   return useSyncExternalStore(
     (listener) => {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-    () => connected,
+    () => paired,
   );
+}
+
+/** Есть ли вообще браслет. Экранам, которым не нужен сам браслет, хватает этого. */
+export function useBandConnected(): boolean {
+  return usePairedBand() !== null;
 }

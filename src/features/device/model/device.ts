@@ -129,3 +129,44 @@ export const TRACKER = {
   },
   disconnect: 'Disconnect Whoop',
 } as const;
+
+/**
+ * Тексты экрана привязки. Этого экрана в макете нет — формулировки рабочие и
+ * ждут вычитки: придуманный текст в интерфейсе живёт дольше, чем кажется.
+ */
+export const PAIRING = {
+  title: 'Connect a band',
+  subtitle: 'over Bluetooth',
+  found: 'Nearby',
+  start: 'Search',
+  stop: 'Stop',
+  searching: {
+    title: 'Looking for your band',
+    text: 'Keep it close and awake. Bands hide from search while another app holds them — close that app first.',
+  },
+  idle: {
+    title: 'Nothing found yet',
+    text: 'Start the search with the band next to the phone.',
+  },
+  off: {
+    title: 'Bluetooth is off',
+    text: 'Turn it on in the system settings — without the radio there is nothing to search with.',
+  },
+  errors: {
+    permission:
+      'Without permission to search the list stays empty — grant it in the system settings.',
+    scan: 'The search stopped. Try again.',
+    connect: 'The band did not answer. Bring it closer and try again.',
+  } as Record<string, string>,
+  note: 'Only the band is remembered, on this phone. Measurements are not read yet — that needs the band protocol.',
+} as const;
+
+/**
+ * Пока протокола браслета нет, приложение читает у него только то, что отдаёт
+ * любое устройство BLE: заряд, модель, версию. Сказать об этом на экране
+ * обязательно — иначе «подключено» читается как «измерения идут».
+ */
+export const NO_SYNC = {
+  title: 'Measurements are not syncing yet',
+  text: 'The band answers over Bluetooth and reports its charge and model. Steps, sleep and heart rate live in the vendor protocol — until we have it, those numbers come from elsewhere, not from this band.',
+} as const;

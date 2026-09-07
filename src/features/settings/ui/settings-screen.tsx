@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { setBandConnected } from '@/shared/domain';
+import { setPairedBand } from '@/shared/domain';
 import { clearStore, usePersistentState } from '@/shared/lib/store';
 import { to } from '@/shared/nav';
 import { radius, space, theme } from '@/shared/theme';
@@ -143,7 +143,7 @@ export function SettingsScreen() {
             label="Reset"
             tone="warning"
             onPress={() => {
-              void clearStore().then(() => setBandConnected(true));
+              void clearStore().then(() => setPairedBand(null));
               setConfirm(null);
             }}
           />

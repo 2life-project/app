@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { setBandConnected } from '@/shared/domain';
+import { shortDay } from '@/shared/lib/day';
 import { usePersistentState } from '@/shared/lib/store';
 import { to } from '@/shared/nav';
 import { theme } from '@/shared/theme';
@@ -29,11 +29,15 @@ import {
   CARE,
   HAPTICS,
   MICROPHONE_NOTE,
+  NO_SYNC,
   SENSORS,
   SYNC,
   TRACKER,
   UNPAIR,
 } from '../model/device';
+import { useBand } from '../model/use-band';
+
+import { PairScreen } from './pair-screen';
 
 /** Шапки нет: в макете возврат стоит в содержимом, рядом с заголовком. */
 export const DeviceScreenOptions = { headerShown: false };
@@ -43,20 +47,51 @@ export function DeviceScreen({ kind }: { kind?: string }) {
   const [synced, setSynced] = useState<string>(SYNC.last.subtitle);
   const [haptics, setHaptics] = usePersistentState<Record<string, boolean>>('device:haptics', {});
   const [firmware, setFirmware] = useState(false);
+  const band = useBand();
 
   if (kind && kind !== 'band') return <ThirdParty />;
+  // Браслета нет — экрану браслета нечего показывать, кроме привязки.
+  if (!band.paired) return <PairScreen />;
 
   return (
     <Screen>
       <Stack gap="md">
-        <ScreenHeader title={BAND.name} subtitle={BAND.status} />
+        <ScreenHeader title={band.paired.name} subtitle={status(band.link.connected)} />
 
+        {/* Заряд рисуем дугой только когда он прочитан. Кольцо без числа —
+            то же правило, что и у показателей: доля без основания не рисуется. */}
         <RingPanel
           title="Battery"
-          action={<Tag label={BAND.chip} tone="success" dot />}
-          ring={{ value: BAND.battery / 100, valueLabel: String(BAND.battery), note: '%' }}
-          rows={BAND.rows}
+          action={
+            <Tag
+              label={band.link.connected ? BAND.chip : 'OFFLINE'}
+              tone={band.link.connected ? 'success' : 'neutral'}
+              dot
+            />
+          }
+          ring={{
+            value: band.link.battery === null ? null : band.link.battery / 100,
+            valueLabel: band.link.battery === null ? '—' : String(band.link.battery),
+            note: '%',
+          }}
+          rows={[
+            { title: 'Model', subtitle: 'as the band names itself', value: band.link.model ?? '—' },
+            {
+              title: 'Firmware',
+              subtitle: 'reported over Bluetooth',
+              value: band.link.firmware ?? '—',
+            },
+            {
+              title: 'Paired',
+              subtitle: 'on this phone',
+              value: shortDay(band.paired.pairedAt.slice(0, 10)),
+            },
+          ]}
         />
+
+        {/* Главное, чего пока нет. Пустое место молчит, а человек решит, что
+            измерения идут: браслет ведь «подключён». */}
+        <InfoCard title={NO_SYNC.title} text={NO_SYNC.text} />
 
         <Card>
           <Stack gap="sm">
@@ -143,7 +178,7 @@ export function DeviceScreen({ kind }: { kind?: string }) {
           <Pressable
             accessibilityLabel={UNPAIR}
             onPress={() => {
-              setBandConnected(false);
+              band.forget();
               router.back();
             }}>
             <Text variant="body" tone="danger" style={styles.unpair}>
@@ -168,6 +203,11 @@ export function DeviceScreen({ kind }: { kind?: string }) {
       </Sheet>
     </Screen>
   );
+}
+
+/** «Подключён» — про связь, а не про то, что данные идут. */
+function status(connected: boolean): string {
+  return connected ? 'connected over Bluetooth' : 'not answering';
 }
 
 const SENSOR_ICON = 32;

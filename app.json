@@ -25,7 +25,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "versionCode": 1
+      "versionCode": 1,
+      "permissions": ["android.permission.BLUETOOTH_SCAN", "android.permission.BLUETOOTH_CONNECT"]
     },
     "web": {
       "output": "static",
@@ -39,6 +40,14 @@
           "backgroundColor": "#f9fafb",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 96
+        }
+      ],
+      [
+        "react-native-ble-plx",
+        {
+          "isBackgroundEnabled": false,
+          "modes": ["central"],
+          "bluetoothAlwaysPermission": "Нужен, чтобы найти ваш браслет и забирать с него измерения."
         }
       ]
     ],

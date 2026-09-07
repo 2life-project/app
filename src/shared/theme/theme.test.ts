@@ -188,7 +188,9 @@ describe('app.json', () => {
     for (const plugin of appJson.expo.plugins) {
       if (!Array.isArray(plugin) || plugin[0] !== 'expo-splash-screen') continue;
       const options = plugin[1];
-      if (typeof options === 'object') return options.backgroundColor;
+      if (typeof options === 'object' && 'backgroundColor' in options) {
+        return options.backgroundColor;
+      }
     }
     return undefined;
   }

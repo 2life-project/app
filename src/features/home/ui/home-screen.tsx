@@ -2,6 +2,7 @@ import Feather from '@expo/vector-icons/Feather';
 import { router } from 'expo-router';
 import { StyleSheet } from 'react-native';
 
+import { useBandConnected } from '@/shared/domain';
 import { longDay, useToday, weekdayOf } from '@/shared/lib/day';
 import { to } from '@/shared/nav';
 import { theme } from '@/shared/theme';
@@ -17,16 +18,21 @@ import { StateCard } from './state';
 import { Supplements } from './supplements';
 import { Wellbeing } from './wellbeing';
 
+/**
+ * Значок браслета подсвечен, только когда браслет действительно привязан:
+ * зелёная подложка при пустом Bluetooth — это обещание, которого нет.
+ */
 const HEADER_ACTIONS = [
-  { icon: 'watch', label: 'Устройство', href: to.device(), status: true },
-  { icon: 'settings', label: 'Настройки', href: to.settings(), status: false },
-  { icon: 'edit-2', label: 'Настроить виджеты', href: to.widgets(), status: false },
+  { icon: 'watch', label: 'Устройство', href: to.device(), band: true },
+  { icon: 'settings', label: 'Настройки', href: to.settings(), band: false },
+  { icon: 'edit-2', label: 'Настроить виджеты', href: to.widgets(), band: false },
 ] as const;
 
 export function HomeScreen() {
   const { date, timeZone } = useToday();
   const home = useHome(date, timeZone);
   const decisions = useDecisions();
+  const bandPaired = useBandConnected();
 
   // Дату показываем свою, пока не приехала серверная: шапка не должна быть
   // пустой на время загрузки — день известен ещё до запроса.
@@ -62,7 +68,7 @@ export function HomeScreen() {
             accessibilityLabel={action.label}
             onPress={() => router.push(action.href)}
             // Зелёное кольцо на устройстве — статус связи, а не украшение.
-            surfaceStyle={action.status ? styles.connected : undefined}>
+            surfaceStyle={action.band && bandPaired ? styles.connected : undefined}>
             <Feather name={action.icon} size={18} color={theme.color.text} />
           </GlassButton>
         ))}

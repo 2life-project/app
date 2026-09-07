@@ -1,4 +1,4 @@
-export { setBandConnected, useBandConnected } from './connection';
+export { setPairedBand, useBandConnected, usePairedBand, type PairedBand } from './connection';
 export {
   acceptsManualEntry,
   availability,
