@@ -34,10 +34,13 @@ import {
   EMPTY_DAY,
   eventTime,
   isDone,
+  markable,
   JOURNAL_LAYERS,
   layerCount,
   monthDays,
 } from '../model/journal';
+
+import { EventSheet } from './event-sheet';
 
 const VIEWS = [
   { value: 'calendar', label: 'Calendar' },
@@ -56,6 +59,7 @@ export function JournalScreen() {
   const [view, setView] = useState<JournalView>('calendar');
   const [selected, setSelected] = useState(today ?? 1);
   const [layersOpen, setLayersOpen] = useState(false);
+  const [opened, setOpened] = useState<CalendarEvent | null>(null);
   const [shown, setShown] = usePersistentState<Layer[]>('journal:layers', [...ALL_LAYERS]);
 
   const monthQuery = useQuery(monthKey(year ?? 0, month ?? 0, timeZone, shown.join()), (signal) =>
@@ -168,11 +172,16 @@ export function JournalScreen() {
                       {events.map((event) => (
                         <ListRow
                           key={event.id}
-                          leading={<CheckCircle checked={isDone(event)} />}
+                          leading={
+                            <CheckCircle
+                              checked={isDone(event)}
+                              onPress={markable(event) ? () => mark(event) : undefined}
+                            />
+                          }
                           title={event.title}
                           subtitle={`${eventTime(event)} · ${event.status}`}
                           done={isDone(event)}
-                          onPress={() => mark(event)}
+                          onPress={() => setOpened(event)}
                         />
                       ))}
                     </Stack>
@@ -190,11 +199,16 @@ export function JournalScreen() {
                       {group.events.map((event) => (
                         <ListRow
                           key={event.id}
-                          leading={<CheckCircle checked={isDone(event)} />}
+                          leading={
+                            <CheckCircle
+                              checked={isDone(event)}
+                              onPress={markable(event) ? () => mark(event) : undefined}
+                            />
+                          }
                           title={event.title}
                           subtitle={`${eventTime(event)} · ${event.layer}`}
                           done={isDone(event)}
-                          onPress={() => mark(event)}
+                          onPress={() => setOpened(event)}
                         />
                       ))}
                     </Stack>
@@ -243,6 +257,8 @@ export function JournalScreen() {
           ))}
         </Stack>
       </Sheet>
+
+      <EventSheet event={opened} timeZone={timeZone} onClose={() => setOpened(null)} />
     </LinearGradient>
   );
 }

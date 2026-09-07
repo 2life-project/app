@@ -1,5 +1,6 @@
 import { request } from '@/core/http/client';
 import type { MetricValue } from '@/shared/domain';
+import { requestId } from '@/shared/lib/id';
 
 import type { MetricCatalog, RingPreferences, SubsystemData, Subsystem } from './contract';
 
@@ -62,4 +63,29 @@ export function fetchMetric(
 ): Promise<MetricValue> {
   const path = `/api/v2/metrics/${encodeURIComponent(key)}?${query({ start, end, timezone: timeZone })}`;
   return request<MetricValue>(path, { signal });
+}
+
+/**
+ * Ручной ввод измерения. Адрес берётся из `manual.endpoint` самого показателя,
+ * а не зашит здесь: сервер сам говорит, куда писать этот показатель.
+ *
+ * Отправляем ровно то, что ввёл человек, в единице из `manual.unit` — пересчёт
+ * делает сервер и возвращает своё значение со своей единицей.
+ */
+export function saveMeasurement(
+  metric: MetricValue,
+  value: number,
+  timeZone: string,
+): Promise<unknown> {
+  const manual = metric.manual;
+  if (!manual?.allowed) throw new Error(`metric ${metric.key} is not writable by hand`);
+  return request(manual.endpoint, {
+    method: 'POST',
+    body: {
+      requestId: requestId(),
+      measuredAt: new Date().toISOString(),
+      timezone: timeZone,
+      measurements: [{ metric: metric.key, value, unit: manual.unit }],
+    },
+  });
 }

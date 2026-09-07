@@ -1,17 +1,24 @@
 import Feather from '@expo/vector-icons/Feather';
 import { StyleSheet, View } from 'react-native';
 
-import { radius, theme } from '@/shared/theme';
+import { radius, size, theme } from '@/shared/theme';
+
+import { Pressable } from './pressable';
 
 export type CheckCircleProps = {
   checked: boolean;
   /** Крупный кружок — когда отметка сама и есть содержимое экрана. */
   size?: number;
+  /**
+   * Отметка нажимается сама, отдельно от строки. Без обработчика кружок
+   * остаётся индикатором: у записанного факта нечего переключать.
+   */
+  onPress?: () => void;
 };
 
 /** Отметка выполнения: залитый кружок против пустого контура. */
-export function CheckCircle({ checked, size: box = CIRCLE }: CheckCircleProps) {
-  return (
+export function CheckCircle({ checked, size: box = CIRCLE, onPress }: CheckCircleProps) {
+  const circle = (
     <View
       style={[styles.base, { width: box, height: box }, checked ? styles.checked : styles.empty]}>
       {checked ? (
@@ -19,9 +26,19 @@ export function CheckCircle({ checked, size: box = CIRCLE }: CheckCircleProps) {
       ) : null}
     </View>
   );
+
+  if (!onPress) return circle;
+  // Зона нажатия шире кружка: 26pt меньше минимальных 44pt, и промах по нему
+  // на строке списка означал бы промах по соседней строке.
+  return (
+    <Pressable onPress={onPress} hitSlop={HIT_SLOP}>
+      {circle}
+    </Pressable>
+  );
 }
 
 const CIRCLE = 26;
+const HIT_SLOP = Math.round((size.tapTarget - CIRCLE) / 2);
 
 const styles = StyleSheet.create({
   base: {

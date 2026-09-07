@@ -33,8 +33,15 @@ type Settled<T> = { key: string; attempt: number; data: T | null; error: unknown
  * `key` — единственная зависимость: строка, которая полностью определяет
  * запрос (путь с параметрами). Так вызывающему не нужно помнить про
  * `useCallback`, а забытая мемоизация не превращается в цикл запросов.
+ *
+ * `null` вместо ключа означает «пока не нужно»: запрос не уходит, состояние
+ * остаётся пустым. Так содержимое панели грузится, когда её открыли, а не
+ * когда отрисовали закрытой.
  */
-export function useQuery<T>(key: string, load: (signal: AbortSignal) => Promise<T>): Query<T> {
+export function useQuery<T>(
+  key: string | null,
+  load: (signal: AbortSignal) => Promise<T>,
+): Query<T> {
   const [settled, setSettled] = useState<Settled<T> | null>(null);
   const [attempt, setAttempt] = useState(0);
 
@@ -46,6 +53,7 @@ export function useQuery<T>(key: string, load: (signal: AbortSignal) => Promise<
   });
 
   useEffect(() => {
+    if (key === null) return;
     const controller = new AbortController();
 
     loadRef
@@ -73,7 +81,7 @@ export function useQuery<T>(key: string, load: (signal: AbortSignal) => Promise<
   return {
     data,
     error: done ? forKey.error : null,
-    loading: !done && data === null,
+    loading: key !== null && !done && data === null,
     refreshing: !done && data !== null,
     refresh,
   };

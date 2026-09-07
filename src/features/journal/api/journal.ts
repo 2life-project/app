@@ -63,3 +63,19 @@ export function markDone(event: CalendarEvent, done: boolean): Promise<CalendarE
     body: { requestId: requestId(), revision: event.revision, done },
   });
 }
+
+export function eventKey(id: string, timeZone: string): string {
+  return `event:${id}:${timeZone}`;
+}
+
+/** Подробности события: то, чего нет в списке — текст заметки, метки, источник. */
+export function fetchEvent(
+  id: string,
+  timeZone: string,
+  signal?: AbortSignal,
+): Promise<CalendarEvent> {
+  return request<CalendarEvent>(
+    `/api/v2/journal/events/${encodeURIComponent(id)}?${query({ timezone: timeZone })}`,
+    { signal },
+  );
+}

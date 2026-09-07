@@ -52,6 +52,31 @@ export function isDone(event: CalendarEvent): boolean {
   return event.status === 'done' || event.status === 'recorded';
 }
 
+/**
+ * Можно ли переключить отметку. Ручка `done` в контракте описана как отметка
+ * ЗАПЛАНИРОВАННОГО события: заметка или измерение — это уже случившийся факт,
+ * и «снять галочку» с них значит утверждать, что их не было.
+ */
+export function markable(event: CalendarEvent): boolean {
+  return event.status === 'planned' || event.status === 'done' || event.status === 'skipped';
+}
+
+/** Текст заметки, если сервер его прислал. Форму `detail` контракт даёт только для заметки. */
+export function detailText(event: CalendarEvent): string | null {
+  const detail = event.detail;
+  if (typeof detail !== 'object' || detail === null) return null;
+  const text = (detail as { text?: unknown }).text;
+  return typeof text === 'string' && text !== '' ? text : null;
+}
+
+/** Метки заметки — тем же осторожным чтением, что и текст. */
+export function detailTags(event: CalendarEvent): readonly string[] {
+  const detail = event.detail;
+  if (typeof detail !== 'object' || detail === null) return [];
+  const tags = (detail as { tags?: unknown }).tags;
+  return Array.isArray(tags) ? tags.filter((tag): tag is string => typeof tag === 'string') : [];
+}
+
 /** Что предлагаем добавить, когда за день ничего не записано. */
 export const EMPTY_DAY = {
   title: 'Nothing logged this day',

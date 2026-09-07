@@ -14,20 +14,24 @@ import {
 } from '@/shared/domain';
 import { shortDay, useToday } from '@/shared/lib/day';
 import {
+  ActionLink,
   Card,
+  Field,
   InfoCard,
   LineChart,
   ListRow,
   Screen,
   ScreenHeader,
   Segmented,
+  Sheet,
   Stack,
   StatTile,
   Text,
   WidgetCard,
 } from '@/shared/ui';
 
-import { fetchMetric, metricKey } from '../api/body';
+import { fetchMetric, metricKey, saveMeasurement } from '../api/body';
+import { manualError, manualValue } from '../model/manual';
 import { METRIC_RANGES, rangeStart, type MetricRange } from '../model/metric';
 
 export const MetricScreenOptions = { headerShown: false };
@@ -36,6 +40,9 @@ export const MetricScreenOptions = { headerShown: false };
 export function MetricScreen({ id }: { id: string }) {
   const { date, timeZone } = useToday();
   const [range, setRange] = useState<MetricRange>('28d');
+  const [entering, setEntering] = useState(false);
+  const [input, setInput] = useState('');
+  const [failed, setFailed] = useState(false);
   const start = rangeStart(date, range);
 
   const query = useQuery(metricKey(id, start, date, timeZone), (signal) =>
@@ -50,6 +57,17 @@ export function MetricScreen({ id }: { id: string }) {
           title={metric?.name ?? id}
           subtitle={metric ? metricBasis(metric) : 'loading…'}
         />
+
+        {metric?.manual?.allowed ? (
+          <ActionLink
+            label={`Add a measurement in ${metric.manual.unit}`}
+            onPress={() => {
+              setInput('');
+              setFailed(false);
+              setEntering(true);
+            }}
+          />
+        ) : null}
 
         <Segmented items={METRIC_RANGES} value={range} onChange={setRange} />
 
@@ -115,8 +133,60 @@ export function MetricScreen({ id }: { id: string }) {
           </>
         )}
       </Stack>
+
+      {metric ? (
+        <Sheet
+          visible={entering}
+          onClose={() => setEntering(false)}
+          title={`Add ${metric.name.toLowerCase()}`}
+          action={
+            <ActionLink
+              label="Save"
+              disabled={manualError(metric, input) !== null}
+              onPress={() => {
+                setEntering(false);
+                saveMeasurement(metric, manualValue(input), timeZone).then(
+                  () => query.refresh(),
+                  () => setFailed(true),
+                );
+              }}
+            />
+          }>
+          <Stack gap="sm">
+            <Field
+              label={`Value, ${metric.manual?.unit ?? metric.unit}`}
+              hint={metric.value === null ? undefined : String(metric.value)}
+              keyboardType="decimal-pad"
+              value={input}
+              onChangeText={(next) => {
+                setInput(next);
+                setFailed(false);
+              }}
+              autoFocus
+            />
+            <Text tone="muted">
+              {/* Ошибку показываем только после ввода: пустое поле — это ещё не ошибка. */}
+              {input === '' ? bounds(metric) : (manualError(metric, input) ?? bounds(metric))}
+            </Text>
+            {failed ? <Text tone="danger">The measurement did not save. Try again.</Text> : null}
+          </Stack>
+        </Sheet>
+      ) : null}
     </Screen>
   );
+}
+
+/** Что сервер готов принять. Пределы приходят в `manual`, свои клиент не знает. */
+function bounds(metric: MetricValue): string {
+  const manual = metric.manual;
+  if (!manual) return '';
+  const low =
+    manual.minimum === null
+      ? null
+      : `${manual.minimumExclusive ? 'above' : 'from'} ${manual.minimum}`;
+  const high = manual.maximum === null ? null : `up to ${manual.maximum}`;
+  const range = [low, high].filter(Boolean).join(', ');
+  return range ? `Accepted: ${range} ${manual.unit}.` : `Recorded in ${manual.unit}.`;
 }
 
 function values(metric: MetricValue) {

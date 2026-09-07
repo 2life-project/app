@@ -1,4 +1,4 @@
-import type { MetricValue } from '@/shared/domain';
+import type { MetricManual, MetricValue } from '@/shared/domain';
 
 /**
  * Ответы `/api/v2/body` — как в контракте, без домысла. Подсистема отдаёт
@@ -62,8 +62,33 @@ export type RingPreferences = {
   updatedAt: string | null;
 };
 
+/**
+ * Запись каталога — не значение показателя, а его описание: чем он бывает
+ * измерен и можно ли внести его руками. Значения здесь нет намеренно, каталог
+ * отвечает на вопрос «что вообще есть», а не «сколько сейчас».
+ */
+export type CatalogMetric = {
+  key: string;
+  name: string;
+  unit: string;
+  subsystem: Subsystem;
+  subsystems: readonly Subsystem[];
+  aggregations: readonly string[];
+  /** Читается ли показатель с устройства и почему нет, если нет. */
+  automatic: {
+    readSupported: boolean;
+    canonicalKeys: readonly string[];
+    condition: string;
+    unsupportedReason: string | null;
+  };
+  manual: MetricManual;
+  calculation: unknown;
+  related: readonly string[];
+  notes: readonly string[];
+};
+
 export type MetricCatalog = {
-  metrics: readonly MetricValue[];
+  metrics: readonly CatalogMetric[];
   subsystems: readonly { key: Subsystem; name: string }[];
   medicalData: { separateWorkflow: boolean; catalogUrl: string };
 };

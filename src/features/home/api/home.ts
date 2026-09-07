@@ -110,15 +110,18 @@ export function undoDecision(decision: Decision): Promise<Decision> {
     },
   });
 }
-
-/** Отметка приёма добавки, включая запланированный приём с Главной. */
-export function markSupplementTaken(
-  id: string,
-  date: string,
-  status: 'taken' | 'skipped',
-): Promise<{ id: string; date: string; status: string; takenAt: number | null }> {
-  return request(`/api/v2/supplements/checkins/${encodeURIComponent(id)}`, {
-    method: 'PUT',
-    body: { status, date },
+/** Применение выбранных пунктов решения — сервер разрешает это отдельно от «применить всё». */
+export function applyDecisionItems(
+  decision: Decision,
+  itemIds: readonly string[],
+): Promise<Decision> {
+  return request<Decision>(`/api/v2/decisions/${encodeURIComponent(decision.id)}/items`, {
+    method: 'POST',
+    body: {
+      revision: decision.revision,
+      sourceRevision: decision.sourceRevision,
+      requestId: requestId(),
+      itemIds: [...itemIds],
+    },
   });
 }

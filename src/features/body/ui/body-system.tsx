@@ -28,6 +28,8 @@ import { fetchSubsystem, saveRingMetric, subsystemKey } from '../api/body';
 import type { Subsystem } from '../api/contract';
 import { RING_NOTE, subsystemView } from '../model/subsystem';
 
+import { ManualPicker } from './manual-picker';
+
 /**
  * Единый шаблон системы тела. В макете четыре системы отличаются только
  * содержимым, поэтому разметка одна: расхождения между ними были бы багом.
@@ -50,6 +52,7 @@ export function BodySystem({
     fetchSubsystem(section, date, timeZone, signal),
   );
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [manualOpen, setManualOpen] = useState(false);
 
   const data = query.data;
   if (!data) return <Stack gap="md">{fallback}</Stack>;
@@ -106,6 +109,9 @@ export function BodySystem({
       ) : null}
 
       <LinkCard label="More charts" onPress={() => router.push(to.metric(data.ring.metric))} />
+      <LinkCard label="Add a measurement by hand" onPress={() => setManualOpen(true)} />
+
+      <ManualPicker subsystem={section} visible={manualOpen} onClose={() => setManualOpen(false)} />
 
       <Sheet
         visible={pickerOpen}
