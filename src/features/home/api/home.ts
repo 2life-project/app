@@ -1,7 +1,14 @@
 import { request } from '@/core/http/client';
 import { requestId } from '@/shared/lib/id';
 
-import type { Decision, HomeData, HomeLayout, Surface, WidgetCatalog } from './contract';
+import type {
+  Decision,
+  HomeData,
+  HomeLayout,
+  LayoutCell,
+  Surface,
+  WidgetCatalog,
+} from './contract';
 
 /**
  * Ручки Главной. Здесь только адреса и параметры — разбор и смысл живут в
@@ -30,6 +37,27 @@ export function fetchHomeData(
 ): Promise<HomeData> {
   const path = `/api/v2/home/data?${query({ surface: SURFACE, date, timezone: timeZone })}`;
   return request<HomeData>(path, { signal });
+}
+
+/**
+ * Сохранение раскладки. Ревизия обязательна: сервер не примет запись поверх
+ * той, которую человек поменял с другого устройства, — и это правильно.
+ */
+export function saveHomeLayout(
+  current: HomeLayout,
+  cells: readonly LayoutCell[],
+): Promise<HomeLayout> {
+  return request<HomeLayout>(`/api/v2/home/layout?${query({ surface: SURFACE })}`, {
+    method: 'PUT',
+    body: {
+      schemaVersion: current.schemaVersion,
+      revision: current.revision,
+      layout: {
+        dockWidth: current.layout.dockWidth,
+        columns: [{ id: 'mobile-main', size: 1, cells: cells.map((cell) => ({ ...cell })) }],
+      },
+    },
+  });
 }
 
 export function fetchWidgetCatalog(signal?: AbortSignal): Promise<WidgetCatalog> {

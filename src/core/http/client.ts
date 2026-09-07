@@ -16,7 +16,18 @@ export class HttpError extends Error {
   }
 }
 
-type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+/**
+ * Необязательное поле объекта разрешено: `JSON.stringify` просто выбрасывает
+ * `undefined`, а типы контракта описывают такие поля как опциональные —
+ * запрещать их значило бы требовать `as` на каждом теле запроса.
+ */
+type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | readonly JsonValue[]
+  | { readonly [key: string]: JsonValue | undefined };
 
 /**
  * Тело только JSON — и это ограничение намеренное. Файл через этот клиент
