@@ -9,7 +9,7 @@
     "backgroundColor": "#f9fafb",
     "icon": "./assets/images/icon.png",
     "ios": {
-      "bundleIdentifier": "com.twolife.app",
+      "bundleIdentifier": "dev.blackshift.twolife",
       "supportsTablet": false,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -17,7 +17,7 @@
       "buildNumber": "1"
     },
     "android": {
-      "package": "com.twolife.app",
+      "package": "dev.blackshift.twolife",
       "adaptiveIcon": {
         "backgroundColor": "#f9fafb",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

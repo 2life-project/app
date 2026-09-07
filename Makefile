@@ -119,6 +119,7 @@ PBXPROJ     := ios/2Life.xcodeproj/project.pbxproj
 
 APP_VERSION := $(shell node -p "require('./app.json').expo.version")
 BUILD_NUM   := $(shell node -p "require('./app.json').expo.ios.buildNumber || 1")
+BUNDLE_ID   := $(shell node -p "require('./app.json').expo.ios.bundleIdentifier")
 
 # Команда подписи. Expo prebuild её не проставляет, поэтому значение живёт
 # здесь и уезжает в нативный проект при сборке. Переопределить:
@@ -145,11 +146,12 @@ build-ipa: ## Собрать и залить в TestFlight (ENV=prod|staging, UP
 	@[ -n "$(API_URL)" ] || { echo "✗ Неизвестный контур ENV=$(ENV). Есть: prod, staging"; exit 1; }
 	@[ -d ios ] || { echo "✗ Нет каталога ios/. Сначала: make prebuild"; exit 1; }
 	@echo ""
-	@echo "  2Life $(APP_VERSION) ($(BUILD_NUM)) · контур $(ENV) · $(API_URL)"
+	@echo "  2Life $(APP_VERSION) ($(BUILD_NUM)) · $(BUNDLE_ID) · контур $(ENV) · $(API_URL)"
 	@echo "  Team: $(TEAM_ID) · ветка $$(git rev-parse --abbrev-ref HEAD) · назначение: $(DESTINATION)"
 	@echo ""
-	@echo "→ Синк версии и команды подписи из app.json в нативный проект"
+	@echo "→ Синк версии, идентификатора и команды подписи из app.json в нативный проект"
 	@sed -i '' -E 's/CURRENT_PROJECT_VERSION = [0-9.]+;/CURRENT_PROJECT_VERSION = $(BUILD_NUM);/g' $(PBXPROJ)
+	@sed -i '' -E 's/PRODUCT_BUNDLE_IDENTIFIER = [^;]+;/PRODUCT_BUNDLE_IDENTIFIER = $(BUNDLE_ID);/g' $(PBXPROJ)
 	@sed -i '' -E 's/MARKETING_VERSION = [0-9.]+;/MARKETING_VERSION = $(APP_VERSION);/g' $(PBXPROJ)
 	@grep -q 'DEVELOPMENT_TEAM' $(PBXPROJ) \
 	  && sed -i '' -E 's/DEVELOPMENT_TEAM = [A-Z0-9]*;/DEVELOPMENT_TEAM = $(TEAM_ID);/g' $(PBXPROJ) \
