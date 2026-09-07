@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { signOut } from '@/core/auth';
 import { setPairedBand } from '@/shared/domain';
 import { clearStore, usePersistentState } from '@/shared/lib/store';
 import { to } from '@/shared/nav';
@@ -126,7 +127,14 @@ export function SettingsScreen() {
         action={<ActionLink label="Cancel" onPress={() => setConfirm(null)} />}>
         <Stack gap="md">
           <Text tone="muted">{SIGN_OUT_CONFIRM.text}</Text>
-          <Button label="Sign out" tone="danger" onPress={() => setConfirm(null)} />
+          <Button
+            label="Sign out"
+            tone="danger"
+            onPress={() => {
+              setConfirm(null);
+              void signOut();
+            }}
+          />
         </Stack>
       </Sheet>
 
