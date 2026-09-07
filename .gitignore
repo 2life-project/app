@@ -48,3 +48,6 @@ coverage/
 # local env (пример остаётся в репозитории)
 .env
 !.env.example
+
+# артефакты релизной сборки
+build/
