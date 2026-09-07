@@ -1,20 +1,10 @@
-import { useMemo } from 'react';
-
 import { useQuery, type Query } from '@/core/http/use-query';
-import { dayIn, deviceTimeZone } from '@/shared/lib/day';
 
 import type { Decision, HomeData, HomeLayout } from '../api/contract';
 import { fetchDecisions, fetchHomeData, fetchHomeLayout, homeKey } from '../api/home';
 
 /** Раскладка и данные приходят вместе: без раскладки ленту нечем выстроить. */
 export type HomeState = { layout: HomeLayout; home: HomeData };
-
-/** День, за который смотрим ленту, и пояс, в котором сервер его считает. */
-export function useHomeDay(): { date: string; timeZone: string } {
-  const timeZone = useMemo(() => deviceTimeZone(), []);
-  const date = useMemo(() => dayIn(timeZone), [timeZone]);
-  return { date, timeZone };
-}
 
 export function useHome(date: string, timeZone: string): Query<HomeState> {
   return useQuery(homeKey(date, timeZone), async (signal) => {

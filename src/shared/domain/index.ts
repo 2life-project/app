@@ -16,6 +16,7 @@ export {
   type MetricPeriod,
   type MetricPoint,
   type MetricProvenance,
+  type MetricSeries,
   type MetricValue,
 } from './metric';
 export {

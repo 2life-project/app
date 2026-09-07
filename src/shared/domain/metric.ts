@@ -47,6 +47,18 @@ export type MetricProvenance = {
   seriesId?: string;
 };
 
+/**
+ * Один источник показателя. Их бывает несколько — часы, весы, ручной ввод, —
+ * и сервер не смешивает их в кучу: он выбирает один ряд и говорит, какой.
+ */
+export type MetricSeries = MetricProvenance & {
+  id: string;
+  key: string;
+  unit: string;
+  warnings: readonly unknown[];
+  points: readonly MetricPoint[];
+};
+
 export type MetricFreshness = {
   stale: boolean | null;
   observedAt: string | null;
@@ -105,6 +117,7 @@ export type MetricValue = {
   manual?: MetricManual;
   previous?: number | null;
   delta?: number | null;
+  series?: readonly MetricSeries[];
 };
 
 /** Три состояния вместо двух: число, «не вносили», «прочитать нельзя». */

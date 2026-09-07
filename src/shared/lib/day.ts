@@ -1,9 +1,22 @@
+import { useMemo } from 'react';
+
 /**
  * Сервер считает сутки в часовом поясе, который присылает клиент, и отвечает
  * датой вида `YYYY-MM-DD`. Поэтому «сегодня» здесь — это день в поясе
  * устройства, а не `Date` в UTC: в Москве в 02:00 они разные, и запрос за
  * вчерашний день вернул бы вчерашнюю ленту.
  */
+
+/**
+ * День и пояс, за которые смотрим данные. Их спрашивают и Главная, и Тело, и
+ * Журнал, поэтому счёт «сегодня» живёт здесь: разойдись он между разделами —
+ * они показывали бы разные сутки одного и того же человека.
+ */
+export function useToday(): { date: string; timeZone: string } {
+  const timeZone = useMemo(() => deviceTimeZone(), []);
+  const date = useMemo(() => dayIn(timeZone), [timeZone]);
+  return { date, timeZone };
+}
 
 export function deviceTimeZone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';

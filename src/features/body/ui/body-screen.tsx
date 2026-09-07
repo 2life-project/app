@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
-import { setBandConnected, useBandConnected } from '@/shared/domain';
+import { useBandConnected } from '@/shared/domain';
+import { useToday } from '@/shared/lib/day';
 import { to } from '@/shared/nav';
 import { radius, theme } from '@/shared/theme';
 import {
@@ -21,6 +22,7 @@ import { BODY_SECTIONS, NO_BAND } from '../model/systems';
 import { BodySystem } from './body-system';
 
 export function BodyScreen() {
+  const { date, timeZone } = useToday();
   const connected = useBandConnected();
 
   if (!connected) return <NoBand />;
@@ -28,10 +30,20 @@ export function BodyScreen() {
   return (
     <PagedScreen
       title="Body"
-      subtitle="from your band · synced 2 min ago"
+      subtitle="from your band"
       sections={BODY_SECTIONS}
       pages={BODY_SECTIONS.map((section) => (
-        <BodySystem key={section.value} section={section.value} />
+        <BodySystem
+          key={section.value}
+          section={section.value}
+          date={date}
+          timeZone={timeZone}
+          fallback={
+            <Card variant="sunken">
+              <Text tone="muted">Loading this system…</Text>
+            </Card>
+          }
+        />
       ))}
     />
   );
@@ -54,13 +66,7 @@ function NoBand() {
 
         <EmptyPanel icon="watch" title={NO_BAND.title} text={NO_BAND.text} />
 
-        <Button
-          label="Connect a device"
-          onPress={() => {
-            setBandConnected(true);
-            router.push(to.device());
-          }}
-        />
+        <Button label="Connect a device" onPress={() => router.push(to.device())} />
         <ActionLink label="Enter measurements by hand" onPress={() => router.push(to.checkIn())} />
 
         <Card>

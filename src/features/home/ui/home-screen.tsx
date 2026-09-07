@@ -2,12 +2,12 @@ import Feather from '@expo/vector-icons/Feather';
 import { router } from 'expo-router';
 import { StyleSheet } from 'react-native';
 
-import { longDay, weekdayOf } from '@/shared/lib/day';
+import { longDay, useToday, weekdayOf } from '@/shared/lib/day';
 import { to } from '@/shared/nav';
 import { theme } from '@/shared/theme';
 import { GlassButton, PagedScreen, Stack, Text } from '@/shared/ui';
 
-import { pendingCount, useDecisions, useHome, useHomeDay } from '../model/home';
+import { pendingCount, useDecisions, useHome } from '../model/home';
 import { HOME_SECTIONS } from '../model/sections';
 
 import { Activity } from './activity';
@@ -24,7 +24,7 @@ const HEADER_ACTIONS = [
 ] as const;
 
 export function HomeScreen() {
-  const { date, timeZone } = useHomeDay();
+  const { date, timeZone } = useToday();
   const home = useHome(date, timeZone);
   const decisions = useDecisions();
 
