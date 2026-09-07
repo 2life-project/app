@@ -1,14 +1,12 @@
-import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { to } from '@/shared/nav';
+import { useQuery } from '@/core/http/use-query';
+import { shortDay } from '@/shared/lib/day';
 import { radius, space, theme } from '@/shared/theme';
 import {
   ActionLink,
-  Button,
   Card,
-  InfoCard,
   LineChart,
   ListRow,
   Screen,
@@ -21,113 +19,92 @@ import {
   WidgetCard,
 } from '@/shared/ui';
 
-import { MARKER } from '../model/marker';
+import type { MarkerTrend, Observation } from '../api/contract';
+import { fetchMarkerHistory, fetchMarkerOverview, fetchMarkerTrend } from '../api/records';
+import { chartable, markerTone, scalePosition } from '../model/biochemistry';
 
 export const LabScreenOptions = { headerShown: false };
 
-/** Показатель биохимии: значение против цели, динамика, измерения, связи. */
-export function LabScreen({ id: _id }: { id: string }) {
+/** Показатель биохимии: значение против нормы, динамика, измерения, источники. */
+export function LabScreen({ id }: { id: string }) {
   const [sources, setSources] = useState(false);
+
+  const overview = useQuery(`marker:${id}`, (signal) => fetchMarkerOverview(id, signal));
+  const trend = useQuery(`marker:${id}:trend`, (signal) => fetchMarkerTrend(id, signal));
+  const history = useQuery(sources ? `marker:${id}:history` : null, (signal) =>
+    fetchMarkerHistory(id, signal),
+  );
+
+  const data = overview.data;
+  const values = chartable(trend.data?.points ?? []);
 
   return (
     <Screen>
       <Stack gap="md">
-        <ScreenHeader title={MARKER.title} subtitle={MARKER.subtitle} />
-
-        <Card>
-          <Stack gap="md">
-            <Stack direction="row" justify="space-between" align="center">
-              <Stack direction="row" gap="xs" align="baseline">
-                <Text variant="display">{MARKER.value}</Text>
-                <Text variant="bodySmall" tone="muted">
-                  {MARKER.unit}
-                </Text>
-              </Stack>
-              <Tag label={MARKER.status} tone="warning" dot />
-            </Stack>
-
-            {/* Шкала показывает, где значение стоит между целью и верхом
-                референса: число без шкалы не говорит, много это или мало. */}
-            <View>
-              <View style={styles.scale}>
-                <View style={[styles.zone, styles.zoneLow, { flex: MARKER.scale.low }]} />
-                <View style={[styles.zone, styles.zoneMid, { flex: MARKER.scale.mid }]} />
-                <View style={[styles.zone, styles.zoneHigh, { flex: MARKER.scale.high }]} />
-              </View>
-              <View style={[styles.marker, { left: `${MARKER.scale.at * 100}%` }]} />
-            </View>
-
-            <Stack direction="row" justify="space-between">
-              <Text variant="footnote" tone="muted">
-                {MARKER.scale.from}
-              </Text>
-              <Text variant="footnote" tone="muted">
-                {MARKER.scale.goal}
-              </Text>
-              <Text variant="footnote" tone="muted">
-                {MARKER.scale.to}
-              </Text>
-            </Stack>
-          </Stack>
-        </Card>
-
-        <Card>
-          <Stack gap="sm">
-            <Text variant="subtitle">{MARKER.target.title}</Text>
-            <View style={styles.tiles}>
-              <StatTile {...MARKER.target.reference} />
-              <StatTile {...MARKER.target.goal} />
-            </View>
-            <Text tone="muted">{MARKER.target.text}</Text>
-          </Stack>
-        </Card>
-
-        <WidgetCard title={MARKER.dynamics.title} caption={MARKER.dynamics.caption}>
-          <LineChart values={MARKER.dynamics.values} tone="warning" />
-        </WidgetCard>
-
-        <WidgetCard title="Latest measurements">
-          <Stack gap="sm">
-            {MARKER.measurements.map((measurement) => (
-              <ListRow
-                key={measurement.id}
-                title={measurement.date}
-                subtitle={measurement.source}
-                trailing={measurement.value}
-              />
-            ))}
-          </Stack>
-        </WidgetCard>
-
-        <WidgetCard title="Linked to">
-          <Stack direction="row" gap="sm" wrap>
-            {MARKER.linked.map((link) => (
-              <Button
-                key={link.id}
-                label={link.label}
-                variant="tonal"
-                size="sm"
-                onPress={() =>
-                  router.push(link.to === 'protocol' ? to.protocol(link.id) : to.protocols())
-                }
-              />
-            ))}
-          </Stack>
-        </WidgetCard>
-
-        <InfoCard
-          title={MARKER.about.title}
-          text={MARKER.about.text}
-          link={{ label: 'Learn more', onPress: () => router.push(to.assistant()) }}
+        <ScreenHeader
+          title={data?.displayName ?? id}
+          subtitle={data?.latest?.date ? shortDay(data.latest.date) : 'loading…'}
         />
 
-        <Card variant="flat">
-          <ActionLink
-            label="All measurements and sources"
-            chevron
-            onPress={() => setSources(true)}
-          />
-        </Card>
+        {!data ? (
+          <Card variant="sunken">
+            <Text tone="muted">
+              {overview.loading ? 'Loading the marker…' : 'The marker did not load.'}
+            </Text>
+          </Card>
+        ) : (
+          <>
+            <Card>
+              <Stack gap="md">
+                <Stack direction="row" justify="space-between" align="center">
+                  <Stack direction="row" gap="xs" align="baseline">
+                    <Text variant="display">{value(data.latest)}</Text>
+                    <Text variant="bodySmall" tone="muted">
+                      {data.latest?.unit ?? ''}
+                    </Text>
+                  </Stack>
+                  <Tag
+                    label={(data.clinicalStatus.label ?? data.clinicalStatus.code).toUpperCase()}
+                    tone={markerTone(data.clinicalStatus.code)}
+                    dot
+                  />
+                </Stack>
+
+                <Scale observation={data.latest} />
+
+                {data.clinicalStatus.reason ? (
+                  <Text tone="muted">{data.clinicalStatus.reason}</Text>
+                ) : null}
+              </Stack>
+            </Card>
+
+            <References trend={trend.data} unit={data.latest?.unit ?? null} />
+
+            {values.length > 1 ? (
+              <WidgetCard
+                title={`${values.length} measurements`}
+                caption={trend.data?.period ?? undefined}>
+                <LineChart values={values} tone={chartTone(data.clinicalStatus.code)} />
+              </WidgetCard>
+            ) : null}
+
+            {/* Свежесть — отдельное утверждение сервера: старое значение
+                остаётся значением, но читать его надо иначе. */}
+            {data.freshness.reason ? (
+              <Card variant="sunken">
+                <Text tone="muted">{data.freshness.reason}</Text>
+              </Card>
+            ) : null}
+
+            <Card variant="flat">
+              <ActionLink
+                label="All measurements and sources"
+                chevron
+                onPress={() => setSources(true)}
+              />
+            </Card>
+          </>
+        )}
       </Stack>
 
       <Sheet
@@ -136,14 +113,18 @@ export function LabScreen({ id: _id }: { id: string }) {
         title="All measurements"
         action={<ActionLink label="Done" onPress={() => setSources(false)} />}>
         <Stack gap="sm">
-          {MARKER.measurements.map((measurement) => (
+          {(history.data?.observations ?? []).map((observation) => (
             <ListRow
-              key={measurement.id}
-              title={measurement.date}
-              subtitle={measurement.source}
-              trailing={measurement.value}
+              key={observation.id}
+              title={observation.date ? shortDay(observation.date) : 'no date'}
+              subtitle={observation.documentFilename}
+              trailing={`${value(observation)} ${observation.unit ?? ''}`.trim()}
+              // Сервер сам говорит, какие измерения сравнимы между собой:
+              // отсеянное он на график не пускает, и здесь это тоже видно.
+              trailingCaption={observation.chartEligibility.eligible ? undefined : 'not comparable'}
             />
           ))}
+          {history.loading ? <Text tone="muted">Loading the history…</Text> : null}
           <Text variant="footnote" tone="muted">
             Recognised documents keep the lab as the source; a manual entry stays marked as yours.
           </Text>
@@ -153,15 +134,107 @@ export function LabScreen({ id: _id }: { id: string }) {
   );
 }
 
+/**
+ * У графика палитра уже: нейтрального тона в ней нет. Незнакомый статус
+ * рисуем акцентом — это «не знаем», а не «всё хорошо» и не «тревога».
+ */
+function chartTone(code: string): 'success' | 'warning' | 'danger' | 'highlight' {
+  const tone = markerTone(code);
+  return tone === 'success' || tone === 'warning' || tone === 'danger' ? tone : 'highlight';
+}
+
+function value(observation: Observation | null | undefined): string {
+  if (!observation) return '—';
+  if (observation.rawValueText) return observation.rawValueText;
+  return observation.value === null ? '—' : String(observation.value);
+}
+
+/**
+ * Шкала между границами нормы. Границы объявил сервер: без них шкалы нет,
+ * потому что рисовать её от нуля значит придумать норму за лабораторию.
+ */
+function Scale({ observation }: { observation: Observation | null }) {
+  const at = scalePosition(
+    observation?.value ?? null,
+    observation?.refLow ?? null,
+    observation?.refHigh ?? null,
+  );
+  if (at === null || !observation) return null;
+
+  return (
+    <Stack gap="xs">
+      <View>
+        <View style={styles.scale}>
+          <View style={[styles.zone, styles.zoneIn]} />
+        </View>
+        <View style={[styles.marker, { left: `${at * 100}%` }]} />
+      </View>
+      <Stack direction="row" justify="space-between">
+        <Text variant="footnote" tone="muted">
+          {observation.refLow}
+        </Text>
+        <Text variant="footnote" tone="muted">
+          {observation.refText ?? 'lab reference'}
+        </Text>
+        <Text variant="footnote" tone="muted">
+          {observation.refHigh}
+        </Text>
+      </Stack>
+    </Stack>
+  );
+}
+
+/**
+ * Норм бывает несколько. Лабораторная напечатана в бланке, остальные — это
+ * позиция сервиса; складывать их в одно число нельзя, поэтому показываем рядом.
+ */
+function References({ trend, unit }: { trend: MarkerTrend | null; unit: string | null }) {
+  const sources = trend?.refSources;
+  if (!sources) return null;
+
+  const tiles = [
+    { label: 'LAB', range: sources.labVariants[0] ?? null },
+    { label: 'STANDARD', range: sources.standard },
+    { label: 'OPTIMAL', range: sources.optimal },
+  ].filter((tile) => tile.range !== null);
+
+  if (tiles.length === 0) return null;
+
+  return (
+    <Card>
+      <Stack gap="sm">
+        <Text variant="subtitle">What counts as normal</Text>
+        <View style={styles.tiles}>
+          {tiles.map((tile) => (
+            <StatTile
+              key={tile.label}
+              label={tile.label}
+              value={range(tile.range)}
+              note={sources.refUnit ?? unit ?? undefined}
+            />
+          ))}
+        </View>
+      </Stack>
+    </Card>
+  );
+}
+
+function range(bounds: { refLow: number | null; refHigh: number | null } | null): string {
+  if (!bounds) return '—';
+  const { refLow, refHigh } = bounds;
+  if (refLow !== null && refHigh !== null) return `${refLow}–${refHigh}`;
+  if (refHigh !== null) return `< ${refHigh}`;
+  if (refLow !== null) return `> ${refLow}`;
+  return '—';
+}
+
 const SCALE_HEIGHT = 12;
 const MARKER_SIZE = 14;
 
 const styles = StyleSheet.create({
-  scale: { flexDirection: 'row', gap: 2, height: SCALE_HEIGHT },
-  zone: { height: SCALE_HEIGHT, borderRadius: radius.full },
-  zoneLow: { backgroundColor: theme.color.success.solid },
-  zoneMid: { backgroundColor: theme.color.warning.solid },
-  zoneHigh: { backgroundColor: theme.color.danger.solid },
+  scale: { flexDirection: 'row', height: SCALE_HEIGHT },
+  zone: { flex: 1, height: SCALE_HEIGHT, borderRadius: radius.full },
+  zoneIn: { backgroundColor: theme.color.success.solid },
   marker: {
     position: 'absolute',
     top: -1,
