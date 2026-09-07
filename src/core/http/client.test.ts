@@ -1,3 +1,4 @@
+import { setAuthToken } from './auth';
 import { HttpError, request } from './client';
 
 const originalFetch = global.fetch;
@@ -71,5 +72,24 @@ describe('request', () => {
     respondWith('{}');
     await request('/thing', { method: 'POST', body: { a: 1 } });
     expect(lastInit?.headers).toHaveProperty('Content-Type', 'application/json');
+  });
+});
+
+describe('авторизация', () => {
+  afterEach(() => setAuthToken(null));
+
+  it('без токена заголовок не отправляется', async () => {
+    respondWith('{}');
+    await request('/thing');
+
+    expect(lastInit?.headers).not.toHaveProperty('Authorization');
+  });
+
+  it('с токеном уходит Bearer', async () => {
+    setAuthToken('abc');
+    respondWith('{}');
+    await request('/thing');
+
+    expect(lastInit?.headers).toHaveProperty('Authorization', 'Bearer abc');
   });
 });

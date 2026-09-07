@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, type ReactNode } from 'react';
-import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { size, space, theme } from '@/shared/theme';
 
@@ -9,6 +9,9 @@ export type SectionPagerProps = {
   index: number;
   onIndexChange: (index: number) => void;
   pages: ReactNode[];
+  /** Потянуть вниз — перечитать данные. Есть там, где страница их грузит. */
+  onRefresh?: () => void;
+  refreshing?: boolean;
 };
 
 /**
@@ -24,7 +27,13 @@ export type SectionPagerProps = {
  * отступом: без отступа она ложится на первую карточку и затемняет ей верх,
  * хотя карточка стоит на месте и растворять в ней нечего.
  */
-export function SectionPager({ index, onIndexChange, pages }: SectionPagerProps) {
+export function SectionPager({
+  index,
+  onIndexChange,
+  pages,
+  onRefresh,
+  refreshing = false,
+}: SectionPagerProps) {
   const { width } = useWindowDimensions();
   const ref = useRef<ScrollView>(null);
   const current = useRef(index);
@@ -63,7 +72,16 @@ export function SectionPager({ index, onIndexChange, pages }: SectionPagerProps)
             // Обе вставки выключены осознанно: система иначе добавляет странице
             // высоту безопасной зоны сверху, и контент отъезжает от шапки.
             contentInsetAdjustmentBehavior="never"
-            automaticallyAdjustContentInsets={false}>
+            automaticallyAdjustContentInsets={false}
+            refreshControl={
+              onRefresh ? (
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  tintColor={theme.color.textMuted}
+                />
+              ) : undefined
+            }>
             {page}
           </ScrollView>
         ))}

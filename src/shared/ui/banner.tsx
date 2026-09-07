@@ -10,18 +10,20 @@ export type BannerProps = {
   title: string;
   subtitle?: string;
   tone?: Extract<Tone, 'success' | 'warning' | 'danger' | 'highlight'>;
+  /** Галочка означает «сделано». Плашка о незаконченном её не ставит. */
+  checked?: boolean;
   action?: { label: string; onPress: () => void };
 };
 
 /** Плашка состояния: чек-ин пройден, синхронизация прошла, что-то требует внимания. */
-export function Banner({ title, subtitle, tone = 'success', action }: BannerProps) {
+export function Banner({ title, subtitle, tone = 'success', checked = true, action }: BannerProps) {
   return (
     <View
       style={[
         styles.banner,
         { backgroundColor: theme.color[tone].surface, borderColor: theme.color[tone].border },
       ]}>
-      <CheckCircle checked />
+      <CheckCircle checked={checked} />
       <View style={styles.body}>
         <Text variant="body">{title}</Text>
         {subtitle ? (

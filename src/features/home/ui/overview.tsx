@@ -1,169 +1,79 @@
-import { router } from 'expo-router';
+import type { Query } from '@/core/http/use-query';
+import { Stack, Text, WidgetCard } from '@/shared/ui';
 
-import { to } from '@/shared/nav';
-import {
-  ActionLink,
-  Button,
-  CheckCircle,
-  IconTile,
-  ListRow,
-  MetricWidget,
-  ProgressBar,
-  ProgressRing,
-  Stack,
-  StatTile,
-  Text,
-  TimelineRow,
-  WidgetCard,
-} from '@/shared/ui';
+import type { Decision, HomeData, LayoutCell } from '../api/contract';
+import { cellsOf } from '../model/feed';
+import type { HomeState } from '../model/home';
+import { summaryFor } from '../model/summary';
+import { fuelOf, moveOf, recoverOf, ringsOf, type RingView } from '../model/vitals';
 
-import { useDoses } from '../model/doses';
-import {
-  BODY_SYSTEMS,
-  LIVE_STREAMS,
-  PLAN,
-  PROTOCOLS,
-  RINGS,
-  SUPPLEMENT_STACKS,
-} from '../model/overview';
+import { CustomWidget, SystemWidget, VitalsWidget } from './widget-data';
+import { DecisionsWidget } from './widget-decisions';
+import { SummaryWidget } from './widget-summary';
 
-/** Лента виджетов Обзора — порядок и содержимое из макета. */
-export function Overview() {
-  const doses = useDoses();
+/**
+ * Лента Обзора выстраивается по раскладке с сервера: он говорит, какие виджеты
+ * показывать и в каком порядке, а экран их только рисует. Порядок, зашитый в
+ * код, разошёлся бы с экраном настройки виджетов в первый же день.
+ */
+export function Overview({
+  state,
+  decisions,
+}: {
+  state: HomeState;
+  decisions: Query<readonly Decision[]>;
+}) {
+  const cells = cellsOf(state.layout);
+  const rings = ringsOf(state.home);
+
+  if (cells.length === 0) {
+    return (
+      <WidgetCard title="Empty home">
+        <Text tone="muted">No widgets are set up yet.</Text>
+      </WidgetCard>
+    );
+  }
 
   return (
     <Stack gap="md">
-      <WidgetCard
-        title="Four rings"
-        action={{ label: 'Details', onPress: () => router.push(to.body()) }}>
-        <Stack direction="row" justify="space-between">
-          {RINGS.map((ring) => {
-            // Кольцо приёмов считается по отметкам, а не стоит числом: оно и
-            // есть обратная связь на единственное ежедневное действие.
-            const taken = ring.id === 'doses';
-
-            return (
-              <ProgressRing
-                key={ring.id}
-                value={taken ? doses.done / doses.total : ring.value}
-                valueLabel={taken ? `${doses.done}/${doses.total}` : ring.valueLabel}
-                label={ring.label}
-                tone={ring.tone}
-              />
-            );
-          })}
-        </Stack>
-      </WidgetCard>
-
-      <WidgetCard
-        title="Next up"
-        caption="in 1 h 50 min"
-        action={{ label: 'Journal', chevron: true, onPress: () => router.push(to.journal()) }}>
-        <Stack gap="md">
-          <ListRow
-            leading={<IconTile name="video" shape="circle" />}
-            title="Video visit · Anna Smirnova"
-            subtitle="blood pressure follow-up · 30 min"
-            trailing="15:30"
-            trailingCaption="today"
-          />
-          <Button label="Join the call" variant="tonal" />
-        </Stack>
-      </WidgetCard>
-
-      <WidgetCard
-        title="Supplements"
-        caption={`${doses.done} of ${doses.total} taken today`}
-        action={{
-          label: 'Supplements',
-          chevron: true,
-          onPress: () => router.push(to.course('all')),
-        }}>
-        <Stack gap="sm">
-          {SUPPLEMENT_STACKS.map((stack) => (
-            <ListRow
-              key={stack.id}
-              leading={<CheckCircle checked={doses.taken[stack.id] ?? false} />}
-              title={stack.title}
-              subtitle={stack.subtitle}
-              note={doses.taken[stack.id] ? stack.status : stack.time}
-              noteTone={doses.taken[stack.id] ? 'success' : 'muted'}
-              done={doses.taken[stack.id] ?? false}
-              onPress={() => doses.toggle(stack.id)}
-              trailingSlot={
-                <ActionLink label="Course" onPress={() => router.push(to.course(stack.id))} />
-              }
-            />
-          ))}
-        </Stack>
-      </WidgetCard>
-
-      <WidgetCard
-        title="The plan"
-        caption="2 done · 2 left today"
-        action={{ label: 'Journal', chevron: true, onPress: () => router.push(to.journal()) }}>
-        <Stack>
-          {PLAN.map((item) => (
-            <TimelineRow
-              key={item.id}
-              time={item.time}
-              title={item.title}
-              subtitle={item.subtitle}
-              state={item.state}
-              badge={'badge' in item ? item.badge : undefined}
-            />
-          ))}
-        </Stack>
-      </WidgetCard>
-
-      {BODY_SYSTEMS.map((system) => (
-        <MetricWidget
-          key={system.id}
-          icon={system.icon}
-          title={system.title}
-          action={{ label: 'Body', onPress: () => router.push(to.body()) }}
-          ring={system.ring}
-          tiles={[...system.tiles]}
-        />
+      {cells.map((cell) => (
+        <Cell key={cell.id} cell={cell} home={state.home} rings={rings} decisions={decisions} />
       ))}
-
-      <WidgetCard
-        title="Protocols and goals"
-        action={{ label: 'All 5', onPress: () => router.push(to.protocols()) }}>
-        <Stack gap="md">
-          {PROTOCOLS.map((protocol) => (
-            <Stack key={protocol.id} gap="xs">
-              <Stack direction="row" justify="space-between" align="center">
-                <Text variant="body">{protocol.title}</Text>
-                <Text variant="bodySmall" tone="muted">
-                  {protocol.percent}
-                </Text>
-              </Stack>
-              <Text variant="bodySmall" tone="muted">
-                {protocol.subtitle}
-              </Text>
-              <ProgressBar value={protocol.value} tone={protocol.tone} />
-            </Stack>
-          ))}
-        </Stack>
-      </WidgetCard>
-
-      <WidgetCard
-        title="Live streams"
-        action={{ label: 'now', onPress: () => router.push(to.device()) }}>
-        <Stack gap="sm">
-          <Stack direction="row" gap="sm">
-            {LIVE_STREAMS.slice(0, 2).map((stream) => (
-              <StatTile key={stream.label} {...stream} />
-            ))}
-          </Stack>
-          <Stack direction="row" gap="sm">
-            {LIVE_STREAMS.slice(2).map((stream) => (
-              <StatTile key={stream.label} {...stream} />
-            ))}
-          </Stack>
-        </Stack>
-      </WidgetCard>
     </Stack>
   );
+}
+
+function Cell({
+  cell,
+  home,
+  rings,
+  decisions,
+}: {
+  cell: LayoutCell;
+  home: HomeData;
+  rings: readonly RingView[];
+  decisions: Query<readonly Decision[]>;
+}) {
+  switch (cell.widget) {
+    case 'vitals':
+      return <VitalsWidget rings={rings} />;
+    case 'recover':
+      return <SystemWidget widget="recover" view={recoverOf(home)} />;
+    case 'fuel':
+      return <SystemWidget widget="fuel" view={fuelOf(home)} />;
+    case 'move':
+      return <SystemWidget widget="move" view={moveOf(home)} />;
+    case 'decisions':
+      return <DecisionsWidget query={decisions} />;
+    case 'custom': {
+      // Данные пользовательского виджета сервер кладёт отдельно и связывает по
+      // идентификатору ячейки: рецепт в раскладке, значения — в ответе данных.
+      const widget = home.widgets.find((candidate) => candidate.id === cell.id);
+      return widget ? <CustomWidget widget={widget} /> : null;
+    }
+    default: {
+      const view = summaryFor(cell.widget, home);
+      return view ? <SummaryWidget view={view} /> : null;
+    }
+  }
 }

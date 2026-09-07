@@ -15,8 +15,16 @@ if (!__DEV__ && !apiUrl.startsWith('https://')) {
   throw new Error(`EXPO_PUBLIC_API_URL должен быть https, получено: ${apiUrl}`);
 }
 
+/**
+ * Токен для разработки. `EXPO_PUBLIC_*` инлайнится в бандл, поэтому в релизе он
+ * не читается вовсе: иначе токен доступа к медицинским данным уехал бы в стор
+ * внутри бинарника. Настоящую сессию поставит экран входа через `setAuthToken`.
+ */
+const apiToken = __DEV__ ? (process.env.EXPO_PUBLIC_API_TOKEN ?? null) : null;
+
 export const env = {
   apiUrl,
+  apiToken,
   isDev: __DEV__,
   appVersion: Constants.expoConfig?.version ?? '0.0.0',
 } as const;

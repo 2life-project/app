@@ -18,7 +18,7 @@ export type MetricWidgetProps = {
   ring: {
     value: number | null;
     valueLabel: string;
-    tone: Extract<Tone, 'success' | 'warning' | 'danger'>;
+    tone?: Extract<Tone, 'success' | 'warning' | 'danger'>;
   };
   tiles: StatTileProps[];
 };

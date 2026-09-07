@@ -1,6 +1,8 @@
 import { env } from '@/core/config/env';
 import { logger } from '@/core/log/logger';
 
+import { authToken } from './auth';
+
 const TIMEOUT_MS = 15_000;
 
 /** Ответ пришёл, но не 2xx. Отличать от сетевого сбоя — разные экраны ошибок. */
@@ -32,6 +34,7 @@ export type RequestOptions = Omit<RequestInit, 'body'> & { body?: JsonValue };
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { body, headers, signal, ...rest } = options;
   const timeout = AbortSignal.timeout(TIMEOUT_MS);
+  const token = authToken();
 
   const response = await fetch(`${env.apiUrl}${path}`, {
     ...rest,
@@ -41,6 +44,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
     headers: {
       Accept: 'application/json',
+      ...(token === null ? {} : { Authorization: `Bearer ${token}` }),
       ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
       ...headers,
     },

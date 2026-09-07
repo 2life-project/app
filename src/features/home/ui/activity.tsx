@@ -1,87 +1,92 @@
 import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
+import { shortDay } from '@/shared/lib/day';
 import { to } from '@/shared/nav';
 import { space } from '@/shared/theme';
 import {
-  BarChart,
+  Banner,
+  Card,
   DatePager,
-  IconTile,
   InfoCard,
   LinkCard,
-  ListRow,
   SectionCaption,
   SectionSummary,
   Stack,
+  StatTile,
   Text,
-  WidgetCard,
 } from '@/shared/ui';
 
-import { ABOUT_STRAIN, ACTIVITY_SUMMARY, STRAIN_30_DAYS, WORKOUTS } from '../model/activity';
+import type { HomeData } from '../api/contract';
+import { activityOf } from '../model/activity';
 
-export function Activity() {
+/**
+ * Активность дня. Истории нагрузки в ответе Главной нет — графики периода
+ * живут на экране показателя, туда и ведёт ссылка внизу.
+ */
+export function Activity({ home }: { home: HomeData }) {
+  const view = activityOf(home);
+
+  if (!view) {
+    return (
+      <Stack gap="md">
+        <DatePager label={`Today · ${shortDay(home.date)}`} />
+        <Card variant="sunken">
+          <Text tone="muted">Movement data did not load for this day.</Text>
+        </Card>
+      </Stack>
+    );
+  }
+
   return (
     <Stack gap="md">
-      <DatePager label="Today · July 13" />
+      <DatePager label={`Today · ${shortDay(home.date)}`} />
+
+      {view.available ? null : (
+        <Banner
+          tone="warning"
+          title="No movement data"
+          subtitle="The source is not being read right now."
+          action={{ label: 'Device', onPress: () => router.push(to.device()) }}
+        />
+      )}
 
       <SectionSummary
         title="Activity"
-        action={{ label: 'Change', chevron: true, onPress: () => router.push(to.body()) }}
-        caption={<SectionCaption>STRAIN · above your 14-day average</SectionCaption>}
-        ring={{ value: 14.2 / 21, valueLabel: '14.2', note: 'of 21' }}
-        rows={ACTIVITY_SUMMARY.map((row) => ({
+        action={{ label: 'Body', chevron: true, onPress: () => router.push(to.body()) }}
+        caption={<SectionCaption>MOVEMENT SCORE</SectionCaption>}
+        ring={view.ring}
+        rows={view.rows.map(({ metric, ...row }) => ({
           ...row,
-          onPress: () => router.push(to.workout(row.id)),
+          onPress: metric ? () => router.push(to.metric(metric)) : undefined,
         }))}
       />
 
-      <WidgetCard
-        title="What drove it"
-        action={{ label: '+ Add', onPress: () => router.push(to.workout('new')) }}>
+      <Card>
         <Stack gap="sm">
-          {WORKOUTS.map((workout) => (
-            <ListRow
-              key={workout.id}
-              leading={<IconTile name={workout.icon} shape="circle" />}
-              title={workout.title}
-              subtitle={workout.subtitle}
-              trailing={workout.value}
-              trailingCaption="STRAIN"
-              onPress={() => router.push(to.workout(workout.id))}
-            />
-          ))}
-        </Stack>
-      </WidgetCard>
-
-      <WidgetCard title="Strain · 30 days" action={{ label: 'avg 11.8', onPress: () => {} }}>
-        <Stack gap="md">
-          <BarChart
-            values={STRAIN_30_DAYS}
-            highlightIndex={STRAIN_30_DAYS.length - 1}
-            axis={['June 14', 'today']}
-          />
-          <View style={styles.footer}>
-            <Text variant="body">Calories</Text>
-            <Text variant="body" tone="muted">
-              2,340 kcal · +9% vs base
-            </Text>
+          <View style={styles.tiles}>
+            {view.tiles.slice(0, 2).map((tile) => (
+              <StatTile key={tile.label} {...tile} />
+            ))}
+          </View>
+          <View style={styles.tiles}>
+            {view.tiles.slice(2).map((tile) => (
+              <StatTile key={tile.label} {...tile} />
+            ))}
           </View>
         </Stack>
-      </WidgetCard>
+      </Card>
 
       <InfoCard
-        title="About strain"
-        text={ABOUT_STRAIN}
-        link={{ label: 'Learn more', onPress: () => router.push(to.metric('strain')) }}
+        title="How the score is built"
+        text={`Steps, active minutes, exercise intensity, energy and stand hours are weighted into one number by ${view.algorithm.name}. Today it rests on ${view.algorithm.coverage} of the day’s data, with ${view.algorithm.confidence} confidence.`}
       />
 
-      <LinkCard label="More charts" onPress={() => router.push(to.metric('strain'))} />
+      <LinkCard label="More charts" onPress={() => router.push(to.metric('steps'))} />
     </Stack>
   );
 }
 
 const styles = StyleSheet.create({
-  body: { flexDirection: 'row', alignItems: 'center', gap: space.lg },
-  summary: { flex: 1 },
-  footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  tiles: { flexDirection: 'row', gap: space.sm },
 });

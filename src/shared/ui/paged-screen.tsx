@@ -19,6 +19,9 @@ export type PagedScreenProps<T extends string> = {
   sections: readonly { value: T; label: string }[];
   /** Страницы в том же порядке, что и разделы: иначе свайп и чипы разойдутся. */
   pages: ReactNode[];
+  /** Потянуть вниз — перечитать данные раздела. */
+  onRefresh?: () => void;
+  refreshing?: boolean;
 };
 
 /**
@@ -35,6 +38,8 @@ export function PagedScreen<T extends string>({
   header,
   sections,
   pages,
+  onRefresh,
+  refreshing,
 }: PagedScreenProps<T>) {
   const insets = useSafeAreaInsets();
   const [index, setIndex] = useState(0);
@@ -65,7 +70,13 @@ export function PagedScreen<T extends string>({
         </Stack>
       </View>
 
-      <SectionPager index={index} onIndexChange={setIndex} pages={pages} />
+      <SectionPager
+        index={index}
+        onIndexChange={setIndex}
+        pages={pages}
+        onRefresh={onRefresh}
+        refreshing={refreshing}
+      />
     </LinearGradient>
   );
 }

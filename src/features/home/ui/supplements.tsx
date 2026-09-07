@@ -1,15 +1,12 @@
 import { router } from 'expo-router';
 
+import { shortDay } from '@/shared/lib/day';
 import { to } from '@/shared/nav';
 import {
   Button,
-  Card,
-  CheckCircle,
   DatePager,
   InfoCard,
   LinkCard,
-  ListRow,
-  ProgressBar,
   SectionCaption,
   SectionSummary,
   Stack,
@@ -17,23 +14,35 @@ import {
   WidgetCard,
 } from '@/shared/ui';
 
-import { SUPPLEMENT_STACKS } from '../model/overview';
-import { ACTIVE_COURSE, COURSE_HINT, SUPPLEMENTS_SUMMARY, WHY_COURSES } from '../model/supplements';
+import type { HomeData } from '../api/contract';
+import { COURSE_HINT, WHY_COURSES } from '../model/supplements';
 
-export function Supplements() {
+/**
+ * Приёмы дня едут пунктами плана, и их состав контракт пока не раскрывает.
+ * Поэтому раздел показывает то, что в ответе действительно есть — счёт по
+ * плану, — и ведёт в курсы, а не рисует строки, которых не получал.
+ */
+export function Supplements({ home }: { home: HomeData }) {
+  const { done, total } = home.plan;
+
   return (
     <Stack gap="md">
-      <DatePager label="Today · July 13" />
+      <DatePager label={`Today · ${shortDay(home.date)}`} />
 
       <SectionSummary
         title="Supplements"
         action={{ label: 'All', chevron: true, onPress: () => router.push(to.course('all')) }}
-        caption={<SectionCaption>COURSES TODAY · next at 14:00</SectionCaption>}
-        ring={{ value: 1 / 3, valueLabel: '1/3', note: 'taken', tone: 'warning' }}
-        rows={SUPPLEMENTS_SUMMARY.map((row) => ({
-          ...row,
-          onPress: () => router.push(to.course(row.id)),
-        }))}
+        caption={<SectionCaption>PLANNED TODAY</SectionCaption>}
+        ring={{
+          value: total > 0 ? done / total : null,
+          valueLabel: total > 0 ? `${done}/${total}` : '—',
+          note: 'done',
+        }}
+        rows={[
+          { id: 'planned', title: 'Planned', subtitle: 'items today', value: String(total) },
+          { id: 'done', title: 'Done', subtitle: 'marked so far', value: String(done) },
+          { id: 'left', title: 'Left', subtitle: 'still waiting', value: String(total - done) },
+        ].map((row) => ({ ...row, onPress: () => router.push(to.course('all')) }))}
       />
 
       <WidgetCard
@@ -44,17 +53,11 @@ export function Supplements() {
           onPress: () => router.push(to.course('all')),
         }}>
         <Stack gap="sm">
-          {SUPPLEMENT_STACKS.map((stack) => (
-            <ListRow
-              key={stack.id}
-              leading={<CheckCircle checked={stack.taken} />}
-              title={stack.title}
-              subtitle={stack.subtitle}
-              trailing={stack.taken ? 'taken' : stack.status}
-              done={stack.taken}
-              onPress={() => router.push(to.course(stack.id))}
-            />
-          ))}
+          <Text tone="muted">
+            {total > 0
+              ? 'Today’s doses are part of the plan — open the courses to mark them.'
+              : 'No doses are planned for today.'}
+          </Text>
           <Button
             label="+ Add a course"
             variant="dashed"
@@ -65,24 +68,6 @@ export function Supplements() {
           </Text>
         </Stack>
       </WidgetCard>
-
-      <Card>
-        <Stack gap="sm">
-          <Stack direction="row" justify="space-between" align="center">
-            <Text variant="subtitle">{ACTIVE_COURSE.title}</Text>
-            <Text variant="bodySmall" tone="muted">
-              {ACTIVE_COURSE.percent}
-            </Text>
-          </Stack>
-          <Text variant="bodySmall" tone="muted">
-            {ACTIVE_COURSE.subtitle}
-          </Text>
-          <ProgressBar value={ACTIVE_COURSE.value} />
-          <Text variant="bodySmall" tone="muted">
-            {ACTIVE_COURSE.note}
-          </Text>
-        </Stack>
-      </Card>
 
       <InfoCard title="Why courses, not pills" text={WHY_COURSES} />
 

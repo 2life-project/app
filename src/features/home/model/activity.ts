@@ -1,33 +1,83 @@
-/** Раздел «Активность» — содержимое из макета. */
-export const ACTIVITY_SUMMARY = [
-  { id: 'workouts', title: 'Workouts', subtitle: 'powerlifting, intervals, walk', value: '3' },
-  { id: 'steps', title: 'Steps', subtitle: 'of 10,000', value: '8,420' },
-  { id: 'zones', title: 'Zone 2–3', subtitle: 'target 45', value: '62 min' },
-] as const;
+import { formatNumber, NO_VALUE } from '@/shared/domain';
 
-export const WORKOUTS = [
-  {
-    id: 'powerlifting',
-    icon: 'activity',
-    title: 'Powerlifting',
-    subtitle: '45 min · 360 kcal',
-    value: '8.4',
-  },
-  {
-    id: 'intervals',
-    icon: 'zap',
-    title: 'Intervals · 5 × 3 min',
-    subtitle: '18 min · 210 kcal',
-    value: '4.1',
-  },
-  { id: 'walk', icon: 'navigation', title: 'Walk', subtitle: '40 min · 1.2 km', value: '1.7' },
-] as const;
+import type { HomeData, MovementData } from '../api/contract';
 
-/** Тридцать дней нагрузки. Последний столбец — сегодня, он выделен. */
-export const STRAIN_30_DAYS = [
-  9.2, 12.4, 11.1, 8.6, 13.8, 10.2, 14.6, 9.8, 12.9, 7.4, 11.7, 15.2, 10.6, 8.2, 12.1, 13.4, 9.6,
-  11.2, 10.8, 14.1, 12.6, 8.9, 13.2, 11.4, 16.8, 12.2, 13.6, 10.4, 12.8, 14.2,
-] as const;
+import { dataOf, serverTone, type StatusTone } from './section';
+import type { Tile } from './vitals';
 
-export const ABOUT_STRAIN =
-  'Strain is a 0–21 score of how much load your body took today — from workouts, steps and heart-rate zones. It grows with intensity, not with time.';
+/**
+ * Раздел «Активность» читает движение дня: сервер отдаёт готовую оценку,
+ * её составляющие и сами измерения. Шкала оценки в контракте не названа,
+ * поэтому дуги у кольца нет — число есть, а доли от чего-то нет.
+ */
+export type ActivityView = {
+  available: boolean;
+  unavailableReason: string | null;
+  ring: { value: number | null; valueLabel: string; note?: string; tone?: StatusTone };
+  /** `metric` — ключ из каталога показателей: по нему открывается его экран.
+   *  У строк без ключа своего экрана нет, и вести им некуда. */
+  rows: { id: string; title: string; subtitle?: string; value: string; metric?: string }[];
+  tiles: Tile[];
+  /** Чем посчитана оценка и на сколько полны данные — это часть самого числа. */
+  algorithm: { name: string; coverage: string; confidence: string };
+};
+
+function minutes(value: number | null | undefined): string {
+  return value === null || value === undefined ? NO_VALUE : `${formatNumber(value, 'count')} min`;
+}
+
+function amount(value: number | null | undefined, unit: string): string {
+  return value === null || value === undefined ? NO_VALUE : formatNumber(value, unit);
+}
+
+export function activityOf(home: HomeData): ActivityView | null {
+  const movement: MovementData | null = dataOf(home.rings.movement);
+  if (!movement) return null;
+
+  const { metrics } = movement;
+  const distance = metrics.distanceMeters;
+
+  return {
+    available: movement.available,
+    unavailableReason: movement.unavailableReason,
+    ring: {
+      value: null,
+      valueLabel: amount(movement.score, 'score'),
+      note: movement.band ?? undefined,
+      tone: serverTone(movement.band),
+    },
+    rows: [
+      {
+        id: 'steps',
+        metric: 'steps',
+        title: 'Steps',
+        subtitle: distance ? `${formatNumber(distance / 1000, 'km')} km` : undefined,
+        value: amount(metrics.steps, 'count'),
+      },
+      {
+        id: 'energy',
+        metric: 'active_energy',
+        title: 'Active energy',
+        subtitle: 'kcal today',
+        value: amount(metrics.activeEnergyKcal, 'kcal'),
+      },
+      {
+        id: 'exercise',
+        title: 'Exercise',
+        subtitle: 'minutes',
+        value: minutes(metrics.exerciseDurationMinutes),
+      },
+    ],
+    tiles: [
+      { label: 'ACTIVE', value: minutes(metrics.activeDurationMinutes) },
+      { label: 'MODERATE', value: minutes(metrics.moderateDurationMinutes) },
+      { label: 'INTENSE', value: minutes(metrics.intenseDurationMinutes) },
+      { label: 'STAND', value: amount(metrics.standHours, 'count'), unit: 'h' },
+    ],
+    algorithm: {
+      name: movement.algorithmVersion,
+      coverage: `${Math.round(movement.coverage * 100)}%`,
+      confidence: `${Math.round(movement.confidence * 100)}%`,
+    },
+  };
+}

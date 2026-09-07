@@ -1,10 +1,13 @@
 import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
+import { useQuery } from '@/core/http/use-query';
+import { shortDay } from '@/shared/lib/day';
 import { to } from '@/shared/nav';
 import { space } from '@/shared/theme';
 import {
   Banner,
+  Card,
   DatePager,
   InfoCard,
   LineChart,
@@ -17,72 +20,99 @@ import {
   WidgetCard,
 } from '@/shared/ui';
 
-import {
-  DAY_SCORE_7_DAYS,
-  WELLBEING_PARTS,
-  WELLBEING_SUMMARY,
-  WHAT_IT_MEANS,
-} from '../model/wellbeing';
+import { checkinKey, fetchCheckin } from '../api/checkin';
+import type { HomeData } from '../api/contract';
+import { checkinCaption, wellbeingOf } from '../model/wellbeing';
 
-export function Wellbeing() {
+export function Wellbeing({
+  home,
+  date,
+  timeZone,
+}: {
+  home: HomeData;
+  date: string;
+  timeZone: string;
+}) {
+  // Анкета лежит отдельно от ленты: её перечитывают после ответа, а не вместе
+  // со всей Главной.
+  const checkin = useQuery(checkinKey(date, timeZone), (signal) =>
+    fetchCheckin(date, timeZone, signal),
+  );
+  const view = wellbeingOf(home);
+
+  if (!view) {
+    return (
+      <Stack gap="md">
+        <DatePager label={`Today · ${shortDay(home.date)}`} />
+        <Card variant="sunken">
+          <Text tone="muted">Wellbeing data did not load for this day.</Text>
+        </Card>
+      </Stack>
+    );
+  }
+
+  const progress = checkin.data?.progress;
+  const done = progress !== undefined && progress.completed >= progress.total;
+
   return (
     <Stack gap="md">
-      <DatePager label="Today · July 13" />
+      <DatePager label={`Today · ${shortDay(home.date)}`} />
 
       <SectionSummary
         title="Wellbeing"
-        action={{ label: 'Change', chevron: true, onPress: () => router.push(to.checkIn()) }}
-        caption={
-          <SectionCaption>
-            <Text variant="caption" tone="muted">
-              {'DAY SCORE · '}
-            </Text>
-            <Text variant="caption" tone="success">
-              +0.6 vs weekly average
-            </Text>
-          </SectionCaption>
-        }
-        ring={{ value: 0.78, valueLabel: '7.8', note: 'a good day' }}
-        rows={WELLBEING_SUMMARY.map((row) => ({
-          ...row,
-          onPress: () => router.push(to.checkIn()),
-        }))}
+        action={{ label: 'Check-in', chevron: true, onPress: () => router.push(to.checkIn()) }}
+        caption={<SectionCaption>{view.caption}</SectionCaption>}
+        ring={view.ring}
+        rows={view.rows.map((row) => ({ ...row, onPress: () => router.push(to.checkIn()) }))}
       />
 
-      <WidgetCard title="What it is made of">
-        <Stack gap="sm">
+      {progress ? (
+        <Banner
+          tone={done ? 'success' : 'highlight'}
+          checked={done}
+          title={done ? 'Today’s check-in is done' : 'Check-in is not finished'}
+          subtitle={checkinCaption(checkin.data)}
+          action={{ label: done ? 'Edit' : 'Finish', onPress: () => router.push(to.checkIn()) }}
+        />
+      ) : null}
+
+      {view.factors.length > 0 ? (
+        <WidgetCard title="What it is made of">
           <View style={styles.parts}>
-            {WELLBEING_PARTS.slice(0, 2).map((part) => (
-              <StatTile key={part.label} {...part} />
+            {view.factors.map((factor) => (
+              <StatTile key={factor.label} {...factor} />
             ))}
           </View>
-          <View style={styles.parts}>
-            {WELLBEING_PARTS.slice(2).map((part) => (
-              <StatTile key={part.label} {...part} />
+        </WidgetCard>
+      ) : null}
+
+      {/* График рисуется только когда есть что рисовать: линия по одной точке
+          или по пустому ряду показывает уверенность, которой нет. */}
+      {view.series.length > 1 ? (
+        <WidgetCard title="Day score · 7 days">
+          <LineChart values={view.series} />
+        </WidgetCard>
+      ) : null}
+
+      <InfoCard title={view.recommendation.title} text={view.recommendation.text} />
+
+      {view.recommendation.actions.length > 0 ? (
+        <WidgetCard title="What to do today">
+          <Stack gap="sm">
+            {view.recommendation.actions.map((action) => (
+              <Text key={action} tone="muted">
+                {action}
+              </Text>
             ))}
-          </View>
-        </Stack>
-      </WidgetCard>
+          </Stack>
+        </WidgetCard>
+      ) : null}
 
-      <Banner
-        title="Today’s check-in is done"
-        subtitle="at 13:20 · short, 3 questions"
-        action={{ label: 'Edit', onPress: () => router.push(to.checkIn()) }}
-      />
-
-      <WidgetCard title="Day score · 7 days" action={{ label: 'base 7.2', onPress: () => {} }}>
-        <LineChart values={DAY_SCORE_7_DAYS} />
-      </WidgetCard>
-
-      <InfoCard title="What this means" text={WHAT_IT_MEANS} />
-
-      <LinkCard label="More charts" onPress={() => router.push(to.metric('wellbeing'))} />
+      <LinkCard label="More charts" onPress={() => router.push(to.metric('mood'))} />
     </Stack>
   );
 }
 
 const styles = StyleSheet.create({
-  body: { flexDirection: 'row', alignItems: 'center', gap: space.lg },
-  summary: { flex: 1 },
   parts: { flexDirection: 'row', gap: space.sm },
 });
