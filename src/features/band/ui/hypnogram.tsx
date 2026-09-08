@@ -132,7 +132,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   block: {
-    borderRadius: radius.sm,
+    // Без скругления: на дорожке в четырнадцать точек радиус карточки
+    // превращает короткий отрезок в кружок, и он перестаёт читаться как
+    // промежуток времени. Края всей дорожки скругляет она сама.
+    borderRadius: radius.none,
     bottom: 0,
     position: 'absolute',
     top: 0,

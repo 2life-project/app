@@ -153,6 +153,8 @@ const styles = StyleSheet.create({
   footer: {
     flexDirection: 'row',
     gap: space.sm,
-    justifyContent: 'flex-end',
+    // Слева: справа внизу стоит плавающая кнопка приложения, и всё, что туда
+    // прижато, уезжает под неё.
+    justifyContent: 'flex-start',
   },
 });

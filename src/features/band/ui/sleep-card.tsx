@@ -63,15 +63,23 @@ export function SleepCard({
           </Text>
         </View>
 
-        <ProgressBar
-          value={Math.min(1, asleep / TARGET_MINUTES)}
-          tone={asleep >= TARGET_MINUTES ? 'success' : 'warning'}
-        />
+        <ProgressBar value={Math.min(1, asleep / TARGET_MINUTES)} tone={toneOf(asleep)} />
 
         <Hypnogram segments={night.segments} totals={totals} />
       </Stack>
     </Card>
   );
+}
+
+/**
+ * Цвет полосы. Норма — ориентир, а не порог: недобрать полчаса до восьми часов
+ * не значит провалить ночь, и красить такую ночь тревожным цветом — врать.
+ */
+function toneOf(asleep: number): 'success' | 'warning' | 'danger' {
+  const share = asleep / TARGET_MINUTES;
+  if (share >= 0.85) return 'success';
+  if (share >= 0.6) return 'warning';
+  return 'danger';
 }
 
 function duration(minutes: number): string {
