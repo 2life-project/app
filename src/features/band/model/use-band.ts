@@ -11,6 +11,7 @@ import {
   type ScanProblem,
   type SleepSegment,
   type Storage,
+  type StressSample,
   mergeFound,
   savedRecordings,
   scanForBands,
@@ -18,6 +19,8 @@ import {
   syncRecordings,
 } from '@/core/band';
 import { logger } from '@/core/log/logger';
+
+import { startOfToday } from './day-metrics';
 
 /**
  * Состояние работы с браслетом: поиск, подключение и всё, что устройство отдаёт.
@@ -42,6 +45,9 @@ export type BandState = {
   measurement?: Measurement;
   worn?: boolean;
   sleep: SleepSegment[];
+  /** Поминутная история за сегодня: из неё строятся все графики дня. */
+  today: ActivitySample[];
+  stress: StressSample[];
   recordings: Recording[];
   saved: SavedRecording[];
   storage?: Storage;
@@ -54,6 +60,8 @@ const INITIAL: BandState = {
   stage: 'idle',
   found: [],
   sleep: [],
+  today: [],
+  stress: [],
   recordings: [],
   saved: [],
   recording: false,
@@ -105,8 +113,13 @@ export function useBand() {
         active.storage(),
       ]);
 
-      const week = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-      const sleep = await active.sleep(week, new Date());
+      // История и сон идут отдельными запросами: устройство отвечает на них
+      // многими кадрами, и параллельно их не запросить — ответы перепутаются.
+      const now = new Date();
+      const week = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const sleep = await active.sleep(week, now);
+      const today = await active.history(startOfToday(now), now);
+      const stress = await active.stress(startOfToday(now), now);
 
       patch({
         battery: info.battery?.level,
@@ -115,6 +128,8 @@ export function useBand() {
         recordings,
         storage: storage ?? undefined,
         sleep,
+        today,
+        stress,
         saved: savedRecordings(),
       });
     } catch (error) {

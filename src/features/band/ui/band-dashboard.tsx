@@ -1,10 +1,12 @@
 import { StyleSheet, View } from 'react-native';
 
-import { type SleepSegment, sleepTotals } from '@/core/band';
 import { space } from '@/shared/theme';
-import { BarChart, Button, Card, Stack, StatTile, Text } from '@/shared/ui';
+import { Button, Card, Stack, StatTile, Text } from '@/shared/ui';
 
 import type { BandState } from '../model/use-band';
+
+import { BandMetrics } from './band-metrics';
+import { SleepCard } from './sleep-card';
 
 /**
  * Всё, что браслет отдаёт, и всё, чем им можно управлять.
@@ -31,10 +33,6 @@ export function BandDashboard({
   onRefresh: () => void;
   onDisconnect: () => void;
 }) {
-  const live = state.live;
-  const summary = state.summary;
-  const heartRate = state.measurement?.heartRate ?? live?.heartRate ?? live?.averageHeartRate;
-
   return (
     <Stack gap="md">
       <View style={styles.header}>
@@ -52,25 +50,13 @@ export function BandDashboard({
         />
       </View>
 
-      <Card variant="sunken">
-        <View style={styles.tiles}>
-          <StatTile label="Heart rate" value={heartRate ? String(heartRate) : '—'} unit="bpm" />
-          <StatTile label="SpO₂" value={oxygen(state)} unit="%" />
-          <StatTile label="Steps" value={String(summary?.steps ?? live?.steps ?? 0)} />
-          <StatTile label="Distance" value={String(summary?.distance ?? 0)} unit="m" />
-          <StatTile label="Calories" value={String(summary?.calories ?? 0)} unit="kcal" />
-          <StatTile
-            label="Stress"
-            value={state.measurement?.stress ? String(state.measurement.stress) : '—'}
-          />
-        </View>
-      </Card>
+      <BandMetrics state={state} />
 
       <SleepCard sleep={state.sleep} />
 
       <Card variant="sunken">
         <Stack gap="sm">
-          <Text variant="title">Controls</Text>
+          <Text variant="subtitle">Controls</Text>
           <View style={styles.controls}>
             <Button label="Measure" onPress={onMeasure} />
             <Button label="Vibrate" variant="tonal" onPress={onVibrate} />
@@ -102,50 +88,6 @@ function deviceLine(state: BandState): string {
   return parts.join(' · ') || 'connected';
 }
 
-function oxygen(state: BandState): string {
-  const value = state.measurement?.bloodOxygen ?? state.live?.bloodOxygen;
-  return value ? String(value) : '—';
-}
-
-/** Ночь по стадиям. Столбцы — минуты, подписи — что это за стадия. */
-function SleepCard({ sleep }: { sleep: readonly SleepSegment[] }) {
-  if (sleep.length === 0) {
-    return (
-      <Card variant="sunken">
-        <Stack gap="xs">
-          <Text variant="title">Sleep</Text>
-          <Text variant="bodySmall" tone="muted">
-            No sleep recorded yet.
-          </Text>
-        </Stack>
-      </Card>
-    );
-  }
-
-  const totals = sleepTotals(sleep);
-  const stages = [
-    { label: 'Deep', minutes: totals.deep },
-    { label: 'Light', minutes: totals.light },
-    { label: 'REM', minutes: totals.rem },
-    { label: 'Awake', minutes: totals.awake },
-  ];
-  const total = stages.reduce((sum, stage) => sum + stage.minutes, 0);
-
-  return (
-    <Card variant="sunken">
-      <Stack gap="sm">
-        <Text variant="title">Sleep · {formatDuration(total)}</Text>
-        <BarChart values={stages.map((stage) => stage.minutes)} axis={['Deep', 'Awake']} />
-        <View style={styles.tiles}>
-          {stages.map((stage) => (
-            <StatTile key={stage.label} label={stage.label} value={formatDuration(stage.minutes)} />
-          ))}
-        </View>
-      </Stack>
-    </Card>
-  );
-}
-
 function RecordingsCard({ state, onPull }: { state: BandState; onPull: () => void }) {
   const onDevice = state.recordings;
   const free = state.storage ? Math.round((state.storage.free / 1024) * 10) / 10 : null;
@@ -153,7 +95,7 @@ function RecordingsCard({ state, onPull }: { state: BandState; onPull: () => voi
   return (
     <Card variant="sunken">
       <Stack gap="sm">
-        <Text variant="title">Voice recordings</Text>
+        <Text variant="subtitle">Voice recordings</Text>
 
         <View style={styles.tiles}>
           <StatTile label="On band" value={String(onDevice.length)} />
@@ -178,11 +120,6 @@ function RecordingsCard({ state, onPull }: { state: BandState; onPull: () => voi
       </Stack>
     </Card>
   );
-}
-
-function formatDuration(minutes: number): string {
-  if (minutes < 60) return `${minutes}m`;
-  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
 }
 
 const styles = StyleSheet.create({
