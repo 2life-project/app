@@ -2,6 +2,9 @@
  * Четыре системы тела по единому шаблону. Содержимое из макета: у каждой своё
  * кольцо, сводка, живые показатели и два графика.
  */
+/** Источник данных не один — обещать «с браслета» было бы неправдой. */
+export const BODY_SUBTITLE = 'from your devices and records';
+
 export const BODY_SECTIONS = [
   { value: 'heart', label: 'Heart and vessels' },
   { value: 'breathing', label: 'Breathing' },
@@ -159,34 +162,14 @@ export const RING_OPTIONS: Record<
 export const RING_NOTE =
   'The ring shows one metric — the one you steer this system by. The rest stay in the summary below.';
 
-/** Что показываем вместо систем, когда браслета нет. Содержимое из макета. */
-export const NO_BAND = {
-  title: 'Connect a band to see Body',
-  text: 'Recovery, heart, breathing and composition are read from a worn device — without one there is nothing to show here.',
-  features: [
-    {
-      id: 'recovery',
-      tone: 'success',
-      title: 'Recovery',
-      subtitle: 'sleep, HRV and resting heart rate',
-    },
-    {
-      id: 'strain',
-      tone: 'highlight',
-      title: 'Strain',
-      subtitle: 'how much load the day actually took',
-    },
-    {
-      id: 'breathing',
-      tone: 'accent',
-      title: 'Breathing',
-      subtitle: 'SpO₂ and respiratory rate at night',
-    },
-    {
-      id: 'streams',
-      tone: 'warning',
-      title: 'Live streams',
-      subtitle: 'what your body is doing right now',
-    },
-  ],
+/**
+ * Что показать, когда в подсистеме пусто. Источников данных несколько, и
+ * человеку нужны оба реальных пути, а не одна кнопка «подключить браслет»:
+ * половину показателей можно внести руками уже сейчас.
+ */
+export const NO_DATA = {
+  title: 'Nothing measured here yet',
+  text: 'These numbers come from a worn device, a connected tracker or your own entry — whichever you have.',
+  connect: 'Connect a device',
+  manual: 'Enter a measurement by hand',
 } as const;
