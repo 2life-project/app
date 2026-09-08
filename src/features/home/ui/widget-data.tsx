@@ -22,7 +22,10 @@ import {
 } from '@/shared/ui';
 
 import type { HomeData, WidgetType } from '../api/contract';
-import type { RingView, SystemView } from '../model/vitals';
+import { nutritionOf } from '../model/nutrition';
+import { fuelOf, type RingView, type SystemView } from '../model/vitals';
+
+import { MealStrip } from './meal-strip';
 
 type IconName = keyof typeof Feather.glyphMap;
 
@@ -62,6 +65,24 @@ export function SystemWidget({ widget, view }: { widget: WidgetType; view: Syste
       ring={view.ring}
       tiles={view.tiles}
     />
+  );
+}
+
+/**
+ * Питание отличается от прочих систем тем, что его можно пополнить прямо
+ * отсюда: под числами стоит полоса приёмов, и нажатие ведёт к записи еды.
+ */
+export function FuelWidget({ home }: { home: HomeData }) {
+  const view = fuelOf(home);
+  return (
+    <MetricWidget
+      icon={SYSTEM_ICON.fuel ?? 'circle'}
+      title={view.title}
+      action={{ label: 'Body', onPress: () => router.push(to.body()) }}
+      ring={view.ring}
+      tiles={view.tiles}>
+      <MealStrip dailyGoal={nutritionOf(home)?.goalCalories ?? null} />
+    </MetricWidget>
   );
 }
 

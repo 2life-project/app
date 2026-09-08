@@ -1,4 +1,5 @@
 import Feather from '@expo/vector-icons/Feather';
+import { type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { theme, type Tone } from '@/shared/theme';
@@ -21,13 +22,15 @@ export type MetricWidgetProps = {
     tone?: Extract<Tone, 'success' | 'warning' | 'danger'>;
   };
   tiles: StatTileProps[];
+  /** Что добавить под числами: у питания там полоса приёмов. */
+  children?: ReactNode;
 };
 
 /**
  * Виджет системы тела: кольцо и две плитки показателей. Один шаблон на все
  * четыре системы — в макете они отличаются только содержимым.
  */
-export function MetricWidget({ icon, title, action, ring, tiles }: MetricWidgetProps) {
+export function MetricWidget({ icon, title, action, ring, tiles, children }: MetricWidgetProps) {
   return (
     <Card style={styles.card}>
       <View style={styles.header}>
@@ -51,6 +54,8 @@ export function MetricWidget({ icon, title, action, ring, tiles }: MetricWidgetP
           ))}
         </View>
       </View>
+
+      {children}
     </Card>
   );
 }

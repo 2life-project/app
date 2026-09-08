@@ -28,6 +28,8 @@ export type NutritionView = {
   macros: MacroView[];
   insight: { title: string; text: string };
   meals: number;
+  /** Дневная цель по калориям: по ней полоса приёмов считает цель каждого. */
+  goalCalories: number | null;
 };
 
 function amount(value: number | null | undefined, unit: string): string {
@@ -96,5 +98,6 @@ export function nutritionOf(home: HomeData): NutritionView | null {
     ],
     insight: { title: insight.title, text: insight.text },
     meals: meals.length,
+    goalCalories,
   };
 }

@@ -5,7 +5,6 @@ import { shortDay } from '@/shared/lib/day';
 import { to } from '@/shared/nav';
 import { space } from '@/shared/theme';
 import {
-  Button,
   Card,
   DatePager,
   InfoCard,
@@ -20,6 +19,8 @@ import {
 
 import type { HomeData } from '../api/contract';
 import { nutritionOf } from '../model/nutrition';
+
+import { MealStrip } from './meal-strip';
 
 export function Nutrition({ home }: { home: HomeData }) {
   const view = nutritionOf(home);
@@ -58,19 +59,10 @@ export function Nutrition({ home }: { home: HomeData }) {
         </View>
       </Card>
 
-      <WidgetCard title="Meals">
-        <Stack gap="sm">
-          <Text tone="muted">
-            {view.meals === 0
-              ? 'Nothing logged today.'
-              : 'Today’s meals are recorded — open one to see it.'}
-          </Text>
-          <Button
-            label="+ Add a meal"
-            variant="dashed"
-            onPress={() => router.push(to.meal('new'))}
-          />
-        </Stack>
+      {/* Приёмы пищи — главное действие раздела: нажатие ведёт прямо к
+          добавлению, а не на промежуточный список. */}
+      <WidgetCard title="Meals" caption={view.meals === 0 ? 'nothing logged yet' : undefined}>
+        <MealStrip dailyGoal={view.goalCalories} />
       </WidgetCard>
 
       <InfoCard title={view.insight.title} text={view.insight.text} />

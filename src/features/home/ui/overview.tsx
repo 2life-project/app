@@ -5,9 +5,9 @@ import type { Decision, HomeData, LayoutCell } from '../api/contract';
 import { cellsOf } from '../model/feed';
 import type { HomeState } from '../model/home';
 import { summaryFor } from '../model/summary';
-import { fuelOf, moveOf, recoverOf, ringsOf, type RingView } from '../model/vitals';
+import { moveOf, recoverOf, ringsOf, type RingView } from '../model/vitals';
 
-import { CustomWidget, SystemWidget, VitalsWidget } from './widget-data';
+import { CustomWidget, FuelWidget, SystemWidget, VitalsWidget } from './widget-data';
 import { DecisionsWidget } from './widget-decisions';
 import { SummaryWidget } from './widget-summary';
 
@@ -60,7 +60,9 @@ function Cell({
     case 'recover':
       return <SystemWidget widget="recover" view={recoverOf(home)} />;
     case 'fuel':
-      return <SystemWidget widget="fuel" view={fuelOf(home)} />;
+      // У питания, в отличие от других систем, есть прямое действие: записать
+      // съеденное. Полоса приёмов ведёт к нему в одно нажатие с Главной.
+      return <FuelWidget home={home} />;
     case 'move':
       return <SystemWidget widget="move" view={moveOf(home)} />;
     case 'decisions':
