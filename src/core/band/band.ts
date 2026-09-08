@@ -38,7 +38,8 @@ export type BandEvent =
   | { kind: 'activity'; sample: ActivitySample }
   | { kind: 'measurement'; measurement: Measurement }
   | { kind: 'wear'; worn: boolean; at: Date }
-  | { kind: 'recorder'; event: recorder.RecorderEvent };
+  | { kind: 'recorder'; event: recorder.RecorderEvent }
+  | { kind: 'disconnected' };
 
 export type BandListener = (event: BandEvent) => void;
 
@@ -54,6 +55,7 @@ export class Band {
 
   private constructor(private readonly transport: BandTransport) {
     this.transport.onReport((data) => this.handleReport(data));
+    this.transport.onLost(() => this.emit({ kind: 'disconnected' }));
   }
 
   /**

@@ -48,6 +48,8 @@ export type ReportListener = (data: Uint8Array) => void;
  */
 export class BandTransport {
   private notifications: Subscription | null = null;
+  private disconnection: Subscription | null = null;
+  private readonly lost = new Set<() => void>();
   private waiter: Waiter | null = null;
   private queue: Promise<unknown> = Promise.resolve();
   private lastWrite = 0;
@@ -56,8 +58,19 @@ export class BandTransport {
   constructor(private readonly device: Device) {}
 
   /** Подписаться на канал уведомлений. Без этого не придёт ни один ответ. */
+  /** Узнать о разрыве связи. Без этого экран продолжает слать команды в никуда. */
+  onLost(listener: () => void): () => void {
+    this.lost.add(listener);
+    return () => this.lost.delete(listener);
+  }
+
   async start(): Promise<void> {
     if (this.notifications) return;
+
+    this.disconnection = this.device.onDisconnected(() => {
+      this.failWaiter(new Error('связь с браслетом разорвана'));
+      for (const listener of this.lost) listener();
+    });
 
     this.notifications = this.device.monitorCharacteristicForService(
       SERVICE,
@@ -77,6 +90,8 @@ export class BandTransport {
   async stop(): Promise<void> {
     this.notifications?.remove();
     this.notifications = null;
+    this.disconnection?.remove();
+    this.disconnection = null;
     this.failWaiter(new Error('транспорт остановлен'));
 
     // Снять подписку мало: соединение остаётся открытым, браслет считает себя

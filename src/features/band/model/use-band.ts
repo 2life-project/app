@@ -183,6 +183,12 @@ export function useBand() {
           }
           if (event.kind === 'measurement') patch({ measurement: event.measurement });
           if (event.kind === 'wear') patch({ worn: event.worn });
+          if (event.kind === 'disconnected') {
+            // Связь оборвалась: держать живой браслет в руках больше нельзя, а
+            // данные остаются на экране как последние известные.
+            band.current = null;
+            patch({ stage: 'idle', recording: false });
+          }
           if (event.kind === 'recorder') {
             const recorderEvent = event.event;
             if (recorderEvent.kind === 'started') patch({ recording: true });

@@ -11,7 +11,12 @@ import { BandDashboard } from './band-dashboard';
 export function BandPanel() {
   const band = useBand();
 
-  if (band.state.stage !== 'connected') {
+  // Данные показываем, как только они есть, а не только на живой связи: они
+  // лежат на диске телефона, и прятать вчерашнюю ночь за плашкой «браслет не
+  // подключён» — значит терять её каждый раз, пока связь поднимается.
+  const hasData = band.state.today.length > 0 || band.state.summary !== undefined;
+
+  if (band.state.stage !== 'connected' && !hasData) {
     return (
       <BandConnect
         state={band.state}
@@ -26,6 +31,7 @@ export function BandPanel() {
   return (
     <BandDashboard
       state={band.state}
+      onScan={band.scan}
       onMeasure={band.measure}
       onVibrate={band.vibrate}
       onStartRecording={band.startRecording}

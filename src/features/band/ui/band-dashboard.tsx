@@ -1,10 +1,13 @@
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { space } from '@/shared/theme';
-import { Button, Card, Stack, StatTile, Text } from '@/shared/ui';
+import { Button, Card, SectionCaption, SectionSummary, Stack, StatTile, Text } from '@/shared/ui';
 
+import { summaryOfBand } from '../model/band-summary';
 import type { BandState } from '../model/use-band';
 
+import { BandDetails, type DetailKind } from './band-details';
 import { BandMetrics } from './band-metrics';
 import { SleepCard } from './sleep-card';
 
@@ -16,6 +19,7 @@ import { SleepCard } from './sleep-card';
  */
 export function BandDashboard({
   state,
+  onScan,
   onMeasure,
   onVibrate,
   onStartRecording,
@@ -26,6 +30,7 @@ export function BandDashboard({
   onForget,
 }: {
   state: BandState;
+  onScan: () => void;
   onMeasure: () => void;
   onVibrate: () => void;
   onStartRecording: () => void;
@@ -35,65 +40,74 @@ export function BandDashboard({
   onDisconnect: () => void;
   onForget: () => void;
 }) {
+  const live = state.stage === 'connected';
+  const summary = summaryOfBand(state);
+  const [detail, setDetail] = useState<DetailKind>(null);
+
   return (
     <Stack gap="md">
-      <View style={styles.header}>
-        <Stack gap="xs">
-          <Text variant="title">{state.device?.name ?? 'Band'}</Text>
-          <Text variant="bodySmall" tone="muted">
-            {deviceLine(state)}
-          </Text>
-        </Stack>
-        <Button
-          label={state.busy ? 'Reading…' : 'Refresh'}
-          variant="plain"
-          size="sm"
-          onPress={onRefresh}
-        />
-      </View>
+      <SectionSummary
+        title={state.device?.name ?? 'Band'}
+        action={
+          live
+            ? { label: state.busy ? 'Reading…' : 'Refresh', onPress: onRefresh }
+            : { label: 'Connect', onPress: onScan }
+        }
+        caption={<SectionCaption>{summary.caption}</SectionCaption>}
+        ring={summary.ring}
+        rows={summary.rows}
+      />
 
-      <BandMetrics state={state} />
+      <BandMetrics state={state} onOpen={setDetail} />
 
-      <SleepCard sleep={state.sleep} />
+      <SleepCard sleep={state.sleep} onOpen={() => setDetail('sleep')} />
 
       <Card variant="sunken">
         <Stack gap="sm">
           <Text variant="subtitle">Controls</Text>
           <View style={styles.controls}>
-            <Button label="Measure" onPress={onMeasure} />
-            <Button label="Vibrate" variant="tonal" onPress={onVibrate} />
+            <Button label="Measure" onPress={onMeasure} disabled={!live} />
+            <Button label="Vibrate" variant="tonal" onPress={onVibrate} disabled={!live} />
             {state.recording ? (
               <Button label="Stop recording" variant="tonal" onPress={onStopRecording} />
             ) : (
-              <Button label="Record voice" variant="tonal" onPress={onStartRecording} />
+              <Button
+                label="Record voice"
+                variant="tonal"
+                onPress={onStartRecording}
+                disabled={!live}
+              />
             )}
           </View>
           <Text variant="bodySmall" tone="muted">
-            A single measurement takes about a minute: the optical sensor turns on for it instead of
-            running all the time.
+            {live
+              ? 'A single measurement takes about a minute: the optical sensor turns on for it instead of running all the time.'
+              : 'Commands need a live connection to the band.'}
           </Text>
         </Stack>
       </Card>
 
-      <RecordingsCard state={state} onPull={onPull} />
+      <RecordingsCard state={state} onPull={onPull} live={live} />
 
-      <View style={styles.controls}>
-        <Button label="Disconnect" variant="tonal" onPress={onDisconnect} />
+      <BandDetails kind={detail} state={state} onClose={() => setDetail(null)} />
+
+      <View style={styles.footer}>
+        {live ? <Button label="Disconnect" variant="plain" onPress={onDisconnect} /> : null}
         <Button label="Forget band" variant="plain" onPress={onForget} />
       </View>
     </Stack>
   );
 }
 
-function deviceLine(state: BandState): string {
-  const parts: string[] = [];
-  if (state.battery !== undefined) parts.push(`${state.battery}%`);
-  if (state.firmware) parts.push(state.firmware);
-  if (state.worn !== undefined) parts.push(state.worn ? 'worn' : 'not worn');
-  return parts.join(' · ') || 'connected';
-}
-
-function RecordingsCard({ state, onPull }: { state: BandState; onPull: () => void }) {
+function RecordingsCard({
+  state,
+  onPull,
+  live,
+}: {
+  state: BandState;
+  onPull: () => void;
+  live: boolean;
+}) {
   const onDevice = state.recordings;
   const free = state.storage ? Math.round((state.storage.free / 1024) * 10) / 10 : null;
 
@@ -118,21 +132,14 @@ function RecordingsCard({ state, onPull }: { state: BandState; onPull: () => voi
           label={state.busy ? 'Downloading…' : 'Download to phone'}
           variant="tonal"
           onPress={onPull}
+          disabled={!live || onDevice.length === 0}
         />
-        <Text variant="bodySmall" tone="muted">
-          Downloading frees space on the band: it holds about fifteen hours of audio.
-        </Text>
       </Stack>
     </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
   controls: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -142,5 +149,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: space.sm,
+  },
+  footer: {
+    flexDirection: 'row',
+    gap: space.sm,
+    justifyContent: 'flex-end',
   },
 });

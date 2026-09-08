@@ -1,22 +1,15 @@
 import { StyleSheet, View } from 'react-native';
 
-import { type SleepSegment, type SleepStageName, sleepTotals } from '@/core/band';
+import { type SleepSegment, sleepTotals } from '@/core/band';
 import { space } from '@/shared/theme';
-import { Card, ProgressRing, Stack, StatTile, Text } from '@/shared/ui';
+import { ActionLink, Card, ProgressBar, Stack, Text } from '@/shared/ui';
 
 import { lastNight } from '../model/day-metrics';
 
-import { Hypnogram, StageLegend } from './hypnogram';
+import { Hypnogram } from './hypnogram';
 
-/** Норма сна, к которой считается кольцо. Восемь часов — общая рекомендация. */
+/** Норма сна, к которой считается полоса. Восемь часов — общая рекомендация. */
 const TARGET_MINUTES = 8 * 60;
-
-const STAGES: readonly { label: string; stage: SleepStageName }[] = [
-  { label: 'Deep', stage: 'deep' },
-  { label: 'Light', stage: 'light' },
-  { label: 'REM', stage: 'rem' },
-  { label: 'Awake', stage: 'awake' },
-];
 
 /**
  * Последняя ночь: ход по стадиям и итоги.
@@ -24,7 +17,13 @@ const STAGES: readonly { label: string; stage: SleepStageName }[] = [
  * Показывается именно ночь, а не сумма за неделю — стадии имеют смысл внутри
  * одного сна, а сложенные за семь дней они не значат ничего.
  */
-export function SleepCard({ sleep }: { sleep: readonly SleepSegment[] }) {
+export function SleepCard({
+  sleep,
+  onOpen,
+}: {
+  sleep: readonly SleepSegment[];
+  onOpen: () => void;
+}) {
   const night = lastNight(sleep);
 
   if (!night) {
@@ -33,7 +32,7 @@ export function SleepCard({ sleep }: { sleep: readonly SleepSegment[] }) {
         <Stack gap="xs">
           <Text variant="subtitle">Sleep</Text>
           <Text variant="bodySmall" tone="muted">
-            No sleep recorded yet.
+            No night recorded yet.
           </Text>
         </Stack>
       </Card>
@@ -41,38 +40,35 @@ export function SleepCard({ sleep }: { sleep: readonly SleepSegment[] }) {
   }
 
   const totals = sleepTotals(night.segments);
+  // Время во сне без пробуждений: именно оно сравнивается с нормой, а «в
+  // постели» завышает результат на каждый подъём среди ночи.
+  const asleep = night.minutes - totals.awake;
 
   return (
     <Card variant="sunken">
-      <Stack gap="sm">
+      <Stack gap="md">
         <View style={styles.header}>
           <Text variant="subtitle">Sleep</Text>
+          <ActionLink label="Details" chevron onPress={onOpen} />
+        </View>
+
+        <Text variant="caption" tone="muted">
+          {clock(night.from)} — {clock(night.to)}
+        </Text>
+
+        <View style={styles.value}>
+          <Text variant="metric">{duration(asleep)}</Text>
           <Text variant="bodySmall" tone="muted">
-            {clock(night.from)} — {clock(night.to)}
+            asleep · {share(asleep, TARGET_MINUTES)}% of 8h
           </Text>
         </View>
 
-        <View style={styles.body}>
-          <ProgressRing
-            value={Math.min(1, night.minutes / TARGET_MINUTES)}
-            valueLabel={duration(night.minutes)}
-            note="of 8h"
-            tone={night.minutes >= TARGET_MINUTES ? 'success' : 'warning'}
-          />
-          <View style={styles.tiles}>
-            {STAGES.map((item) => (
-              <StatTile
-                key={item.stage}
-                label={item.label}
-                value={duration(totals[item.stage])}
-                note={`${share(totals[item.stage], night.minutes)}%`}
-              />
-            ))}
-          </View>
-        </View>
+        <ProgressBar
+          value={Math.min(1, asleep / TARGET_MINUTES)}
+          tone={asleep >= TARGET_MINUTES ? 'success' : 'warning'}
+        />
 
-        <Hypnogram segments={night.segments} />
-        <StageLegend stages={STAGES} />
+        <Hypnogram segments={night.segments} totals={totals} />
       </Stack>
     </Card>
   );
@@ -93,19 +89,13 @@ function clock(at: Date): string {
 
 const styles = StyleSheet.create({
   header: {
-    alignItems: 'baseline',
+    alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  body: {
-    alignItems: 'center',
+  value: {
+    alignItems: 'baseline',
     flexDirection: 'row',
-    gap: space.lg,
-  },
-  tiles: {
-    flex: 1,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: space.sm,
+    gap: space.xs,
   },
 });

@@ -1,0 +1,71 @@
+import { Card, Stack, SummaryRow, Text } from '@/shared/ui';
+
+import { seriesOf, type Point } from '../model/day-metrics';
+import type { BandState } from '../model/use-band';
+
+/**
+ * Показатели, которые снимаются по расписанию или по кнопке.
+ *
+ * Строками, а не карточками: у каждого из них за сутки один-два замера, и
+ * разворачивать каждый в карточку с графиком и разбросом значит выдавать
+ * единственное число за ряд. Прочерк здесь тоже данные — он говорит, что
+ * датчик сегодня не включался.
+ */
+export function MeasurementsCard({ state }: { state: BandState }) {
+  const rows = [
+    row('Blood oxygen', unit(pick(state, 'bloodOxygen'), '%')),
+    row('HRV', unit(pick(state, 'hrv'), ' ms')),
+    row('Blood pressure', pressure(state)),
+    row('Mood', unit(pick(state, 'mood'), '')),
+    row('Blood sugar', unit(last(seriesOf(state.today, (s) => s.bloodSugar)), ' mmol/L')),
+  ];
+
+  return (
+    <Card variant="sunken">
+      <Stack gap="sm">
+        <Text variant="subtitle">Measurements</Text>
+        {rows.map((item, index) => (
+          <SummaryRow
+            key={item.title}
+            title={item.title}
+            subtitle={item.value === '—' ? 'not measured today' : 'last reading'}
+            value={item.value}
+            divider={index > 0}
+          />
+        ))}
+      </Stack>
+    </Card>
+  );
+}
+
+function row(title: string, value: string) {
+  return { title, value };
+}
+
+/** Последнее известное значение: ручной замер, живой отчёт или история дня. */
+function pick(state: BandState, key: 'bloodOxygen' | 'hrv' | 'mood'): number | undefined {
+  return (
+    state.measurement?.[key] ?? state.live?.[key] ?? last(seriesOf(state.today, (s) => s[key]))
+  );
+}
+
+function last(points: readonly Point[]): number | undefined {
+  return points[points.length - 1]?.value;
+}
+
+function unit(value: number | undefined, suffix: string): string {
+  return value === undefined ? '—' : `${value}${suffix}`;
+}
+
+/** Давление осмысленно только парой: одно число здесь вводит в заблуждение. */
+function pressure(state: BandState): string {
+  const high =
+    state.measurement?.systolic ??
+    state.live?.systolic ??
+    last(seriesOf(state.today, (s) => s.systolic));
+  const low =
+    state.measurement?.diastolic ??
+    state.live?.diastolic ??
+    last(seriesOf(state.today, (s) => s.diastolic));
+  return high && low ? `${high}/${low}` : '—';
+}

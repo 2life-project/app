@@ -1,7 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 
 import { space } from '@/shared/theme';
-import { BarChart, Card, Stack, StatTile, Text } from '@/shared/ui';
+import { ActionLink, BarChart, Card, Stack, StatTile, Text } from '@/shared/ui';
 
 import { byHour } from '../model/day-metrics';
 import type { BandState } from '../model/use-band';
@@ -11,65 +11,69 @@ import { walkOf } from '../model/walk-metrics';
  * Ходьба: не сколько шагов, а как человек шёл.
  *
  * Браслет отдаёт шаги и метры за минуту — темп, длина шага и скорость из них
- * выводятся. Это то, чего в приложении вендора нет вовсе, хотя данные для него
- * устройство отдаёт с первого же дня.
+ * выводятся. Итоги дня при этом берём у самого устройства: оно считает их по
+ * своим правилам, и два разных числа под одним словом «сегодня» доверия не
+ * прибавляют.
  */
-export function WalkCard({ state }: { state: BandState }) {
+export function WalkCard({ state, onOpen }: { state: BandState; onOpen: () => void }) {
   const walk = walkOf(state.today);
   const hours = byHour(state.today, (sample) => sample.steps);
 
-  if (!walk) {
-    return (
-      <Card variant="sunken">
-        <Stack gap="xs">
-          <Text variant="subtitle">Walking</Text>
-          <Text variant="bodySmall" tone="muted">
-            No steps recorded today yet.
-          </Text>
-        </Stack>
-      </Card>
-    );
-  }
+  const steps = state.summary?.steps ?? walk?.steps ?? 0;
+  const distance = state.summary?.distance ?? walk?.distance ?? 0;
+  const calories = state.summary?.calories ?? walk?.calories ?? 0;
 
   return (
     <Card variant="sunken">
       <Stack gap="sm">
         <View style={styles.header}>
           <Text variant="subtitle">Walking</Text>
+          <ActionLink label="Details" chevron onPress={onOpen} disabled={!walk} />
+        </View>
+
+        {walk === null ? (
           <Text variant="bodySmall" tone="muted">
-            {walk.activeMinutes} active min
+            No steps recorded today yet.
           </Text>
-        </View>
+        ) : (
+          <>
+            <View style={styles.value}>
+              <Text variant="metric">{String(steps)}</Text>
+              <Text variant="bodySmall" tone="muted">
+                steps · {kilometres(distance)} km · {calories} kcal
+              </Text>
+            </View>
 
-        <View style={styles.value}>
-          <Text variant="metric">{String(walk.steps)}</Text>
-          <Text variant="bodySmall" tone="muted">
-            steps · {kilometres(walk.distance)} km · {walk.calories} kcal
-          </Text>
-        </View>
+            <BarChart
+              values={hours}
+              highlightIndex={new Date().getHours()}
+              axis={['00:00', '24:00']}
+            />
 
-        <BarChart values={hours} highlightIndex={new Date().getHours()} axis={['00:00', '24:00']} />
-
-        <View style={styles.tiles}>
-          <StatTile
-            label="Cadence"
-            value={String(walk.cadenceAverage)}
-            unit="spm"
-            note={`peak ${walk.cadencePeak}`}
-          />
-          <StatTile
-            label="Speed"
-            value={walk.speedAverage === null ? '—' : walk.speedAverage.toFixed(1)}
-            unit="km/h"
-            note={walk.speedPeak === null ? undefined : `peak ${walk.speedPeak.toFixed(1)}`}
-          />
-          <StatTile
-            label="Stride"
-            value={walk.stride === null ? '—' : walk.stride.toFixed(2)}
-            unit="m"
-          />
-          <StatTile label="Longest walk" value={`${walk.longestWalk}m`} />
-        </View>
+            <View style={styles.tiles}>
+              <StatTile
+                label="Cadence"
+                value={String(walk.cadenceAverage)}
+                unit="spm"
+                note={`peak ${walk.cadencePeak}`}
+              />
+              <StatTile
+                label="Speed"
+                value={walk.speedAverage === null ? '—' : walk.speedAverage.toFixed(1)}
+                unit="km/h"
+                note={walk.speedPeak === null ? undefined : `peak ${walk.speedPeak.toFixed(1)}`}
+              />
+            </View>
+            <View style={styles.tiles}>
+              <StatTile
+                label="Stride"
+                value={walk.stride === null ? '—' : walk.stride.toFixed(2)}
+                unit="m"
+              />
+              <StatTile label="Active" value={`${walk.activeMinutes} min`} />
+            </View>
+          </>
+        )}
       </Stack>
     </Card>
   );
@@ -81,7 +85,7 @@ function kilometres(metres: number): string {
 
 const styles = StyleSheet.create({
   header: {
-    alignItems: 'baseline',
+    alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
@@ -92,7 +96,6 @@ const styles = StyleSheet.create({
   },
   tiles: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: space.sm,
   },
 });

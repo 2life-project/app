@@ -2,11 +2,14 @@ import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { space, type Tone } from '@/shared/theme';
-import { Card, LineChart, Stack, StatTile, Text } from '@/shared/ui';
+import { ActionLink, Card, LineChart, Stack, StatTile, Text } from '@/shared/ui';
 
 import type { Summary } from '../model/day-metrics';
 
 type ChartTone = Extract<Tone, 'success' | 'warning' | 'danger' | 'highlight'>;
+
+/** Прочерк вместо значения: замера не было. */
+export const EMPTY = '—';
 
 export type MetricCardProps = {
   title: string;
@@ -21,6 +24,8 @@ export type MetricCardProps = {
   summary?: Summary | null;
   /** Подписи по краям оси времени. */
   axis?: [string, string];
+  /** Провал внутрь показателя: глубокая статистика живёт там, а не здесь. */
+  onOpen?: () => void;
   children?: ReactNode;
 };
 
@@ -40,8 +45,11 @@ export function MetricCard({
   series,
   summary,
   axis,
+  onOpen,
   children,
 }: MetricCardProps) {
+  // Разброс за день показываем только когда замеров было больше одного:
+  // «мин 51, среднее 51, максимум 51» — это три плитки об одном числе.
   const hasLine = (series?.length ?? 0) >= 2;
 
   return (
@@ -49,12 +57,20 @@ export function MetricCard({
       <Stack gap="sm">
         <View style={styles.header}>
           <Text variant="subtitle">{title}</Text>
-          {caption ? (
+          {onOpen ? (
+            <ActionLink label="Details" chevron onPress={onOpen} disabled={value === EMPTY} />
+          ) : caption ? (
             <Text variant="bodySmall" tone="muted">
               {caption}
             </Text>
           ) : null}
         </View>
+
+        {onOpen && caption ? (
+          <Text variant="caption" tone="muted">
+            {caption}
+          </Text>
+        ) : null}
 
         <View style={styles.value}>
           <Text variant="metric">{value}</Text>
@@ -78,7 +94,7 @@ export function MetricCard({
           </View>
         ) : null}
 
-        {summary ? (
+        {summary && summary.count > 1 ? (
           <View style={styles.tiles}>
             <StatTile label="Min" value={String(summary.min)} />
             <StatTile label="Avg" value={String(summary.average)} />
@@ -88,9 +104,9 @@ export function MetricCard({
 
         {children}
 
-        {!hasLine && !summary ? (
+        {value === EMPTY ? (
           <Text variant="bodySmall" tone="muted">
-            No readings today yet.
+            Not measured today. Press Measure to take a reading.
           </Text>
         ) : null}
       </Stack>
@@ -100,7 +116,7 @@ export function MetricCard({
 
 const styles = StyleSheet.create({
   header: {
-    alignItems: 'baseline',
+    alignItems: 'center',
     flexDirection: 'row',
     gap: space.sm,
     justifyContent: 'space-between',
