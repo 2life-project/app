@@ -79,29 +79,44 @@ export function clearSnapshot(): void {
 /**
  * Прочитать с устройства всё, что показывает раздел.
  *
+ * Каждый показатель читается сам по себе и сам по себе доезжает на экран.
+ * Одним запросом на всё делать нельзя: у браслета своя очередь команд, любой
+ * ответ может не прийти за отведённое время, и на общем `try` один такой
+ * промах оставлял бы раздел полностью пустым — хотя остальное устройство
+ * отдало.
+ *
  * История, сон и стресс идут по одному, а не пачкой: браслет отвечает на них
  * многими кадрами подряд, и одновременные запросы перемешали бы ответы.
  */
-export async function readEverything(band: Band): Promise<Partial<BandState>> {
-  const [info, summary, recordings, storage] = await Promise.all([
-    band.info(),
-    band.daySummary(),
-    band.recordings(),
-    band.storage(),
-  ]);
-
+export async function loadEverything(
+  band: Band,
+  patch: (next: Partial<BandState>) => void,
+): Promise<void> {
   const now = new Date();
   const week = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-  return {
-    battery: info.battery?.level,
-    firmware: info.firmware,
-    summary,
-    recordings,
-    storage: storage ?? undefined,
-    sleep: await band.sleep(week, now),
-    today: await band.history(startOfToday(now), now),
-    stress: await band.stress(startOfToday(now), now),
-    saved: savedRecordings(),
-  };
+  await step('info', async () => {
+    const info = await band.info();
+    patch({ battery: info.battery?.level, firmware: info.firmware });
+  });
+  await step('сводка дня', async () => patch({ summary: await band.daySummary() }));
+  await step('записи', async () => patch({ recordings: await band.recordings() }));
+  await step('память', async () => patch({ storage: (await band.storage()) ?? undefined }));
+  await step('сон', async () => patch({ sleep: await band.sleep(week, now) }));
+  await step('стресс', async () => patch({ stress: await band.stress(startOfToday(now), now) }));
+
+  patch({ saved: savedRecordings() });
+
+  // История последней: она забирается кадр за кадром и идёт дольше всего
+  // остального вместе взятого. Впереди неё числа успели бы устареть.
+  await step('история', async () => patch({ today: await band.history(startOfToday(now), now) }));
+}
+
+/** Один шаг чтения. Провал одного не отменяет остальные, но виден в логе. */
+async function step(what: string, run: () => Promise<void>): Promise<void> {
+  try {
+    await run();
+  } catch (failure) {
+    logger.warn('band: не прочиталось', { what, reason: String(failure) });
+  }
 }

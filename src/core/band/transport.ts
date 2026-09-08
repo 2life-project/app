@@ -1,18 +1,19 @@
-import type { Device, Subscription } from 'react-native-ble-plx';
+import { BleError, BleErrorCode, type Device, type Subscription } from 'react-native-ble-plx';
 
 import { ble } from '@/core/ble';
 import { logger } from '@/core/log/logger';
 
 import { byteAt, fromBase64, toBase64 } from './bytes';
 import { FrameAssembler, decode } from './frame';
+import { BAND_CAPABILITY_SERVICE, BAND_GATT_SERVICE } from './names';
 
 /** Сервис и характеристики рабочего канала браслета. */
-const SERVICE = '000056ff-0000-1000-8000-00805f9b34fb';
+const SERVICE = BAND_GATT_SERVICE;
 const WRITE = '000034f1-0000-1000-8000-00805f9b34fb';
 const NOTIFY = '000034f2-0000-1000-8000-00805f9b34fb';
 
 /** Сервис с масками возможностей: обе характеристики только читаются. */
-const CAPABILITY_SERVICE = '000055ff-0000-1000-8000-00805f9b34fb';
+const CAPABILITY_SERVICE = BAND_CAPABILITY_SERVICE;
 const CAPABILITY_LOW = '000035f1-0000-1000-8000-00805f9b34fb';
 const CAPABILITY_HIGH = '000034f1-0000-1000-8000-00805f9b34fb';
 
@@ -75,6 +76,13 @@ export class BandTransport {
     this.notifications?.remove();
     this.notifications = null;
     this.failWaiter(new Error('транспорт остановлен'));
+
+    // Снять подписку мало: соединение остаётся открытым, браслет считает себя
+    // занятым, и в эфире его больше не видно — «отключили» превращается в
+    // устройство, которое не найти и не переподключить.
+    await this.device.cancelConnection().catch((failure: unknown) => {
+      logger.warn('band: соединение не закрылось', { reason: String(failure) });
+    });
   }
 
   /** Кадры, пришедшие без запроса: кнопка, пульс, шаги, готовая запись. */
@@ -187,14 +195,21 @@ function delay(ms: number): Promise<void> {
 /** Подключиться к устройству и договориться о размере пакета. */
 export async function connectTransport(deviceId: string): Promise<BandTransport> {
   const manager = ble();
-  // Соединение у браслета одно на телефон, и держит его весь процесс целиком.
-  // Повторный `connectToDevice` по уже открытому соединению — ошибка, поэтому
-  // сначала спрашиваем, не подключён ли он: экран «Устройство» мог успеть
-  // раньше.
-  const already = await manager.isDeviceConnected(deviceId).catch(() => false);
-  const device = already
-    ? (await manager.devices([deviceId]))[0]
-    : await manager.connectToDevice(deviceId, { requestMTU: 247 });
+
+  // Браслет мог быть подключён и без нас: другим экраном или приложением
+  // вендора. Соединение системное и общее, но `connectToDevice` на уже
+  // открытом падает — тогда просто берём устройство из известных.
+  const device = await manager
+    .connectToDevice(deviceId, { requestMTU: 247 })
+    .catch(async (failure: unknown) => {
+      if (
+        !(failure instanceof BleError) ||
+        failure.errorCode !== BleErrorCode.DeviceAlreadyConnected
+      ) {
+        throw failure;
+      }
+      return (await manager.devices([deviceId]))[0];
+    });
   if (!device) throw new Error(`band: устройство ${deviceId} потерялось при подключении`);
 
   await device.discoverAllServicesAndCharacteristics();
@@ -202,4 +217,18 @@ export async function connectTransport(deviceId: string): Promise<BandTransport>
   const transport = new BandTransport(device);
   await transport.start();
   return transport;
+}
+
+/**
+ * Разорвать связь с браслетом, когда транспорта на руках нет.
+ *
+ * Нужна отдельно от `stop`: связь мог держать другой экран или прошлый запуск,
+ * а отвязать устройство надо и в этом случае.
+ */
+export async function dropConnection(deviceId: string): Promise<void> {
+  await ble()
+    .cancelDeviceConnection(deviceId)
+    .catch((failure: unknown) => {
+      logger.warn('band: связь не разорвалась', { deviceId, reason: String(failure) });
+    });
 }

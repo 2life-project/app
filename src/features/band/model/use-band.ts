@@ -12,16 +12,19 @@ import {
   type SleepSegment,
   type Storage,
   type StressSample,
+  connectedBands,
+  dropConnection,
   mergeFound,
-  savedRecordings,
   scanForBands,
+  sortByProximity,
   startBackgroundSync,
-  syncRecordings,
+  stopBackgroundSync,
 } from '@/core/band';
 import { logger } from '@/core/log/logger';
 import { setPairedBand, usePairedBand } from '@/shared/domain';
 
-import { clearSnapshot, loadSnapshot, readEverything, saveSnapshot } from './band-data';
+import { useBandActions } from './band-actions';
+import { clearSnapshot, loadEverything, loadSnapshot, saveSnapshot } from './band-data';
 
 /**
  * Состояние работы с браслетом: поиск, подключение и всё, что устройство отдаёт.
@@ -94,6 +97,16 @@ export function useBand() {
     });
   }, [patch]);
 
+  // Браслет мог остаться на связи с телефоном — от прошлого запуска, от
+  // системы, от приложения вендора. В эфире такого не найти: подключённое
+  // устройство перестаёт рекламировать себя, и поиск молчал бы вечно.
+  useEffect(() => {
+    if (paired) return;
+    void connectedBands().then((bands) => {
+      if (bands.length > 0) patch({ found: sortByProximity(bands) });
+    });
+  }, [paired, patch]);
+
   useEffect(() => {
     return () => {
       stopScan.current?.();
@@ -123,10 +136,8 @@ export function useBand() {
 
     patch({ busy: true });
     try {
-      patch(await readEverything(active));
+      await loadEverything(active, patch);
       saveSnapshot(latest.current);
-    } catch (error) {
-      logger.warn('band: не удалось обновить данные', { reason: String(error) });
     } finally {
       patch({ busy: false });
     }
@@ -182,14 +193,34 @@ export function useBand() {
     patch({ stage: 'idle', found: [], problem: undefined });
   }, [patch]);
 
+  /**
+   * Забыть браслет: отвязать на устройстве, разорвать связь и стереть память
+   * телефона. Порядок важен — снять привязку можно только пока связь жива, а
+   * после разрыва браслет уже недоступен.
+   */
   const forget = useCallback(async () => {
-    await band.current?.disconnect();
+    const active = band.current;
+    const deviceId = latest.current.device?.id ?? paired?.id;
     band.current = null;
+
+    if (active) {
+      try {
+        await active.unbind();
+      } catch (error) {
+        logger.warn('band: устройство не отвязалось', { reason: String(error) });
+      }
+      await active.disconnect().catch(() => undefined);
+    }
+
+    // Связь могли держать и без нас: другой экран, прошлый запуск, система.
+    if (deviceId) await dropConnection(deviceId);
+    await stopBackgroundSync();
+
     setPairedBand(null);
     clearSnapshot();
     latest.current = INITIAL;
     setState(INITIAL);
-  }, []);
+  }, [paired]);
 
   // Запомненный браслет поднимается сам: человек привязал его один раз, и
   // нажимать «искать» при каждом запуске незачем. Промах уводит в 'failed', и
@@ -201,66 +232,7 @@ export function useBand() {
     void connect({ id: paired.id, name: paired.name, rssi: 0 });
   }, [connect, paired]);
 
-  /** Действие, которое требует подключения: без него кнопки просто не сработают. */
-  const withBand = useCallback(
-    (action: (active: Band) => Promise<void>) => async () => {
-      const active = band.current;
-      if (!active) return;
-
-      try {
-        await action(active);
-      } catch (error) {
-        logger.warn('band: команда не прошла', { reason: String(error) });
-      }
-    },
-    [],
-  );
-
-  const vibrate = withBand(async (active) => {
-    await active.find(true);
-    // Останавливаем сами: устройство будет вибрировать, пока его не попросят
-    // перестать, и человек с этим ничего не сделает.
-    setTimeout(() => void active.find(false), 3000);
-  });
-
-  const measure = withBand(async (active) => {
-    patch({ measurement: undefined });
-    await active.measure();
-  });
-
-  const startRecording = withBand(async (active) => {
-    await active.startRecording();
-    patch({ recording: true });
-  });
-
-  const stopRecording = withBand(async (active) => {
-    await active.stopRecording();
-    patch({ recording: false });
-  });
-
-  const pullRecordings = useCallback(async () => {
-    const device = state.device;
-    if (!device) return;
-
-    patch({ busy: true });
-    try {
-      // Выгрузка переподключается сама: браслет держит одно соединение, и
-      // держать его открытым во время долгой качки незачем.
-      await band.current?.disconnect();
-      band.current = null;
-
-      await syncRecordings(device.id);
-      const connected = await Band.connect(device.id);
-      band.current = connected;
-
-      patch({ saved: savedRecordings() });
-      await refresh();
-    } catch (error) {
-      logger.warn('band: выгрузка записей не удалась', { reason: String(error) });
-    } finally {
-      patch({ busy: false });
-    }
-  }, [patch, refresh, state.device]);
+  const actions = useBandActions({ bandRef: band, patch, refresh, deviceId: state.device?.id });
 
   return {
     state,
@@ -270,10 +242,6 @@ export function useBand() {
     forget,
     paired,
     refresh,
-    vibrate,
-    measure,
-    startRecording,
-    stopRecording,
-    pullRecordings,
+    ...actions,
   };
 }

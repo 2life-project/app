@@ -19,8 +19,10 @@ export { BYTES_PER_SECOND } from './recorder';
 
 export { MeasureType } from './commands';
 
+export { dropConnection } from './transport';
+
 export { BAND_NAME, SCAN_TIMEOUT_MS } from './names';
-export { mergeFound, scanForBands, sortByProximity } from './scan';
+export { connectedBands, mergeFound, scanForBands, sortByProximity } from './scan';
 export type { FoundBand, ScanProblem, ScanResult } from './scan';
 
 export { toOgg, durationSeconds } from './audio';

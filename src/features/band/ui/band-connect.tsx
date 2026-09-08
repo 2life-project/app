@@ -80,7 +80,9 @@ export function BandConnect({
     );
   }
 
-  if (state.stage === 'idle') {
+  // Найденное до поиска — это уже подключённые устройства: их надо показать
+  // сразу, иначе человек ищет то, что у него и так на связи.
+  if (state.stage === 'idle' && state.found.length === 0) {
     return (
       <Card variant="sunken">
         <Stack gap="md">
@@ -97,6 +99,8 @@ export function BandConnect({
     );
   }
 
+  const searching = state.stage === 'scanning';
+
   return (
     <Stack gap="md">
       {state.problem === 'connect-failed' ? (
@@ -110,7 +114,7 @@ export function BandConnect({
 
       <Card variant="sunken">
         <Stack gap="sm">
-          <Text variant="title">Searching…</Text>
+          <Text variant="title">{searching ? 'Searching…' : 'Found nearby'}</Text>
 
           {state.found.length === 0 ? (
             <Text variant="bodySmall" tone="muted">
@@ -122,12 +126,20 @@ export function BandConnect({
             <ListRow
               key={device.id}
               title={device.name}
-              subtitle={device.mac ?? `signal ${device.rssi} dBm`}
+              subtitle={subtitle(device)}
               onPress={() => onConnect(device)}
             />
           ))}
+
+          {searching ? null : <Button label="Search again" variant="plain" onPress={onScan} />}
         </Stack>
       </Card>
     </Stack>
   );
+}
+
+/** Чем устройство подписано в списке: адрес, сила сигнала или готовая связь. */
+function subtitle(device: FoundBand): string {
+  if (device.connected) return 'already connected to this phone';
+  return device.mac ?? `signal ${device.rssi} dBm`;
 }

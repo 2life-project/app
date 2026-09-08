@@ -3,6 +3,7 @@ import { logger } from '@/core/log/logger';
 import { type ActivitySample, decodeActivityFrame, decodeLiveSample } from './activity';
 import { byteAt } from './bytes';
 import * as cmd from './commands';
+import * as danger from './danger';
 import {
   type Capabilities,
   type DeviceInfo,
@@ -25,6 +26,12 @@ import {
 } from './health';
 import * as recorder from './recorder';
 import { type BandTransport, connectTransport } from './transport';
+
+/**
+ * Потолок кадров истории за один запрос. Сутки по минутам не дают больше сотни
+ * кадров, и всё, что выше, — испорченный ответ, а не длинный день.
+ */
+const MAX_HISTORY_FRAMES = 120;
 
 /** Отчёты, которые устройство присылает само. */
 export type BandEvent =
@@ -68,6 +75,16 @@ export class Band {
 
   async disconnect(): Promise<void> {
     await this.transport.stop();
+  }
+
+  /**
+   * Снять привязку на самом браслете: он забывает аккаунт и снова доступен
+   * другому телефону. Без этого «забыть» стирает память только у приложения, а
+   * устройство продолжает считать себя занятым.
+   */
+  async unbind(): Promise<void> {
+    await this.transport.send(danger.unbind());
+    await this.transport.send(danger.clearAccount());
   }
 
   /** Подписаться на отчёты устройства. Возвращает функцию отписки. */
@@ -149,7 +166,15 @@ export class Band {
    */
   async history(from: Date, to: Date): Promise<ActivitySample[]> {
     const countBody = await this.transport.request(cmd.readActivityCount(from, to));
-    const frames = countBody.length > 0 ? byteAt(countBody, countBody.length - 1) : 0;
+    const declared = countBody.length > 0 ? byteAt(countBody, countBody.length - 1) : 0;
+
+    // Кадров не бывает больше суток по минутам, а число приходит одним байтом:
+    // сбитый ответ превращается в две с половиной сотни запросов по двенадцать
+    // секунд каждый — раздел на такое время просто перестаёт отвечать.
+    const frames = Math.min(declared, MAX_HISTORY_FRAMES);
+    if (declared > frames) {
+      logger.warn('band: устройство заявило слишком много кадров', { declared });
+    }
 
     const samples: ActivitySample[] = [];
     for (let index = 0; index < frames; index += 1) {
