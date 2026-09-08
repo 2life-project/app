@@ -4,7 +4,7 @@ import { useQuery } from '@/core/http/use-query';
 import { logger } from '@/core/log/logger';
 import { Card, InfoCard, ListRow, Screen, ScreenHeader, Stack, Text, Toggle } from '@/shared/ui';
 
-import type { LayoutCell, WidgetType } from '../api/contract';
+import type { HomeLayout, LayoutCell, WidgetType } from '../api/contract';
 import { fetchHomeLayout, fetchWidgetCatalog, saveHomeLayout } from '../api/home';
 import { cellsOf } from '../model/feed';
 import { WIDGET_TITLES, WIDGETS_NOTE } from '../model/widgets';
@@ -18,18 +18,25 @@ export const WidgetsScreenOptions = { headerShown: false };
 export function WidgetsScreen() {
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
+  /**
+   * Раскладка после последней записи. Сервер принимает правку только против
+   * той ревизии, которую видел клиент, а перечитывание идёт своим темпом:
+   * второе нажатие подряд ушло бы со старой ревизией и получило отказ.
+   */
+  const [saved, setSaved] = useState<HomeLayout | null>(null);
 
   const layout = useQuery('home:layout', (signal) => fetchHomeLayout(signal));
   const catalog = useQuery('widgets:catalog', (signal) => fetchWidgetCatalog(signal));
 
-  const cells = cellsOf(layout.data);
+  // Своя запись свежее прочитанной, пока перечитывание не догонит её ревизию.
+  const current = saved && saved.revision >= (layout.data?.revision ?? 0) ? saved : layout.data;
+  const cells = cellsOf(current);
   const shown = new Set(cells.map((cell) => cell.widget));
   const available = (catalog.data?.widgets ?? []).filter((widget) =>
     widget.surfaces.includes('mobile'),
   );
 
   const toggle = (type: WidgetType, on: boolean) => {
-    const current = layout.data;
     if (!current || saving) return;
 
     const next: LayoutCell[] = on
@@ -41,21 +48,21 @@ export function WidgetsScreen() {
     // Отказ обязан быть виден. Молчаливый провал выглядит как «переключатель
     // не работает»: он отскакивает назад, и причины на экране нет.
     void saveHomeLayout(current, next)
-      .then((saved) => {
+      .then((result) => {
+        setSaved(result);
         // Сервер отвечает 2xx и на запись, которую не принял целиком: он
         // возвращает свою раскладку, а не нашу. Молча показывать отскочивший
         // переключатель нельзя — сравниваем и говорим, что не вышло.
-        const kept = cellsOf(saved).some((cell) => cell.widget === type);
+        const kept = cellsOf(result).some((cell) => cell.widget === type);
         if (kept !== on) {
           logger.warn('Сервер вернул другую раскладку', {
             type,
             on,
             sent: next.length,
-            got: cellsOf(saved).length,
+            got: cellsOf(result).length,
           });
           setFailed(true);
         }
-        layout.refresh();
       })
       .catch((failure: unknown) => {
         logger.warn('Раскладка не сохранилась', { type, on, failure });
@@ -70,7 +77,7 @@ export function WidgetsScreen() {
         <ScreenHeader
           title="Widgets"
           subtitle={
-            layout.data ? `${cells.length} of ${available.length} on Home` : 'loading the layout…'
+            current ? `${cells.length} of ${available.length} on Home` : 'loading the layout…'
           }
         />
 
