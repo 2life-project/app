@@ -2,6 +2,7 @@ import * as SecureStore from 'expo-secure-store';
 import { useSyncExternalStore } from 'react';
 
 import { env } from '@/core/config/env';
+import { HttpError } from '@/core/http/client';
 import { logger } from '@/core/log/logger';
 
 /**
@@ -156,6 +157,12 @@ async function post<T>(path: string, body: Record<string, string>): Promise<T> {
     body: JSON.stringify(body),
   });
 
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  // Код нужен экрану: 429 он показывает отсчётом, а не той же строкой, что и
+  // неверный пароль. Тело ошибки в интерфейс не идёт — только в лог.
+  if (!response.ok) {
+    const body: unknown = await response.text().catch(() => null);
+    logger.warn('Вход не прошёл', { path, status: response.status, body });
+    throw new HttpError(response.status, body);
+  }
   return (response.status === 204 ? null : await response.json()) as T;
 }

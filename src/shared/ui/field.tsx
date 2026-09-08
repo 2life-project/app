@@ -1,6 +1,6 @@
 import { StyleSheet, TextInput, type TextInputProps } from 'react-native';
 
-import { radius, space, theme } from '@/shared/theme';
+import { radius, size, space, theme } from '@/shared/theme';
 
 import { Stack } from './stack';
 import { Text } from './text';
@@ -29,15 +29,23 @@ export function Field({ label, hint, multiline, style, ...rest }: FieldProps) {
   );
 }
 
-const HEIGHT = 44;
-const MULTILINE_HEIGHT = 72;
+/**
+ * Поле выше минимальной зоны нажатия: на экране, где ввод — главное действие,
+ * 44pt читаются как подпись, а не как поле.
+ */
+const HEIGHT = 52;
+const MULTILINE_HEIGHT = 80;
 
 const styles = StyleSheet.create({
   input: {
     height: HEIGHT,
-    paddingHorizontal: space.md,
+    paddingHorizontal: space.lg,
     borderRadius: radius.lg,
     borderCurve: 'continuous',
+    // Обводка обязательна: заливка поля полупрозрачная и на голом фоне экрана
+    // сливается с ним — поле видно только внутри карточки.
+    borderWidth: size.border,
+    borderColor: theme.color.border,
     backgroundColor: theme.color.surfaceInner,
     color: theme.color.text,
   },

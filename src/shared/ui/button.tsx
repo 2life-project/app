@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, type PressableProps } from 'react-native';
+import { type ReactNode } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, View, type PressableProps } from 'react-native';
 
 import { radius, size, space, theme, type Tone } from '@/shared/theme';
 
@@ -17,6 +18,13 @@ export type ButtonProps = Omit<PressableProps, 'children' | 'style'> & {
   size?: 'sm' | 'md';
   /** `danger` для необратимых действий, `accent` для основного. */
   tone?: Tone;
+  /**
+   * Действие в работе. Кнопка перестаёт нажиматься сама: без этого второе
+   * нажатие уходит вторым запросом, а вход и регистрация не идемпотентны.
+   */
+  loading?: boolean;
+  /** Значок слева от подписи — там, где кнопка называет источник входа. */
+  icon?: ReactNode;
 };
 
 export function Button({
@@ -25,9 +33,12 @@ export function Button({
   size: sizeProp = 'md',
   tone = 'accent',
   disabled,
+  loading = false,
+  icon,
   ...rest
 }: ButtonProps) {
   const palette = theme.color[tone];
+  const off = disabled || loading;
 
   const background = {
     filled: palette.solid,
@@ -45,8 +56,8 @@ export function Button({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityState={{ disabled: !!disabled }}
-      disabled={disabled}
+      accessibilityState={{ disabled: off, busy: loading }}
+      disabled={off}
       {...rest}
       style={({ pressed }) => [
         styles.base,
@@ -57,14 +68,17 @@ export function Button({
         // Гасить прозрачностью нельзя: RN складывает opacity на всё поддерево,
         // и проверенная пара подпись/заливка 4.5:1 превращается в 1.9:1,
         // а жёлтая кнопка пропадает с карточки совсем.
-        disabled && styles.disabled,
+        off && styles.disabled,
       ]}>
-      <Text
-        variant={LABEL_VARIANT}
-        tone={disabled ? 'disabled' : labelTone[variant](tone)}
-        numberOfLines={1}>
-        {label}
-      </Text>
+      <View style={styles.row}>
+        {loading ? <ActivityIndicator size="small" color={theme.color.textDisabled} /> : icon}
+        <Text
+          variant={LABEL_VARIANT}
+          tone={off ? 'disabled' : labelTone[variant](tone)}
+          numberOfLines={1}>
+          {label}
+        </Text>
+      </View>
     </Pressable>
   );
 }
@@ -96,5 +110,6 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   small: { minHeight: 34, paddingHorizontal: space.md },
-  disabled: { backgroundColor: theme.color.surfaceSunken, borderColor: theme.color.border },
+  row: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  disabled: { backgroundColor: theme.color.surfaceSunken, borderColor: theme.color.borderStrong },
 });
