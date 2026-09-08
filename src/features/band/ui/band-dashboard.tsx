@@ -23,6 +23,7 @@ export function BandDashboard({
   onPull,
   onRefresh,
   onDisconnect,
+  onForget,
 }: {
   state: BandState;
   onMeasure: () => void;
@@ -32,6 +33,7 @@ export function BandDashboard({
   onPull: () => void;
   onRefresh: () => void;
   onDisconnect: () => void;
+  onForget: () => void;
 }) {
   return (
     <Stack gap="md">
@@ -75,7 +77,10 @@ export function BandDashboard({
 
       <RecordingsCard state={state} onPull={onPull} />
 
-      <Button label="Disconnect" variant="tonal" onPress={onDisconnect} />
+      <View style={styles.controls}>
+        <Button label="Disconnect" variant="tonal" onPress={onDisconnect} />
+        <Button label="Forget band" variant="plain" onPress={onForget} />
+      </View>
     </Stack>
   );
 }

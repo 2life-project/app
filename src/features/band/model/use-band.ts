@@ -19,8 +19,9 @@ import {
   syncRecordings,
 } from '@/core/band';
 import { logger } from '@/core/log/logger';
+import { setPairedBand, usePairedBand } from '@/shared/domain';
 
-import { startOfToday } from './day-metrics';
+import { clearSnapshot, loadSnapshot, readEverything, saveSnapshot } from './band-data';
 
 /**
  * Состояние работы с браслетом: поиск, подключение и всё, что устройство отдаёт.
@@ -69,13 +70,29 @@ const INITIAL: BandState = {
 };
 
 export function useBand() {
+  const paired = usePairedBand();
   const [state, setState] = useState<BandState>(INITIAL);
   const band = useRef<Band | null>(null);
   const stopScan = useRef<(() => void) | null>(null);
+  /** Зеркало состояния: снимок на диск пишется вне рендера, из обработчиков. */
+  const latest = useRef<BandState>(INITIAL);
 
   const patch = useCallback((next: Partial<BandState>) => {
-    setState((current) => ({ ...current, ...next }));
+    setState((current) => {
+      const merged = { ...current, ...next };
+      latest.current = merged;
+      return merged;
+    });
   }, []);
+
+  // Показания с прошлого запуска — сразу, не дожидаясь Bluetooth. Они лежат на
+  // диске телефона и от сессии в аккаунте не зависят: раздел не должен
+  // начинаться с пустых графиков только потому, что связь ещё не поднялась.
+  useEffect(() => {
+    void loadSnapshot().then((snapshot) => {
+      if (snapshot) patch(snapshot);
+    });
+  }, [patch]);
 
   useEffect(() => {
     return () => {
@@ -106,32 +123,8 @@ export function useBand() {
 
     patch({ busy: true });
     try {
-      const [info, summary, recordings, storage] = await Promise.all([
-        active.info(),
-        active.daySummary(),
-        active.recordings(),
-        active.storage(),
-      ]);
-
-      // История и сон идут отдельными запросами: устройство отвечает на них
-      // многими кадрами, и параллельно их не запросить — ответы перепутаются.
-      const now = new Date();
-      const week = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      const sleep = await active.sleep(week, now);
-      const today = await active.history(startOfToday(now), now);
-      const stress = await active.stress(startOfToday(now), now);
-
-      patch({
-        battery: info.battery?.level,
-        firmware: info.firmware,
-        summary,
-        recordings,
-        storage: storage ?? undefined,
-        sleep,
-        today,
-        stress,
-        saved: savedRecordings(),
-      });
+      patch(await readEverything(active));
+      saveSnapshot(latest.current);
     } catch (error) {
       logger.warn('band: не удалось обновить данные', { reason: String(error) });
     } finally {
@@ -167,6 +160,10 @@ export function useBand() {
         await connected.watchHeartRate(1);
         await startBackgroundSync(device.id);
 
+        // Привязка живёт на телефоне рядом с показаниями: браслет принадлежит
+        // устройству, а не аккаунту, и переподключаться после каждого входа
+        // человек не должен.
+        setPairedBand({ id: device.id, name: device.name, pairedAt: new Date().toISOString() });
         patch({ stage: 'connected' });
         await refresh();
       } catch (error) {
@@ -180,8 +177,29 @@ export function useBand() {
   const disconnect = useCallback(async () => {
     await band.current?.disconnect();
     band.current = null;
+    // Данные и привязка остаются: отключение — это разрыв связи, а не отказ от
+    // браслета. Забыть его — отдельное действие.
+    patch({ stage: 'idle', found: [], problem: undefined });
+  }, [patch]);
+
+  const forget = useCallback(async () => {
+    await band.current?.disconnect();
+    band.current = null;
+    setPairedBand(null);
+    clearSnapshot();
+    latest.current = INITIAL;
     setState(INITIAL);
   }, []);
+
+  // Запомненный браслет поднимается сам: человек привязал его один раз, и
+  // нажимать «искать» при каждом запуске незачем. Промах уводит в 'failed', и
+  // на экране появляется кнопка повтора — молча в поиске зависать нельзя.
+  const attempted = useRef(false);
+  useEffect(() => {
+    if (!paired || attempted.current) return;
+    attempted.current = true;
+    void connect({ id: paired.id, name: paired.name, rssi: 0 });
+  }, [connect, paired]);
 
   /** Действие, которое требует подключения: без него кнопки просто не сработают. */
   const withBand = useCallback(
@@ -249,6 +267,8 @@ export function useBand() {
     scan,
     connect,
     disconnect,
+    forget,
+    paired,
     refresh,
     vibrate,
     measure,

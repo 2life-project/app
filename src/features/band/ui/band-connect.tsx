@@ -1,4 +1,5 @@
 import type { FoundBand } from '@/core/band';
+import type { PairedBand } from '@/shared/domain';
 import { Banner, Button, Card, ListRow, Stack, Text } from '@/shared/ui';
 
 import type { BandState } from '../model/use-band';
@@ -12,12 +13,16 @@ import type { BandState } from '../model/use-band';
  */
 export function BandConnect({
   state,
+  paired,
   onScan,
   onConnect,
+  onForget,
 }: {
   state: BandState;
+  paired: PairedBand | null;
   onScan: () => void;
   onConnect: (device: FoundBand) => void;
+  onForget: () => void;
 }) {
   if (state.problem === 'bluetooth-off') {
     return (
@@ -49,6 +54,27 @@ export function BandConnect({
           <Text variant="bodySmall" tone="muted">
             The band keeps a single connection. Close the vendor app if it holds it.
           </Text>
+        </Stack>
+      </Card>
+    );
+  }
+
+  // Привязанный браслет искать заново не нужно: телефон помнит его
+  // идентификатор и подключается по нему напрямую.
+  if (paired && state.stage !== 'scanning') {
+    return (
+      <Card variant="sunken">
+        <Stack gap="md">
+          <Stack gap="xs">
+            <Text variant="title">{paired.name}</Text>
+            <Text variant="bodySmall" tone="muted">
+              {state.problem === 'connect-failed'
+                ? 'Out of range or held by another phone. It will connect as soon as it is nearby.'
+                : 'Paired with this phone. Connecting happens on its own.'}
+            </Text>
+          </Stack>
+          <Button label="Connect" onPress={() => onConnect({ ...paired, rssi: 0 })} />
+          <Button label="Forget band" variant="plain" onPress={onForget} />
         </Stack>
       </Card>
     );

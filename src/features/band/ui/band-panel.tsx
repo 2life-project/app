@@ -12,7 +12,15 @@ export function BandPanel() {
   const band = useBand();
 
   if (band.state.stage !== 'connected') {
-    return <BandConnect state={band.state} onScan={band.scan} onConnect={band.connect} />;
+    return (
+      <BandConnect
+        state={band.state}
+        paired={band.paired}
+        onScan={band.scan}
+        onConnect={band.connect}
+        onForget={band.forget}
+      />
+    );
   }
 
   return (
@@ -25,6 +33,7 @@ export function BandPanel() {
       onPull={band.pullRecordings}
       onRefresh={band.refresh}
       onDisconnect={band.disconnect}
+      onForget={band.forget}
     />
   );
 }

@@ -35,6 +35,7 @@ export function BandMetrics({ state }: { state: BandState }) {
   const oxygen = seriesOf(today, (sample) => sample.bloodOxygen);
   const hrv = seriesOf(today, (sample) => sample.hrv);
   const systolic = seriesOf(today, (sample) => sample.systolic);
+  const mood = seriesOf(today, (sample) => sample.mood);
   const stress = stressPoints(state.stress, startOfToday());
 
   return (
@@ -89,6 +90,16 @@ export function BandMetrics({ state }: { state: BandState }) {
       />
 
       <PressureCard state={state} systolic={systolic} axis={axis} />
+
+      <MetricCard
+        title="Mood"
+        value={String(state.measurement?.mood ?? last(mood) ?? '—')}
+        caption={caption(mood.length)}
+        tone="highlight"
+        series={thin(mood)}
+        summary={summaryOf(mood)}
+        axis={axis}
+      />
     </Stack>
   );
 }

@@ -186,7 +186,17 @@ function delay(ms: number): Promise<void> {
 
 /** Подключиться к устройству и договориться о размере пакета. */
 export async function connectTransport(deviceId: string): Promise<BandTransport> {
-  const device = await ble().connectToDevice(deviceId, { requestMTU: 247 });
+  const manager = ble();
+  // Соединение у браслета одно на телефон, и держит его весь процесс целиком.
+  // Повторный `connectToDevice` по уже открытому соединению — ошибка, поэтому
+  // сначала спрашиваем, не подключён ли он: экран «Устройство» мог успеть
+  // раньше.
+  const already = await manager.isDeviceConnected(deviceId).catch(() => false);
+  const device = already
+    ? (await manager.devices([deviceId]))[0]
+    : await manager.connectToDevice(deviceId, { requestMTU: 247 });
+  if (!device) throw new Error(`band: устройство ${deviceId} потерялось при подключении`);
+
   await device.discoverAllServicesAndCharacteristics();
 
   const transport = new BandTransport(device);
