@@ -13,7 +13,6 @@ import {
   BarChart,
   LineChart,
   ListRow,
-  MacroGrid,
   MetricWidget,
   ProgressRing,
   Stack,
@@ -26,6 +25,7 @@ import type { HomeData, WidgetType } from '../api/contract';
 import { nutritionOf } from '../model/nutrition';
 import type { RingView, SystemView } from '../model/vitals';
 
+import { FuelSummary } from './fuel-summary';
 import { MealStrip } from './meal-strip';
 
 type IconName = keyof typeof Feather.glyphMap;
@@ -80,7 +80,7 @@ export function FuelWidget({ home }: { home: HomeData }) {
   return (
     <WidgetCard title="Fuel" action={{ label: 'Nutrition', onPress: () => router.push(to.body()) }}>
       <Stack gap="lg">
-        <MacroGrid cells={view.grid} />
+        <FuelSummary cells={view.grid} />
         <MealStrip dailyGoal={view.goalCalories} />
       </Stack>
     </WidgetCard>

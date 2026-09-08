@@ -2,21 +2,12 @@ import { router } from 'expo-router';
 
 import { shortDay } from '@/shared/lib/day';
 import { to } from '@/shared/nav';
-import {
-  Card,
-  DatePager,
-  InfoCard,
-  LinkCard,
-  ListRow,
-  MacroGrid,
-  Stack,
-  Text,
-  WidgetCard,
-} from '@/shared/ui';
+import { Card, DatePager, InfoCard, LinkCard, ListRow, Stack, Text, WidgetCard } from '@/shared/ui';
 
 import type { HomeData } from '../api/contract';
 import { nutritionOf } from '../model/nutrition';
 
+import { FuelSummary } from './fuel-summary';
 import { MealStrip } from './meal-strip';
 
 export function Nutrition({ home }: { home: HomeData }) {
@@ -41,7 +32,7 @@ export function Nutrition({ home }: { home: HomeData }) {
           показывали ровно их же — три вида одних цифр заставляли человека
           сверять их между собой. */}
       <Card>
-        <MacroGrid cells={view.grid} />
+        <FuelSummary cells={view.grid} />
       </Card>
 
       <Card>
