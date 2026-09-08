@@ -26,7 +26,6 @@ import { nutritionOf } from '../model/nutrition';
 import type { RingView, SystemView } from '../model/vitals';
 
 import { FuelSummary } from './fuel-summary';
-import { MealStrip } from './meal-strip';
 
 type IconName = keyof typeof Feather.glyphMap;
 
@@ -70,8 +69,9 @@ export function SystemWidget({ widget, view }: { widget: WidgetType; view: Syste
 }
 
 /**
- * Питание отличается от прочих систем тем, что его можно пополнить прямо
- * отсюда: под числами стоит полоса приёмов, и нажатие ведёт к записи еды.
+ * Питание на Главной — только числа дня: калории и три макроса. Запись еды
+ * живёт в разделе, куда ведёт ссылка: виджет ленты отвечает на вопрос «где я
+ * сейчас», а не заменяет собой раздел.
  */
 export function FuelWidget({ home }: { home: HomeData }) {
   const view = nutritionOf(home);
@@ -79,10 +79,7 @@ export function FuelWidget({ home }: { home: HomeData }) {
 
   return (
     <WidgetCard title="Fuel" action={{ label: 'Nutrition', onPress: () => router.push(to.body()) }}>
-      <Stack gap="lg">
-        <FuelSummary cells={view.grid} />
-        <MealStrip dailyGoal={view.goalCalories} />
-      </Stack>
+      <FuelSummary cells={view.grid} />
     </WidgetCard>
   );
 }
