@@ -4,7 +4,7 @@ import { router, type Stack as RouterStack } from 'expo-router';
 import { useState, type ComponentProps } from 'react';
 import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
-import { usePersistentState } from '@/shared/lib/store';
+import { shortDay } from '@/shared/lib/day';
 import { radius, size, space, theme } from '@/shared/theme';
 import {
   ActionLink,
@@ -18,19 +18,8 @@ import {
   Text,
 } from '@/shared/ui';
 
-import {
-  ANSWERS,
-  CONVERSATION,
-  DISCLAIMER,
-  FALLBACK_ANSWER,
-  INTRO,
-  MEMO,
-  PLACEHOLDER,
-  SUGGESTIONS,
-  THREADS,
-  THREADS_NOTE,
-  type Message,
-} from '../model/chat';
+import { DISCLAIMER, INTRO, MEMO, PLACEHOLDER, SUGGESTIONS, THREADS_NOTE } from '../model/chat';
+import { useChat } from '../model/use-chat';
 
 /** Опции маршрута берём из самого роутера: свой тип разошёлся бы с ним. */
 type ScreenOptions = ComponentProps<typeof RouterStack.Screen>['options'];
@@ -51,33 +40,14 @@ export const AssistantScreenOptions: ScreenOptions = {
   headerShown: false,
 };
 
-const FIRST: Message[] = [
-  { id: 'q0', from: 'you', text: CONVERSATION.question },
-  { id: 'a0', from: 'assistant', text: CONVERSATION.answer, sources: CONVERSATION.sources },
-];
-
 export function AssistantScreen() {
-  const [messages, setMessages] = usePersistentState<Message[]>('assistant:thread', FIRST);
+  const chat = useChat();
   const [draft, setDraft] = useState('');
   const [threads, setThreads] = useState(false);
   const [memo, setMemo] = useState(false);
 
   const ask = (question: string) => {
-    const trimmed = question.trim();
-    if (!trimmed) return;
-
-    const answer = ANSWERS[trimmed];
-    const at = String(messages.length);
-    setMessages([
-      ...messages,
-      { id: `q${at}`, from: 'you', text: trimmed },
-      {
-        id: `a${at}`,
-        from: 'assistant',
-        text: answer?.text ?? FALLBACK_ANSWER,
-        sources: answer?.sources,
-      },
-    ]);
+    void chat.ask(question);
     setDraft('');
   };
 
@@ -126,8 +96,8 @@ export function AssistantScreen() {
 
         {/* Вопрос человека — заливкой, ответ — карточкой: так видно, где чья
             реплика, без подписей «вы» и «ассистент». */}
-        {messages.map((message) =>
-          message.from === 'you' ? (
+        {chat.messages.map((message) =>
+          message.side === 'you' ? (
             <View key={message.id} style={styles.questionRow}>
               <View style={styles.question}>
                 <Text variant="label" tone="onHighlight">
@@ -137,17 +107,21 @@ export function AssistantScreen() {
             </View>
           ) : (
             <Card key={message.id} variant="flat" style={styles.answer}>
-              <Stack gap="sm">
-                <Text>{message.text}</Text>
-                {message.sources ? (
-                  <Text variant="footnote" tone="muted">
-                    {message.sources}
-                  </Text>
-                ) : null}
-              </Stack>
+              <Text>{message.text}</Text>
             </Card>
           ),
         )}
+
+        {chat.asking ? (
+          <Text variant="bodySmall" tone="muted" style={styles.centered}>
+            Thinking…
+          </Text>
+        ) : null}
+        {chat.failed ? (
+          <Text variant="bodySmall" tone="danger" style={styles.centered}>
+            The assistant did not answer. Try again.
+          </Text>
+        ) : null}
       </ScrollView>
 
       <View style={styles.field}>
@@ -184,24 +158,26 @@ export function AssistantScreen() {
           <ActionLink
             label="+ New"
             onPress={() => {
-              setMessages([]);
+              chat.start();
               setThreads(false);
             }}
           />
         }>
         <Stack gap="sm">
-          {THREADS.map((thread) => (
+          {chat.threads.map((thread) => (
             <ListRow
               key={thread.id}
-              title={thread.title}
-              subtitle={thread.when}
+              // Названия у ветки нет — сервер отдаёт последнюю реплику, и она
+              // говорит о содержании больше любого придуманного заголовка.
+              title={thread.lastMessage ?? 'Empty thread'}
+              subtitle={shortDay(new Date(thread.updatedAt).toISOString().slice(0, 10))}
               onPress={() => {
-                setMessages([]);
+                chat.open(thread.id);
                 setThreads(false);
-                ask(thread.title);
               }}
             />
           ))}
+          {chat.threads.length === 0 ? <Text tone="muted">No threads yet.</Text> : null}
           <Text variant="footnote" tone="muted">
             {THREADS_NOTE}
           </Text>

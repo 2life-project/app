@@ -41,61 +41,6 @@ export const COURSE = {
   },
 } as const;
 
-/** Все курсы: активные, на паузе, завершённые — как в макете. */
-export const COURSE_GROUPS = [
-  {
-    id: 'active',
-    label: 'ACTIVE',
-    courses: [
-      {
-        id: 'morning',
-        title: 'Morning stack',
-        when: 'every day · 08:00',
-        on: true,
-        items: ['Omega-3 2 g', 'D3 2,000 IU', 'Magnesium 400 mg'],
-        adherence: { value: 0.96, label: '96%' },
-        supply: '18 days left',
-      },
-      {
-        id: 'day',
-        title: 'Day stack',
-        when: 'every day · 14:00',
-        on: true,
-        items: ['Zinc 15 mg', 'B-complex'],
-        adherence: { value: 0.92, label: '92%' },
-        supply: '6 days left',
-      },
-      {
-        id: 'evening',
-        title: 'Evening stack',
-        when: 'every day · 21:00',
-        on: true,
-        items: ['Magnesium glycinate 400 mg'],
-        adherence: { value: 0.89, label: '89%' },
-        supply: '24 days left',
-      },
-    ],
-  },
-  {
-    id: 'paused',
-    label: 'PAUSED',
-    courses: [
-      {
-        id: 'iron',
-        title: 'Iron',
-        when: 'Mon, Wed, Fri · 09:00',
-        on: false,
-        items: ['Iron 25 mg', 'C 500 mg'],
-        adherence: null,
-        supply: 'until ferritin is retested',
-      },
-    ],
-  },
-] as const;
-
-export const COURSES_SUMMARY = '3 active · 1 paused · 2 finished';
-
-/** Новый курс: поля формы из макета. */
 export const NEW_COURSE_FIELDS = [
   { id: 'name', label: 'Course name', hint: 'Morning stack' },
   { id: 'time', label: 'When', hint: 'every day · 08:00' },

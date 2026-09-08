@@ -2,7 +2,8 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { usePersistentState } from '@/shared/lib/store';
+import { useQuery } from '@/core/http/use-query';
+import { shortDay, useToday } from '@/shared/lib/day';
 import { to } from '@/shared/nav';
 import { radius, theme } from '@/shared/theme';
 import {
@@ -14,19 +15,18 @@ import {
   Field,
   InfoCard,
   ListRow,
-  ProgressBar,
   Screen,
   ScreenHeader,
-  SectionCaption,
   Sheet,
   Stack,
   Tag,
   Text,
-  Toggle,
   WidgetCard,
 } from '@/shared/ui';
 
-import { COURSE, COURSE_GROUPS, COURSES_SUMMARY, NEW_COURSE_FIELDS } from '../model/course';
+import { fetchCourses, type Course } from '../api/courses';
+import { COURSE, NEW_COURSE_FIELDS } from '../model/course';
+import { byDay, isRunning } from '../model/course-view';
 
 export const CourseScreenOptions = { headerShown: false };
 
@@ -132,74 +132,61 @@ const styles = StyleSheet.create({
 
 /** Список курсов: активные и на паузе, каждый с составом и приверженностью. */
 function CourseList() {
-  const [active, setActive] = usePersistentState<Record<string, boolean>>('courses', {});
+  const { date } = useToday();
+  const query = useQuery('courses', (signal) => fetchCourses(signal));
+  const courses = query.data ?? [];
+  const running = courses.filter((course) => isRunning(course, date));
 
   return (
     <Screen>
       <Stack gap="md">
         <ScreenHeader
           title="Supplement courses"
-          subtitle={COURSES_SUMMARY}
+          subtitle={`${running.length} of ${courses.length} running`}
           action={<ActionLink label="Add" onPress={() => router.push(to.course('new'))} />}
         />
 
-        {COURSE_GROUPS.map((group) => (
-          <Stack key={group.id} gap="sm">
-            <SectionCaption>{`${group.label} · ${group.courses.length}`}</SectionCaption>
-            {group.courses.map((course) => (
-              <Card key={course.id}>
-                <Stack gap="sm">
-                  <ListRow
-                    title={course.title}
-                    subtitle={course.when}
-                    trailingSlot={
-                      <Toggle
-                        value={active[course.id] ?? course.on}
-                        accessibilityLabel={course.title}
-                        onValueChange={(value) => setActive({ ...active, [course.id]: value })}
-                      />
-                    }
-                  />
-                  <Stack direction="row" gap="xs" wrap>
-                    {course.items.map((item) => (
-                      <Tag key={item} label={item} tone="neutral" />
-                    ))}
-                  </Stack>
-                  {course.adherence ? <ProgressBar value={course.adherence.value} /> : null}
-                  <Stack direction="row" justify="space-between" align="center">
-                    <Stack direction="row" gap="sm" align="center">
-                      <Tag
-                        label={course.adherence ? course.adherence.label : 'PAUSED'}
-                        tone={course.adherence ? 'success' : 'neutral'}
-                        dot
-                      />
-                      <Text variant="bodySmall" tone="muted">
-                        {course.supply}
-                      </Text>
-                    </Stack>
-                    <ActionLink
-                      label="Set up"
-                      chevron
-                      onPress={() => router.push(to.course(course.id))}
-                    />
-                  </Stack>
-                </Stack>
-              </Card>
-            ))}
-          </Stack>
+        {courses.map((course) => (
+          <Card key={course.id}>
+            <Stack gap="sm">
+              <ListRow
+                title={course.name}
+                subtitle={coursePeriod(course)}
+                trailing={`${course.schedule.length} slots`}
+                onPress={() => router.push(to.course(course.id))}
+              />
+              {/* Переключатель курса здесь был бы обманом: выключать курс
+                  сервер умеет только правкой самого курса, не флагом. */}
+              <Stack direction="row" gap="xs" wrap>
+                {byDay(course).map((day) => (
+                  <Tag key={day.day} label={`${day.title} · ${day.slots.length}`} />
+                ))}
+              </Stack>
+            </Stack>
+          </Card>
         ))}
 
-        <Button
-          label="+ Add a course"
-          variant="dashed"
-          onPress={() => router.push(to.course('new'))}
-        />
+        {courses.length === 0 ? (
+          <Card variant="sunken">
+            <Text tone="muted">{query.loading ? 'Loading the courses…' : 'No courses yet.'}</Text>
+          </Card>
+        ) : null}
       </Stack>
     </Screen>
   );
 }
 
-/** Новый курс: поля из макета. Ввод пока никуда не уходит — контракта нет. */
+/** Срок курса словами. Бессрочный курс — тоже курс, и это надо сказать. */
+function coursePeriod(course: Course): string {
+  if (!course.startDate && !course.endDate) return 'no end date';
+  if (course.startDate && course.endDate) {
+    return `${shortDay(course.startDate)} — ${shortDay(course.endDate)}`;
+  }
+  return course.startDate
+    ? `from ${shortDay(course.startDate)}`
+    : `until ${shortDay(course.endDate ?? '')}`;
+}
+
 function NewCourse() {
   return (
     <Screen>
