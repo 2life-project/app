@@ -5,13 +5,18 @@
  */
 export const AUTH = {
   title: 'Welcome to 2Life',
-  subtitle: 'Your metrics, documents and protocols in one place.',
+  /** Подзаголовок меняется вместе с режимом: он и объясняет, где ты сейчас. */
+  subtitle: {
+    in: 'Your metrics, documents and protocols in one place.',
+    up: 'Pick a login and a password — that is all we need to start.',
+  },
   login: 'Login',
   password: 'Password',
-  continue: 'Continue',
-  createAccount: 'I am new here — create an account',
+  continue: { in: 'Continue', up: 'Create account' },
+  /** Ссылка внизу ведёт в другой режим и называет тот, куда ведёт. */
+  switchTo: { in: 'I am new here — create an account', up: 'I already have an account' },
   or: 'or',
-  needBoth: 'Enter a login and a password.',
+  needBoth: { in: 'Enter a login and a password.', up: 'Pick a login and a password.' },
   showPassword: 'Show password',
   hidePassword: 'Hide password',
   google: 'Continue with Google',

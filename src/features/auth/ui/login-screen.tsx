@@ -15,13 +15,19 @@ import { authMessage } from '../model/errors';
 
 const TOO_MANY = 429;
 
+type Mode = 'in' | 'up';
+
 /**
- * Вход и регистрация одним экраном: та же пара полей, разные кнопки.
+ * Вход и регистрация одним экраном: та же пара полей, два режима.
  *
  * Иерархия здесь важнее украшений. На экране ровно одно главное действие —
- * вход; регистрация стоит ссылкой под ним, источники входа отделены чертой.
- * Когда все четыре действия выглядят одинаково, взгляду не за что зацепиться,
- * и экран читается как неработающий.
+ * оно же меняется вместе с режимом; ссылка под ним уводит в другой режим,
+ * источники входа отделены чертой. Когда все действия выглядят одинаково,
+ * взгляду не за что зацепиться, и экран читается как неработающий.
+ *
+ * Ссылка переключает режим, а не отправляет форму. Пока она была вторым
+ * отправляющим действием, нажатие на пустой форме давало ту же ошибку, что
+ * уже висела на экране, — то есть выглядело как «кнопка не работает».
  *
  * Главная кнопка не гаснет на пустой форме. Погасшая кнопка молчит о причине,
  * а нажатие даёт назвать её словами — и на первом же взгляде на экране есть
@@ -31,12 +37,12 @@ const TOO_MANY = 429;
  * Формулировку выбираем по машинному коду ответа, причина уходит в лог.
  */
 export function LoginScreen() {
+  const [mode, setMode] = useState<Mode>('in');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [reveal, setReveal] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  /** Какое из двух действий в работе — крутится только его кнопка. */
-  const [running, setRunning] = useState<'in' | 'up' | null>(null);
+  const [busy, setBusy] = useState(false);
   const { secondsLeft, start: startCooldown } = useCooldown();
 
   // Клавиатура закрывала бы нижние кнопки: KeyboardAvoidingView под
@@ -53,13 +59,13 @@ export function LoginScreen() {
     setError(null);
   };
 
-  const attempt = (mode: 'in' | 'up') => async () => {
+  const submit = async () => {
     if (login === '' || password === '') {
-      setError(AUTH.needBoth);
+      setError(AUTH.needBoth[mode]);
       return;
     }
 
-    setRunning(mode);
+    setBusy(true);
     setError(null);
     try {
       await (mode === 'up' ? register(login, password, login) : signIn(login, password));
@@ -72,18 +78,18 @@ export function LoginScreen() {
         setError(authMessage(failure, mode === 'up' ? AUTH.registerFailed : AUTH.signInFailed));
       }
     } finally {
-      setRunning(null);
+      setBusy(false);
     }
   };
 
-  const waiting = running !== null || secondsLeft > 0;
+  const waiting = busy || secondsLeft > 0;
 
   return (
     <Screen keyboardDismissMode="interactive">
       <Stack gap="2xl" style={styles.fill}>
         <Stack gap="sm">
           <Text variant="display">{AUTH.title}</Text>
-          <Text>{AUTH.subtitle}</Text>
+          <Text>{AUTH.subtitle[mode]}</Text>
         </Stack>
 
         {/* Поля рядом друг с другом, действия — поодаль: близость и есть то,
@@ -105,9 +111,11 @@ export function LoginScreen() {
             secureTextEntry={!reveal}
             autoCapitalize="none"
             autoCorrect={false}
-            textContentType="password"
+            // Разные роли поля: у существующего пароля система предлагает
+            // сохранённый, у нового — сгенерировать надёжный.
+            textContentType={mode === 'in' ? 'password' : 'newPassword'}
             returnKeyType="go"
-            onSubmitEditing={() => void attempt('in')()}
+            onSubmitEditing={() => void submit()}
             // Пароль набирают вслепую, и опечатку видно только по отказу.
             trailing={
               <Pressable
@@ -130,10 +138,10 @@ export function LoginScreen() {
 
         <Stack gap="md">
           <Button
-            label={AUTH.continue}
-            loading={running === 'in'}
+            label={AUTH.continue[mode]}
+            loading={busy}
             disabled={waiting}
-            onPress={() => void attempt('in')()}
+            onPress={() => void submit()}
           />
 
           {secondsLeft > 0 || error ? (
@@ -142,14 +150,16 @@ export function LoginScreen() {
             </Text>
           ) : null}
 
-          {/* Регистрация — второй по важности путь, а не второе главное
-              действие: тот же вес сделал бы выбор между ними работой. */}
+          {/* Переключение режима, а не второе отправляющее действие: нажатие
+              обязано менять экран, иначе оно неотличимо от несработавшего. */}
           <Button
-            label={AUTH.createAccount}
+            label={AUTH.switchTo[mode]}
             variant="plain"
-            loading={running === 'up'}
-            disabled={waiting}
-            onPress={() => void attempt('up')()}
+            disabled={busy}
+            onPress={() => {
+              setMode(mode === 'in' ? 'up' : 'in');
+              setError(null);
+            }}
           />
         </Stack>
 
