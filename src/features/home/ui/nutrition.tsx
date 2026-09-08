@@ -32,7 +32,7 @@ export function Nutrition({ home }: { home: HomeData }) {
           показывали ровно их же — три вида одних цифр заставляли человека
           сверять их между собой. */}
       <Card>
-        <FuelSummary cells={view.grid} />
+        <FuelSummary cells={view.grid} detailed />
       </Card>
 
       <Card>
