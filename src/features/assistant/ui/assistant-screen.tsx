@@ -4,21 +4,11 @@ import { router, type Stack as RouterStack } from 'expo-router';
 import { useState, type ComponentProps } from 'react';
 import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
-import { shortDay } from '@/shared/lib/day';
+import { to } from '@/shared/nav';
 import { radius, size, space, theme } from '@/shared/theme';
-import {
-  ActionLink,
-  Button,
-  Card,
-  GlassButton,
-  ListRow,
-  Pressable,
-  Sheet,
-  Stack,
-  Text,
-} from '@/shared/ui';
+import { ActionLink, Button, Card, GlassButton, Pressable, Sheet, Stack, Text } from '@/shared/ui';
 
-import { DISCLAIMER, INTRO, MEMO, PLACEHOLDER, SUGGESTIONS, THREADS_NOTE } from '../model/chat';
+import { DISCLAIMER, INTRO, MEMO, PLACEHOLDER, SUGGESTIONS } from '../model/chat';
 import { useChat } from '../model/use-chat';
 
 /** Опции маршрута берём из самого роутера: свой тип разошёлся бы с ним. */
@@ -43,7 +33,6 @@ export const AssistantScreenOptions: ScreenOptions = {
 export function AssistantScreen() {
   const chat = useChat();
   const [draft, setDraft] = useState('');
-  const [threads, setThreads] = useState(false);
   const [memo, setMemo] = useState(false);
 
   const ask = (question: string) => {
@@ -60,7 +49,7 @@ export function AssistantScreen() {
         <GlassButton
           size={HEADER_BUTTON}
           accessibilityLabel="История диалогов"
-          onPress={() => setThreads(true)}>
+          onPress={() => router.push(to.threads())}>
           <Feather name="rotate-ccw" size={size.icon.sm} color={theme.color.text} />
         </GlassButton>
         <Text variant="subtitle">2Life Assistant</Text>
@@ -149,40 +138,6 @@ export function AssistantScreen() {
       <Text variant="footnote" tone="muted" style={styles.centered}>
         {DISCLAIMER}
       </Text>
-
-      <Sheet
-        visible={threads}
-        onClose={() => setThreads(false)}
-        title="Threads"
-        action={
-          <ActionLink
-            label="+ New"
-            onPress={() => {
-              chat.start();
-              setThreads(false);
-            }}
-          />
-        }>
-        <Stack gap="sm">
-          {chat.threads.map((thread) => (
-            <ListRow
-              key={thread.id}
-              // Названия у ветки нет — сервер отдаёт последнюю реплику, и она
-              // говорит о содержании больше любого придуманного заголовка.
-              title={thread.lastMessage ?? 'Empty thread'}
-              subtitle={shortDay(new Date(thread.updatedAt).toISOString().slice(0, 10))}
-              onPress={() => {
-                chat.open(thread.id);
-                setThreads(false);
-              }}
-            />
-          ))}
-          {chat.threads.length === 0 ? <Text tone="muted">No threads yet.</Text> : null}
-          <Text variant="footnote" tone="muted">
-            {THREADS_NOTE}
-          </Text>
-        </Stack>
-      </Sheet>
 
       <Sheet
         visible={memo}

@@ -44,6 +44,7 @@ export {
 export { StatTile, type StatTileProps } from './stat-tile';
 export { SummaryRow, type SummaryRowProps } from './summary-row';
 export { Segmented, type SegmentedProps } from './segmented';
+export { SheetBody, type SheetBodyProps } from './sheet-body';
 export { Sheet, type SheetProps } from './sheet';
 export { Slider, type SliderProps } from './slider';
 export { Stack, type StackProps } from './stack';

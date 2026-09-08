@@ -1,5 +1,4 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { useBandConnected } from '@/shared/domain';
@@ -21,7 +20,6 @@ import {
 import { BODY_SECTIONS, NO_BAND } from '../model/systems';
 
 import { BodySystem } from './body-system';
-import { ManualPicker } from './manual-picker';
 
 export function BodyScreen() {
   const { date, timeZone } = useToday();
@@ -56,8 +54,6 @@ export function BodyScreen() {
  * устройства. Экран не прячет разделы, а объясняет, что именно даёт браслет.
  */
 function NoBand() {
-  const [manualOpen, setManualOpen] = useState(false);
-
   return (
     <Screen>
       <Stack gap="md">
@@ -73,11 +69,9 @@ function NoBand() {
         <Button label="Connect a device" onPress={() => router.push(to.device())} />
         {/* Состав тела — единственная система, которую ведут без браслета:
             вес, рост и обхваты измеряют не им. */}
-        <ActionLink label="Enter measurements by hand" onPress={() => setManualOpen(true)} />
-        <ManualPicker
-          subsystem="composition"
-          visible={manualOpen}
-          onClose={() => setManualOpen(false)}
+        <ActionLink
+          label="Enter measurements by hand"
+          onPress={() => router.push(to.measure('composition'))}
         />
 
         <Card>

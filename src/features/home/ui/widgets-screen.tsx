@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import { useQuery } from '@/core/http/use-query';
+import { logger } from '@/core/log/logger';
 import { Card, InfoCard, ListRow, Screen, ScreenHeader, Stack, Text, Toggle } from '@/shared/ui';
 
 import type { LayoutCell, WidgetType } from '../api/contract';
@@ -16,6 +17,7 @@ export const WidgetsScreenOptions = { headerShown: false };
  */
 export function WidgetsScreen() {
   const [saving, setSaving] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   const layout = useQuery('home:layout', (signal) => fetchHomeLayout(signal));
   const catalog = useQuery('widgets:catalog', (signal) => fetchWidgetCatalog(signal));
@@ -35,8 +37,15 @@ export function WidgetsScreen() {
       : cells.filter((cell) => cell.widget !== type);
 
     setSaving(true);
+    setFailed(false);
+    // Отказ обязан быть виден. Молчаливый провал выглядит как «переключатель
+    // не работает»: он отскакивает назад, и причины на экране нет.
     void saveHomeLayout(current, next)
       .then(() => layout.refresh())
+      .catch((failure: unknown) => {
+        logger.warn('Раскладка не сохранилась', { type, on, failure });
+        setFailed(true);
+      })
       .finally(() => setSaving(false));
   };
 
@@ -49,6 +58,12 @@ export function WidgetsScreen() {
             layout.data ? `${cells.length} of ${available.length} on Home` : 'loading the layout…'
           }
         />
+
+        {failed ? (
+          <Card variant="sunken">
+            <Text tone="danger">The layout did not save. Try again.</Text>
+          </Card>
+        ) : null}
 
         {available.length === 0 ? (
           <Card variant="sunken">

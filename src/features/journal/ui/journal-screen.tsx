@@ -40,8 +40,6 @@ import {
   monthDays,
 } from '../model/journal';
 
-import { EventSheet } from './event-sheet';
-
 const VIEWS = [
   { value: 'calendar', label: 'Calendar' },
   { value: 'agenda', label: 'Agenda' },
@@ -59,7 +57,6 @@ export function JournalScreen() {
   const [view, setView] = useState<JournalView>('calendar');
   const [selected, setSelected] = useState(today ?? 1);
   const [layersOpen, setLayersOpen] = useState(false);
-  const [opened, setOpened] = useState<CalendarEvent | null>(null);
   const [shown, setShown] = usePersistentState<Layer[]>('journal:layers', [...ALL_LAYERS]);
 
   const monthQuery = useQuery(monthKey(year ?? 0, month ?? 0, timeZone, shown.join()), (signal) =>
@@ -181,7 +178,7 @@ export function JournalScreen() {
                           title={event.title}
                           subtitle={`${eventTime(event)} · ${event.status}`}
                           done={isDone(event)}
-                          onPress={() => setOpened(event)}
+                          onPress={() => router.push(to.event(event.id))}
                         />
                       ))}
                     </Stack>
@@ -208,7 +205,7 @@ export function JournalScreen() {
                           title={event.title}
                           subtitle={`${eventTime(event)} · ${event.layer}`}
                           done={isDone(event)}
-                          onPress={() => setOpened(event)}
+                          onPress={() => router.push(to.event(event.id))}
                         />
                       ))}
                     </Stack>
@@ -257,8 +254,6 @@ export function JournalScreen() {
           ))}
         </Stack>
       </Sheet>
-
-      <EventSheet event={opened} timeZone={timeZone} onClose={() => setOpened(null)} />
     </LinearGradient>
   );
 }

@@ -5,8 +5,23 @@ import { StyleSheet, View } from 'react-native';
 import { useSession } from '@/core/auth';
 import { AssistantScreenOptions } from '@/features/assistant';
 import { to } from '@/shared/nav';
-import { fontFamily, size, space, textVariant, theme } from '@/shared/theme';
+import { fontFamily, radius, size, space, textVariant, theme } from '@/shared/theme';
 import { GlassButton } from '@/shared/ui';
+
+/**
+ * Панели приложения — нативный шит системы, а не своя модалка. Граббер,
+ * затемнение, перетаскивание, закрытие свайпом и высота по содержимому идут
+ * от ОС; самодельный шит повторял бы это руками и разъезжался на каждой правке.
+ */
+const SHEET_SCREEN = {
+  presentation: 'formSheet',
+  sheetAllowedDetents: 'fitToContents',
+  sheetCornerRadius: radius.xl,
+  sheetGrabberVisible: true,
+  gestureEnabled: true,
+  headerShown: false,
+  contentStyle: { backgroundColor: theme.color.background },
+} as const;
 
 /** Ассистент виден с любого раздела, но не поверх деталей и шитов. */
 const TAB_ROOTS = new Set([to.home(), to.journal(), to.body(), to.records(), to.protocols()]);
@@ -43,6 +58,12 @@ export default function AppLayout() {
         {/* Способ показа экрана нужен навигатору до его появления, поэтому
             шиты объявлены здесь, а не внутри самого маршрута. */}
         <Stack.Screen name="assistant" options={AssistantScreenOptions} />
+
+        {/* Панели. Каждая — свой адрес: так на неё можно вернуться, её видно
+            в истории, и закрытие свайпом не требует своего состояния. */}
+        <Stack.Screen name="event/[id]" options={SHEET_SCREEN} />
+        <Stack.Screen name="measure/[subsystem]" options={SHEET_SCREEN} />
+        <Stack.Screen name="threads" options={SHEET_SCREEN} />
       </Stack>
 
       {TAB_ROOTS.has(pathname) ? (

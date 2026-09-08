@@ -29,6 +29,10 @@ export const to = {
   meal: (id: string): Href => `/meal/${id}`,
   course: (id: string): Href => `/course/${id}`,
   metric: (id: string): Href => `/metric/${id}`,
+  /** Панели: у каждой свой адрес, чтобы система показала её нативным шитом. */
+  event: (id: string): Href => `/event/${encodeURIComponent(id)}`,
+  measure: (subsystem: string): Href => `/measure/${subsystem}`,
+  threads: (): Href => '/threads',
   lab: (id: string): Href => `/lab/${id}`,
   protocol: (id: string): Href => `/protocol/${id}`,
 } as const;
