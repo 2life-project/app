@@ -15,9 +15,12 @@ import { AUTH } from '../model/copy';
 const TOO_MANY = 429;
 
 /**
- * Один вход для новых и вернувшихся. Отдельного экрана регистрации нет:
- * человек вводит логин и пароль, а если такой пары ещё не существует —
- * заводит её тут же, не набирая всё заново.
+ * Один экран для новых и вернувшихся: та же пара полей, два действия рядом.
+ * Отдельного экрана регистрации нет — набирать логин и пароль дважды незачем.
+ *
+ * Оба действия видны сразу, а не появляются после отказа. Вход и регистрация
+ * у нас две разные ручки: спрятав вторую за неудачей первой, мы бы оставили
+ * нового человека без единого способа узнать, что аккаунт вообще заводится.
  *
  * Текст ошибки от сервера в интерфейс не попадает: он написан для
  * разработчика. Причина уходит в лог, человек видит одну понятную строку.
@@ -26,10 +29,9 @@ export function LoginScreen() {
   const insets = useSafeAreaInsets();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  /** Вход не удался — предлагаем завести аккаунт с уже введённой парой. */
-  const [offerRegister, setOfferRegister] = useState(false);
+  /** Какое из двух действий сейчас в работе — крутится только его кнопка. */
+  const [running, setRunning] = useState<'in' | 'up' | null>(null);
   const { secondsLeft, start: startCooldown } = useCooldown();
 
   // Клавиатура закрывала бы кнопки внизу: KeyboardAvoidingView под
@@ -38,27 +40,30 @@ export function LoginScreen() {
   const keyboard = useAnimatedKeyboard();
   const keyboardSpacer = useAnimatedStyle(() => ({ height: keyboard.height.value }));
 
-  const ready = username.trim() !== '' && password !== '' && !busy && secondsLeft === 0;
+  const ready = username.trim() !== '' && password !== '' && running === null && secondsLeft === 0;
 
-  const attempt = (create: boolean) => async () => {
-    setBusy(true);
+  /** Правка любого поля стирает прошлый ответ сервера: он был про другую пару. */
+  const edit = (set: (next: string) => void) => (next: string) => {
+    set(next);
+    setError(null);
+  };
+
+  const attempt = (mode: 'in' | 'up') => async () => {
+    setRunning(mode);
     setError(null);
     try {
       const login = username.trim();
-      await (create ? register(login, password, login) : signIn(login, password));
+      await (mode === 'up' ? register(login, password, login) : signIn(login, password));
     } catch (failure) {
       if (failure instanceof HttpError && failure.status === TOO_MANY) {
         // Слишком часто. Показываем отсчёт, а не ту же строку, что и при
         // неверном пароле: причина другая, и ждать надо, а не перенабирать.
         startCooldown(RATE_LIMIT_SECONDS);
-      } else if (create) {
-        setError(AUTH.registerFailed);
       } else {
-        setError(AUTH.signInFailed);
-        setOfferRegister(true);
+        setError(mode === 'up' ? AUTH.registerFailed : AUTH.signInFailed);
       }
     } finally {
-      setBusy(false);
+      setRunning(null);
     }
   };
 
@@ -78,10 +83,7 @@ export function LoginScreen() {
           <Field
             label={AUTH.login}
             value={username}
-            onChangeText={(next) => {
-              setUsername(next);
-              setOfferRegister(false);
-            }}
+            onChangeText={edit(setUsername)}
             autoCapitalize="none"
             autoCorrect={false}
             textContentType="username"
@@ -90,37 +92,34 @@ export function LoginScreen() {
           <Field
             label={AUTH.password}
             value={password}
-            onChangeText={(next) => {
-              setPassword(next);
-              setOfferRegister(false);
-            }}
+            onChangeText={edit(setPassword)}
             secureTextEntry
             autoCapitalize="none"
             textContentType="password"
           />
         </Stack>
 
-        <Button
-          label={AUTH.continue}
-          disabled={!ready}
-          loading={busy && !offerRegister}
-          onPress={() => void attempt(false)()}
-        />
+        {/* Оба действия видны сразу. Прятать регистрацию за неудачным входом
+            нельзя: у нас две разные ручки, и новому человеку негде узнать,
+            что аккаунт вообще можно завести. */}
+        <Stack gap="sm">
+          <Button
+            label={AUTH.continue}
+            disabled={!ready}
+            loading={running === 'in'}
+            onPress={() => void attempt('in')()}
+          />
+          <Button
+            label={AUTH.createAccount}
+            variant="plain"
+            disabled={!ready}
+            loading={running === 'up'}
+            onPress={() => void attempt('up')()}
+          />
+        </Stack>
 
         {secondsLeft > 0 || error ? (
           <Text tone="danger">{secondsLeft > 0 ? AUTH.tooMany(secondsLeft) : error}</Text>
-        ) : null}
-
-        {/* Регистрация появляется там же, где отказ, и с уже набранной парой:
-            уводить на отдельный экран значит заставить набрать всё заново. */}
-        {offerRegister ? (
-          <Button
-            label={AUTH.createAccount}
-            variant="tonal"
-            disabled={!ready}
-            loading={busy}
-            onPress={() => void attempt(true)()}
-          />
         ) : null}
 
         <View style={styles.divider}>
