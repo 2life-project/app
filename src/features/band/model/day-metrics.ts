@@ -28,6 +28,23 @@ export function startOfToday(now = new Date()): Date {
   return start;
 }
 
+/**
+ * Добавить живой отчёт в историю дня.
+ *
+ * Отчёты приходят каждые десять секунд, а слот в истории — минутный: без
+ * замены по времени один и тот же час превращается в шесть точек на минуту, и
+ * график дня растёт быстрее самого дня.
+ */
+export function appendSample(
+  samples: readonly ActivitySample[],
+  sample: ActivitySample,
+): ActivitySample[] {
+  const minute = Math.floor(sample.at.getTime() / 60_000);
+  const kept = samples.filter((item) => Math.floor(item.at.getTime() / 60_000) !== minute);
+  kept.push(sample);
+  return kept.sort((a, b) => a.at.getTime() - b.at.getTime());
+}
+
 /** Ряд одного показателя. Пустые слоты пропускаются: нуля там не было. */
 export function seriesOf(
   samples: readonly ActivitySample[],

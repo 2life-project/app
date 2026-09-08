@@ -1,12 +1,7 @@
-import { StyleSheet, View } from 'react-native';
-
-import { space } from '@/shared/theme';
-import { BarChart, Card, Stack, StatTile, Text } from '@/shared/ui';
+import { Card, Stack, Text } from '@/shared/ui';
 
 import {
-  HEART_RATE_ZONES,
   STRESS_ZONES,
-  byHour,
   seriesOf,
   startOfToday,
   stressPoints,
@@ -17,162 +12,154 @@ import {
 } from '../model/day-metrics';
 import type { BandState } from '../model/use-band';
 
+import { HeartCard } from './heart-card';
 import { MetricCard } from './metric-card';
+import { WalkCard } from './walk-card';
 import { ZoneBars } from './zone-bars';
 
 /**
  * Показатели за сегодня.
  *
- * Каждый показатель строится из поминутной истории, а не из последнего отчёта:
- * браслет измеряет пульс раз в минуту и кислород по расписанию, поэтому «сейчас»
- * без хода за сутки — это одно число неизвестной давности.
+ * Каждый строится из поминутной истории, а не из последнего отчёта: браслет
+ * измеряет пульс раз в минуту и кислород по расписанию, поэтому «сейчас» без
+ * хода за сутки — это одно число неизвестной давности.
+ *
+ * Показатели без единого замера в карточки не разворачиваются: восемь пустых
+ * плашек читаются как сломанный раздел, а не как «датчик сегодня молчал».
  */
 export function BandMetrics({ state }: { state: BandState }) {
   const today = state.today;
   const axis = timeAxis(today);
 
-  const heart = seriesOf(today, (sample) => sample.heartRate ?? sample.averageHeartRate);
   const oxygen = seriesOf(today, (sample) => sample.bloodOxygen);
   const hrv = seriesOf(today, (sample) => sample.hrv);
   const systolic = seriesOf(today, (sample) => sample.systolic);
+  const diastolic = seriesOf(today, (sample) => sample.diastolic);
   const mood = seriesOf(today, (sample) => sample.mood);
+  const sugar = seriesOf(today, (sample) => sample.bloodSugar);
   const stress = stressPoints(state.stress, startOfToday());
+
+  const pressure = pressureValue(state, systolic, diastolic);
+  const silent: string[] = [];
+  if (oxygen.length === 0 && state.measurement?.bloodOxygen === undefined) silent.push('SpO₂');
+  if (hrv.length === 0 && state.measurement?.hrv === undefined) silent.push('HRV');
+  if (pressure === null) silent.push('blood pressure');
+  if (mood.length === 0 && state.measurement?.mood === undefined) silent.push('mood');
+  if (sugar.length === 0) silent.push('blood sugar');
 
   return (
     <Stack gap="md">
-      <MetricCard
-        title="Heart rate"
-        value={String(state.measurement?.heartRate ?? state.live?.heartRate ?? last(heart) ?? '—')}
-        unit="bpm"
-        caption={caption(heart.length)}
-        tone="danger"
-        series={thin(heart)}
-        summary={summaryOf(heart)}
-        axis={axis}>
-        {heart.length > 0 ? <ZoneBars zones={zonesOf(heart, HEART_RATE_ZONES)} /> : null}
-      </MetricCard>
+      <HeartCard state={state} axis={axis} />
 
-      <StepsCard state={state} />
+      <WalkCard state={state} />
 
       <MetricCard
         title="Stress"
         value={String(state.measurement?.stress ?? last(stress) ?? '—')}
-        caption={caption(stress.length)}
+        caption={readings(stress.length)}
         tone="warning"
         series={thin(stress)}
         summary={summaryOf(stress)}
-        axis={timeAxis(stress.map((point) => ({ at: point.at })))}>
+        axis={timeAxis(stress)}>
         {stress.length > 0 ? <ZoneBars zones={zonesOf(stress, STRESS_ZONES)} /> : null}
       </MetricCard>
 
-      <MetricCard
-        title="Blood oxygen"
-        value={String(
-          state.measurement?.bloodOxygen ?? state.live?.bloodOxygen ?? last(oxygen) ?? '—',
-        )}
-        unit="%"
-        caption={caption(oxygen.length)}
-        tone="highlight"
-        series={thin(oxygen)}
-        summary={summaryOf(oxygen)}
-        axis={axis}
-      />
+      {oxygen.length > 0 || state.measurement?.bloodOxygen !== undefined ? (
+        <MetricCard
+          title="Blood oxygen"
+          value={String(
+            state.measurement?.bloodOxygen ?? state.live?.bloodOxygen ?? last(oxygen) ?? '—',
+          )}
+          unit="%"
+          caption={readings(oxygen.length)}
+          tone="highlight"
+          series={thin(oxygen)}
+          summary={summaryOf(oxygen)}
+          axis={axis}
+        />
+      ) : null}
 
-      <MetricCard
-        title="HRV"
-        value={String(state.measurement?.hrv ?? last(hrv) ?? '—')}
-        unit="ms"
-        caption={caption(hrv.length)}
-        tone="success"
-        series={thin(hrv)}
-        summary={summaryOf(hrv)}
-        axis={axis}
-      />
+      {hrv.length > 0 || state.measurement?.hrv !== undefined ? (
+        <MetricCard
+          title="HRV"
+          value={String(state.measurement?.hrv ?? last(hrv) ?? '—')}
+          unit="ms"
+          caption={readings(hrv.length)}
+          tone="success"
+          series={thin(hrv)}
+          summary={summaryOf(hrv)}
+          axis={axis}
+        />
+      ) : null}
 
-      <PressureCard state={state} systolic={systolic} axis={axis} />
+      {pressure === null ? null : (
+        <MetricCard
+          title="Blood pressure"
+          value={pressure}
+          unit="mmHg"
+          caption={readings(systolic.length)}
+          tone="danger"
+          series={thin(systolic)}
+          axis={axis}
+        />
+      )}
 
-      <MetricCard
-        title="Mood"
-        value={String(state.measurement?.mood ?? last(mood) ?? '—')}
-        caption={caption(mood.length)}
-        tone="highlight"
-        series={thin(mood)}
-        summary={summaryOf(mood)}
-        axis={axis}
-      />
+      {mood.length > 0 || state.measurement?.mood !== undefined ? (
+        <MetricCard
+          title="Mood"
+          value={String(state.measurement?.mood ?? last(mood) ?? '—')}
+          caption={readings(mood.length)}
+          tone="highlight"
+          series={thin(mood)}
+          summary={summaryOf(mood)}
+          axis={axis}
+        />
+      ) : null}
+
+      {sugar.length > 0 ? (
+        <MetricCard
+          title="Blood sugar"
+          value={String(last(sugar) ?? '—')}
+          unit="mmol/L"
+          caption={readings(sugar.length)}
+          tone="warning"
+          series={thin(sugar)}
+          summary={summaryOf(sugar)}
+          axis={axis}
+        />
+      ) : null}
+
+      {silent.length === 0 ? null : (
+        <Card variant="sunken">
+          <Stack gap="xs">
+            <Text variant="subtitle">Nothing measured today</Text>
+            <Text variant="bodySmall" tone="muted">
+              {silent.join(', ')}. These sensors run on a schedule or on demand — press Measure to
+              take a reading now.
+            </Text>
+          </Stack>
+        </Card>
+      )}
     </Stack>
   );
 }
 
-/** Шаги по часам: столбцы читаются лучше линии, когда значения складываются. */
-function StepsCard({ state }: { state: BandState }) {
-  const hours = byHour(state.today, (sample) => sample.steps);
-  const total = state.summary?.steps ?? hours.reduce((sum, value) => sum + value, 0);
-  const peak = Math.max(...hours);
-
-  return (
-    <Card variant="sunken">
-      <Stack gap="sm">
-        <View style={styles.header}>
-          <Text variant="subtitle">Activity</Text>
-          <Text variant="bodySmall" tone="muted">
-            {peak > 0 ? `peak ${peak} steps/h` : 'no steps yet'}
-          </Text>
-        </View>
-
-        <View style={styles.value}>
-          <Text variant="metric">{String(total)}</Text>
-          <Text variant="bodySmall" tone="muted">
-            steps
-          </Text>
-        </View>
-
-        <BarChart values={hours} highlightIndex={new Date().getHours()} axis={['00:00', '24:00']} />
-
-        <View style={styles.tiles}>
-          <StatTile label="Distance" value={kilometres(state.summary?.distance ?? 0)} unit="km" />
-          <StatTile label="Calories" value={String(state.summary?.calories ?? 0)} unit="kcal" />
-          <StatTile
-            label="Active hours"
-            value={String(hours.filter((value) => value > 0).length)}
-          />
-        </View>
-      </Stack>
-    </Card>
-  );
-}
-
-/** Давление приходит парой, поэтому отдельной карточкой: одно число тут врёт. */
-function PressureCard({
-  state,
-  systolic,
-  axis,
-}: {
-  state: BandState;
-  systolic: readonly Point[];
-  axis?: [string, string];
-}) {
+/** Давление осмысленно только парой: одно число здесь вводит в заблуждение. */
+function pressureValue(
+  state: BandState,
+  systolic: readonly Point[],
+  diastolic: readonly Point[],
+): string | null {
   const high = state.measurement?.systolic ?? state.live?.systolic ?? last(systolic);
-  const low = state.measurement?.diastolic ?? state.live?.diastolic;
-
-  return (
-    <MetricCard
-      title="Blood pressure"
-      value={high && low ? `${high}/${low}` : '—'}
-      unit="mmHg"
-      caption={caption(systolic.length)}
-      tone="danger"
-      series={thin(systolic)}
-      axis={axis}
-    />
-  );
+  const low = state.measurement?.diastolic ?? state.live?.diastolic ?? last(diastolic);
+  return high && low ? `${high}/${low}` : null;
 }
 
 function last(points: readonly Point[]): number | undefined {
   return points[points.length - 1]?.value;
 }
 
-function caption(count: number): string {
+function readings(count: number): string {
   return count === 0 ? 'no data' : `${count} readings today`;
 }
 
@@ -186,25 +173,3 @@ function timeAxis(samples: readonly { at: Date }[]): [string, string] | undefine
 function clock(at: Date): string {
   return at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
-
-function kilometres(metres: number): string {
-  return (Math.round(metres / 100) / 10).toFixed(1);
-}
-
-const styles = StyleSheet.create({
-  header: {
-    alignItems: 'baseline',
-    flexDirection: 'row',
-    gap: space.sm,
-    justifyContent: 'space-between',
-  },
-  value: {
-    alignItems: 'baseline',
-    flexDirection: 'row',
-    gap: space.xs,
-  },
-  tiles: {
-    flexDirection: 'row',
-    gap: space.sm,
-  },
-});

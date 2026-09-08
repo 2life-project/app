@@ -9,7 +9,7 @@ import { byteAt, le16, le32, toLe32 } from './bytes';
 
 const RECORDER = 0x01;
 
-const Op = {
+export const Op = {
   handshake: 0x01,
   serial: 0x02,
   storage: 0x06,

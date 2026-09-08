@@ -1,6 +1,6 @@
 import { State } from 'react-native-ble-plx';
 
-import { ble, isReady, requestScanPermission } from '@/core/ble';
+import { ble, isReady, requestScanPermission, waitForRadio } from '@/core/ble';
 import { logger } from '@/core/log/logger';
 
 import { fromBase64 } from './bytes';
@@ -38,30 +38,6 @@ function macFromAdvertisement(manufacturerData: string | null): string | undefin
 
   // Первые два байта — код производителя, дальше шесть байт адреса.
   return [...bytes.subarray(2, 8)].map((byte) => byte.toString(16).padStart(2, '0')).join(':');
-}
-
-/**
- * Сколько ждать, пока поднимется стек Bluetooth.
- *
- * Сразу после запуска приложения и сразу после выдачи разрешения состояние
- * радио — `Unknown`: система ещё не ответила. Если принять это за отказ, человек
- * увидит «нет доступа» ровно в тот момент, когда доступ только что дал.
- */
-const STATE_TIMEOUT_MS = 5000;
-
-function waitForState(manager: ReturnType<typeof ble>): Promise<State> {
-  return new Promise((resolve) => {
-    const subscription = manager.onStateChange((state) => {
-      if (state === State.Unknown || state === State.Resetting) return;
-      subscription.remove();
-      resolve(state);
-    }, true);
-
-    setTimeout(() => {
-      subscription.remove();
-      resolve(State.Unknown);
-    }, STATE_TIMEOUT_MS);
-  });
 }
 
 /**
@@ -107,7 +83,7 @@ export async function scanForBands(onFound: (band: FoundBand) => void): Promise<
   if (!(await requestScanPermission())) return { ok: false, problem: 'no-permission' };
 
   const manager = ble();
-  const state = await waitForState(manager);
+  const state = await waitForRadio();
   if (!isReady(state)) {
     return { ok: false, problem: state === State.PoweredOff ? 'bluetooth-off' : 'no-permission' };
   }

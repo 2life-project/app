@@ -1,6 +1,6 @@
 import { BleError, BleErrorCode, type Device, type Subscription } from 'react-native-ble-plx';
 
-import { ble } from '@/core/ble';
+import { ble, isReady, waitForRadio } from '@/core/ble';
 import { logger } from '@/core/log/logger';
 
 import { byteAt, fromBase64, toBase64 } from './bytes';
@@ -27,8 +27,10 @@ const WRITE_GAP_MS = 80;
 const REPLY_TIMEOUT_MS = 12_000;
 
 type Waiter = {
-  matches: (cmd: number, field: number) => boolean;
-  assembler: FrameAssembler;
+  /** Наш ли это ответ. Решается по сырым байтам: у диктофона свой заголовок. */
+  matches: (data: Uint8Array) => boolean;
+  /** `null` — ответ приходит одним кадром и отдаётся как есть, без сборки. */
+  assembler: FrameAssembler | null;
   resolve: (body: Uint8Array) => void;
   reject: (error: Error) => void;
   timer: ReturnType<typeof setTimeout>;
@@ -102,27 +104,58 @@ export class BandTransport {
    * Совпадение ищем по команде и полю, а не по порядку: пока идёт наш ответ,
    * устройство продолжает слать свои отчёты, и они не должны попасть в тело.
    */
-  request(frame: Uint8Array, expect?: { cmd?: number; field?: number }): Promise<Uint8Array> {
+  request(
+    frame: Uint8Array,
+    expect?: { cmd?: number; mode?: number; field?: number },
+  ): Promise<Uint8Array> {
     const cmd = expect?.cmd ?? byteAt(frame, 1);
     const field = expect?.field ?? byteAt(frame, 3);
 
+    // Режим входит в сопоставление наравне с командой и полем: устройство шлёт
+    // свои отчёты той же группой и тем же полем, отличаясь только режимом
+    // (`ac` против `aa`), и без этой проверки живой отчёт о пульсе попадал бы
+    // в середину истории как её кадр.
+    const mode = expect?.mode ?? byteAt(frame, 2);
+
+    return this.exchange(
+      frame,
+      (data) =>
+        decode(data) !== null &&
+        byteAt(data, 1) === cmd &&
+        byteAt(data, 2) === mode &&
+        byteAt(data, 3) === field,
+      new FrameAssembler(),
+      `0x${cmd.toString(16)}/0x${mode.toString(16)}/0x${field.toString(16)}`,
+    );
+  }
+
+  /**
+   * Запрос, ответ на который приходит одним кадром и отдаётся сырым.
+   *
+   * Так отвечает диктофон: у него свой заголовок `01 OP 00` и порядок байт
+   * младшим вперёд — режима и поля основного протокола там нет вовсе. Прогнать
+   * такой ответ через сборщик кадров значит ждать терминатор, которого в этом
+   * протоколе не бывает, до самого истечения времени.
+   */
+  requestRaw(frame: Uint8Array, op: number): Promise<Uint8Array> {
+    return this.exchange(frame, (data) => byteAt(data, 1) === op, null, `0x${op.toString(16)}`);
+  }
+
+  private exchange(
+    frame: Uint8Array,
+    matches: (data: Uint8Array) => boolean,
+    assembler: FrameAssembler | null,
+    label: string,
+  ): Promise<Uint8Array> {
     return this.enqueue(
       () =>
         new Promise<Uint8Array>((resolve, reject) => {
           const timer = setTimeout(() => {
             this.waiter = null;
-            reject(
-              new Error(`браслет не ответил на 0x${cmd.toString(16)}/0x${field.toString(16)}`),
-            );
+            reject(new Error(`браслет не ответил на ${label}`));
           }, REPLY_TIMEOUT_MS);
 
-          this.waiter = {
-            matches: (frameCmd, frameField) => frameCmd === cmd && frameField === field,
-            assembler: new FrameAssembler(),
-            resolve,
-            reject,
-            timer,
-          };
+          this.waiter = { matches, assembler, resolve, reject, timer };
 
           this.write(frame).catch((error: unknown) => {
             clearTimeout(timer);
@@ -147,16 +180,31 @@ export class BandTransport {
   }
 
   private dispatch(data: Uint8Array): void {
-    const frame = decode(data);
     const waiter = this.waiter;
+    logger.debug('band <-', { frame: hex(data), matched: waiter?.matches(data) ?? false });
 
-    if (frame && waiter?.matches(frame.cmd, frame.field)) {
+    if (waiter?.matches(data)) {
+      clearTimeout(waiter.timer);
+
+      if (!waiter.assembler) {
+        this.waiter = null;
+        waiter.resolve(data);
+        return;
+      }
+
       if (waiter.assembler.push(data)) {
-        clearTimeout(waiter.timer);
         this.waiter = null;
         if (waiter.assembler.valid) waiter.resolve(waiter.assembler.body());
         else waiter.reject(new Error('ответ браслета не сошёлся по контрольной сумме'));
+        return;
       }
+
+      // Кадр принят, ответ ещё не собран: часы дожидания заводим заново, иначе
+      // длинная история не успевает доехать за отведённое на один кадр время.
+      waiter.timer = setTimeout(() => {
+        this.waiter = null;
+        waiter.reject(new Error('ответ браслета оборвался на середине'));
+      }, REPLY_TIMEOUT_MS);
       return;
     }
 
@@ -183,9 +231,14 @@ export class BandTransport {
     const since = Date.now() - this.lastWrite;
     if (since < WRITE_GAP_MS) await delay(WRITE_GAP_MS - since);
 
+    logger.debug('band ->', { frame: hex(frame) });
     await this.device.writeCharacteristicWithoutResponseForService(SERVICE, WRITE, toBase64(frame));
     this.lastWrite = Date.now();
   }
+}
+
+function hex(bytes: Uint8Array): string {
+  return [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join(' ');
 }
 
 function delay(ms: number): Promise<void> {
@@ -195,6 +248,12 @@ function delay(ms: number): Promise<void> {
 /** Подключиться к устройству и договориться о размере пакета. */
 export async function connectTransport(deviceId: string): Promise<BandTransport> {
   const manager = ble();
+
+  // Сразу после запуска приложения состояние радио — `Unknown`: система ещё не
+  // ответила. Подключаться в этот момент бессмысленно, и именно так падало
+  // автоподключение к запомненному браслету на каждом холодном старте.
+  const state = await waitForRadio();
+  if (!isReady(state)) throw new Error(`band: Bluetooth недоступен (${state})`);
 
   // Браслет мог быть подключён и без нас: другим экраном или приложением
   // вендора. Соединение системное и общее, но `connectToDevice` на уже
@@ -213,6 +272,7 @@ export async function connectTransport(deviceId: string): Promise<BandTransport>
   if (!device) throw new Error(`band: устройство ${deviceId} потерялось при подключении`);
 
   await device.discoverAllServicesAndCharacteristics();
+  await describe(device);
 
   const transport = new BandTransport(device);
   await transport.start();
@@ -231,4 +291,25 @@ export async function dropConnection(deviceId: string): Promise<void> {
     .catch((failure: unknown) => {
       logger.warn('band: связь не разорвалась', { deviceId, reason: String(failure) });
     });
+}
+
+/**
+ * Что у устройства на самом деле есть. Без этого молчащий канал неотличим от
+ * молчащего браслета: обе картины выглядят как «команда не ответила».
+ */
+async function describe(device: Device): Promise<void> {
+  const services = await device.services();
+  for (const service of services) {
+    const characteristics = await service.characteristics();
+    logger.debug('band gatt', {
+      service: service.uuid,
+      characteristics: characteristics.map((item) => ({
+        uuid: item.uuid,
+        notify: item.isNotifiable,
+        indicate: item.isIndicatable,
+        write: item.isWritableWithResponse,
+        writeNoResponse: item.isWritableWithoutResponse,
+      })),
+    });
+  }
 }

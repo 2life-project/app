@@ -165,7 +165,9 @@ export class Band {
    * спрашиваем их количество, потом забираем по одному.
    */
   async history(from: Date, to: Date): Promise<ActivitySample[]> {
-    const countBody = await this.transport.request(cmd.readActivityCount(from, to));
+    // Счётчик отвечает одним коротким кадром без терминатора — сборщик
+    // многокадровых ответов ждал бы его до истечения времени.
+    const countBody = await this.transport.requestRaw(cmd.readActivityCount(from, to), 0xc5);
     const declared = countBody.length > 0 ? byteAt(countBody, countBody.length - 1) : 0;
 
     // Кадров не бывает больше суток по минутам, а число приходит одним байтом:
@@ -195,15 +197,12 @@ export class Band {
 
   async storage(): Promise<recorder.Storage | null> {
     return recorder.decodeStorage(
-      await this.transport.request(recorder.readStorage(), { cmd: 0x06, field: 0x00 }),
+      await this.transport.requestRaw(recorder.readStorage(), recorder.Op.storage),
     );
   }
 
   async recordings(): Promise<recorder.Recording[]> {
-    const body = await this.transport.request(recorder.listRecordings(), {
-      cmd: 0x1a,
-      field: 0x00,
-    });
+    const body = await this.transport.requestRaw(recorder.listRecordings(), recorder.Op.list);
     return recorder.decodeRecordings(body);
   }
 

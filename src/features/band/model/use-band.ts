@@ -25,6 +25,7 @@ import { setPairedBand, usePairedBand } from '@/shared/domain';
 
 import { useBandActions } from './band-actions';
 import { clearSnapshot, loadEverything, loadSnapshot, saveSnapshot } from './band-data';
+import { appendSample } from './day-metrics';
 
 /**
  * Состояние работы с браслетом: поиск, подключение и всё, что устройство отдаёт.
@@ -59,6 +60,9 @@ export type BandState = {
   recording: boolean;
   busy: boolean;
 };
+
+/** Как часто обновлять сводку дня при открытом разделе. */
+const LIVE_POLL_MS = 30_000;
 
 const INITIAL: BandState = {
   stage: 'idle',
@@ -143,6 +147,24 @@ export function useBand() {
     }
   }, [patch]);
 
+  // Пока раздел открыт, сводка дня подтягивается сама: шаги и калории живой
+  // отчёт не несёт, а смотреть на цифры получасовой давности при подключённом
+  // браслете незачем.
+  useEffect(() => {
+    if (state.stage !== 'connected') return;
+
+    const timer = setInterval(() => {
+      void band.current
+        ?.daySummary()
+        .then((summary) => patch({ summary }))
+        .catch((failure: unknown) =>
+          logger.warn('band: сводка не обновилась', { reason: String(failure) }),
+        );
+    }, LIVE_POLL_MS);
+
+    return () => clearInterval(timer);
+  }, [patch, state.stage]);
+
   const connect = useCallback(
     async (device: FoundBand) => {
       stopScan.current?.();
@@ -153,7 +175,12 @@ export function useBand() {
         band.current = connected;
 
         connected.subscribe((event) => {
-          if (event.kind === 'activity') patch({ live: event.sample });
+          if (event.kind === 'activity') {
+            // Живой отчёт идёт и в историю: пока приложение открыто, графики
+            // дня продолжаются сами, без повторного вычитывания всей истории.
+            const sample = event.sample;
+            patch({ live: sample, today: appendSample(latest.current.today, sample) });
+          }
           if (event.kind === 'measurement') patch({ measurement: event.measurement });
           if (event.kind === 'wear') patch({ worn: event.worn });
           if (event.kind === 'recorder') {
