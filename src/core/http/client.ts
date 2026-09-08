@@ -2,18 +2,11 @@ import { authToken, refreshSession } from '@/core/auth';
 import { env } from '@/core/config/env';
 import { logger } from '@/core/log/logger';
 
-const TIMEOUT_MS = 15_000;
+import { HttpError } from './error';
 
-/** Ответ пришёл, но не 2xx. Отличать от сетевого сбоя — разные экраны ошибок. */
-export class HttpError extends Error {
-  constructor(
-    readonly status: number,
-    readonly body: unknown,
-  ) {
-    super(`HTTP ${status}`);
-    this.name = 'HttpError';
-  }
-}
+export { HttpError, errorCode } from './error';
+
+const TIMEOUT_MS = 15_000;
 
 /**
  * Необязательное поле объекта разрешено: `JSON.stringify` просто выбрасывает

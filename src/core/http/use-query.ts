@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { HttpError } from './client';
+import { HttpError } from './error';
 
 /**
  * Минимальный клиент серверного состояния. Заведён по триггеру из

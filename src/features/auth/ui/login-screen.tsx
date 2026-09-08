@@ -1,16 +1,16 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedKeyboard, useAnimatedStyle } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { register, signIn } from '@/core/auth';
-import { HttpError } from '@/core/http/client';
+import { HttpError } from '@/core/http/error';
 import { RATE_LIMIT_SECONDS, useCooldown } from '@/shared/lib/cooldown';
 import { size, space, theme } from '@/shared/theme';
-import { Button, Field, Stack, Text } from '@/shared/ui';
+import { Button, Field, Screen, Stack, Text } from '@/shared/ui';
 
 import { AUTH } from '../model/copy';
+import { authMessage } from '../model/errors';
 
 const TOO_MANY = 429;
 
@@ -26,7 +26,6 @@ const TOO_MANY = 429;
  * разработчика. Причина уходит в лог, человек видит одну понятную строку.
  */
 export function LoginScreen() {
-  const insets = useSafeAreaInsets();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -60,7 +59,7 @@ export function LoginScreen() {
         // неверном пароле: причина другая, и ждать надо, а не перенабирать.
         startCooldown(RATE_LIMIT_SECONDS);
       } else {
-        setError(mode === 'up' ? AUTH.registerFailed : AUTH.signInFailed);
+        setError(authMessage(failure, mode === 'up' ? AUTH.registerFailed : AUTH.signInFailed));
       }
     } finally {
       setRunning(null);
@@ -68,15 +67,12 @@ export function LoginScreen() {
   };
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="interactive"
-        showsVerticalScrollIndicator={false}>
+    // Тот же фон, что и у остальных экранов: вход — не отдельное приложение.
+    <Screen keyboardDismissMode="interactive">
+      <Stack gap="xl">
         <Stack gap="sm">
           <Text variant="display">{AUTH.title}</Text>
-          <Text tone="muted">{AUTH.subtitle}</Text>
+          <Text>{AUTH.subtitle}</Text>
         </Stack>
 
         <Stack gap="md">
@@ -155,14 +151,12 @@ export function LoginScreen() {
         </Text>
 
         <Animated.View style={keyboardSpacer} />
-      </ScrollView>
-    </View>
+      </Stack>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: theme.color.background },
-  content: { flexGrow: 1, padding: space.screen, gap: space.xl },
   center: { textAlign: 'center' },
   divider: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   line: { flex: 1, height: size.border, backgroundColor: theme.color.border },

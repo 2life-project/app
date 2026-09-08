@@ -2,7 +2,7 @@ import * as SecureStore from 'expo-secure-store';
 import { useSyncExternalStore } from 'react';
 
 import { env } from '@/core/config/env';
-import { HttpError } from '@/core/http/client';
+import { HttpError } from '@/core/http/error';
 import { logger } from '@/core/log/logger';
 
 /**
