@@ -19,11 +19,20 @@ export { BYTES_PER_SECOND } from './recorder';
 
 export { MeasureType } from './commands';
 
-/** Имя, под которым браслет виден при поиске. */
-export const BAND_NAME = 'ES100';
+export { BAND_NAME, SCAN_TIMEOUT_MS } from './names';
+export { isOurBand, mergeFound, scanForBands, sortByProximity } from './scan';
+export type { FoundBand, ScanProblem, ScanResult } from './scan';
 
-/**
- * Сколько сканировать. Браслет рекламирует себя с паузами, и на пяти секундах
- * его регулярно не видно — это не отсутствие устройства, а слишком короткий поиск.
- */
-export const SCAN_TIMEOUT_MS = 30_000;
+export { toOgg, durationSeconds } from './audio';
+export {
+  markUploaded,
+  pendingUploads,
+  readRecording,
+  removeSaved,
+  saveRecording,
+  savedRecordings,
+  savedSessions,
+  usedBytes,
+} from './storage';
+export type { SavedRecording } from './storage';
+export { startBackgroundSync, stopBackgroundSync, syncRecordings } from './sync';
