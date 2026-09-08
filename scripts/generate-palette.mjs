@@ -21,15 +21,31 @@ import { writeFileSync } from 'node:fs';
  * не ломая остальные одиннадцать ступеней.
  */
 const RECIPE = {
-  neutral: { hue: 248, peakChroma: 0.022, solid: 0.55 },
-  accent: { hue: 225, peakChroma: 0.155, solid: 0.62 },
-  success: { hue: 150, peakChroma: 0.145, solid: 0.68 },
-  warning: { hue: 82, peakChroma: 0.15, solid: 0.82 },
-  danger: { hue: 27, peakChroma: 0.17, solid: 0.6 },
+  // Нейтральные тянутся к чернильному из макета: он синеватый, а не серый.
+  neutral: { hue: 250, peakChroma: 0.03, solid: 0.55, text: '#08324f' },
+  // Синий — только интерактив, никогда не статус: ссылки, кнопки, активный чип.
+  accent: { hue: 250, peakChroma: 0.14, solid: 0.5, brand: '#0361a3' },
+  // Второй синий — акцент интерфейса: ассистент, метка «дальше», выбор в пикере.
+  highlight: { hue: 235, peakChroma: 0.13, solid: 0.68, brand: '#2ba6e0' },
+  // Статус — три ступени отклонения от нормы. Ими красят кольца, чипы, точки,
+  // графики и полосы; текстом они не бывают, см. docs/design-tokens.md.
+  success: { hue: 130, peakChroma: 0.19, solid: 0.8, brand: '#8fd12a' },
+  warning: { hue: 85, peakChroma: 0.17, solid: 0.85, brand: '#ffc53d' },
+  danger: { hue: 30, peakChroma: 0.16, solid: 0.62, brand: '#e5533d' },
 };
+
+/**
+ * Заливки, на которых пишут подпись, обязаны держать AA. Статусные заливки —
+ * не текстовые поверхности: по правилу макета цвет там носит смысл вместе со
+ * словом рядом, а не под ним, поэтому им хватает порога нетекстового контраста.
+ */
+const TEXT_SURFACES = new Set(['neutral', 'accent']);
 
 /** Контраст текста к фону обязан быть не ниже AA для основного размера. */
 const MIN_CONTRAST = 4.5;
+
+/** Нетекстовый порог WCAG 1.4.11 — для заливок, на которых не пишут. */
+const MIN_NON_TEXT_CONTRAST = 3;
 
 /** Насколько далеко можно увести заливку от рецепта ради белой подписи. */
 const LABEL_BUDGET = 0.15;
@@ -114,17 +130,17 @@ function contrast(a, b) {
  * подписью; если ради этого пришлось бы убить цвет — случай жёлтого, —
  * оставляем цвет и берём тёмную подпись в тон семейству.
  */
-function solveSolid(recipe) {
+function solveSolid(recipe, name) {
   const ink = toHex(0.22, Math.min(recipe.peakChroma, 0.03), recipe.hue);
 
   if (recipe.brand) {
     const onLight = contrast('#ffffff', recipe.brand);
     const onDark = contrast(ink, recipe.brand);
-    if (Math.max(onLight, onDark) < MIN_CONTRAST) {
+    const required = TEXT_SURFACES.has(name) ? MIN_CONTRAST : MIN_NON_TEXT_CONTRAST;
+    if (Math.max(onLight, onDark) < required) {
       throw new Error(
-        `Фирменный цвет ${recipe.brand} не держит подпись: лучший контраст ` +
-          `${Math.max(onLight, onDark).toFixed(2)} при пороге ${MIN_CONTRAST}. ` +
-          'Такой цвет нельзя использовать как заливку под текст.',
+        `Цвет ${recipe.brand} из макета не держит подпись: лучший контраст ` +
+          `${Math.max(onLight, onDark).toFixed(2)} при пороге ${required}.`,
       );
     }
     return { L: null, hex: recipe.brand, on: onLight >= onDark ? '#ffffff' : ink, moved: 0 };
@@ -170,8 +186,8 @@ function lightnessOf(hex, recipe) {
 
 // --- сборка ----------------------------------------------------------------
 
-function scale(recipe) {
-  const solid = solveSolid(recipe);
+function scale(recipe, name) {
+  const solid = solveSolid(recipe, name);
   const solidL = solid.L ?? lightnessOf(solid.hex, recipe);
   const pressedL = solidL - 0.045;
 
@@ -185,6 +201,7 @@ function scale(recipe) {
     muted = toHex(mutedL, LIGHT_C[10] * recipe.peakChroma, recipe.hue);
   }
   const strongL = Math.min(STRONG_TEXT_L, mutedL - 0.12);
+  const strong = recipe.text ?? toHex(strongL, LIGHT_C[11] * recipe.peakChroma, recipe.hue);
 
   const steps = {};
   for (let i = 0; i < 8; i += 1) {
@@ -193,7 +210,7 @@ function scale(recipe) {
   steps[9] = solid.hex;
   steps[10] = pressed;
   steps[11] = muted;
-  steps[12] = toHex(strongL, LIGHT_C[11] * recipe.peakChroma, recipe.hue);
+  steps[12] = strong;
 
   return { steps, on: solid.on, moved: solid.moved };
 }
@@ -201,8 +218,8 @@ function scale(recipe) {
 const report = [];
 const families = Object.entries(RECIPE)
   .map(([name, recipe]) => {
-    const { steps, on, moved } = scale(recipe);
-    if (recipe.brand) report.push(`${name}: заливка взята из макета (${recipe.brand})`);
+    const { steps, on, moved } = scale(recipe, name);
+    if (recipe.brand) report.push(`${name}: заливка из макета ${recipe.brand}, подпись ${on}`);
     else if (moved > 0.004)
       report.push(`${name}: заливка сдвинута на ${moved.toFixed(3)} ради контраста`);
 
@@ -222,7 +239,7 @@ const file = `// СГЕНЕРИРОВАНО scripts/generate-palette.mjs — н�
 //  6    разделители             11–12 текст: приглушённый и основной
 //  on   подпись, которая читается на ступенях 9–10 (проверено на 4.5:1)
 export type ColorStep = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
-export type ColorFamily = 'neutral' | 'accent' | 'success' | 'warning' | 'danger';
+export type ColorFamily = 'neutral' | 'accent' | 'highlight' | 'success' | 'warning' | 'danger';
 export type ColorScale = Readonly<Record<ColorStep, string> & { on: string }>;
 
 export const scales: Readonly<Record<ColorFamily, ColorScale>> = {

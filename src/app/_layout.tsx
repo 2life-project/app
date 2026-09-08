@@ -1,13 +1,23 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
 import { StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { restoreSession } from '@/core/auth';
 import { theme } from '@/shared/theme';
 
-/** Корень приложения: провайдеры и ничего больше. Экраны сюда не заезжают. */
+/**
+ * Корень приложения: провайдеры и восстановление сессии. Что показать —
+ * решают слои `(app)` и `(auth)`, каждый по своей проверке.
+ */
 export default function RootLayout() {
+  // Ключ обновления читается из Keychain один раз при запуске.
+  useEffect(() => {
+    void restoreSession();
+  }, []);
+
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>

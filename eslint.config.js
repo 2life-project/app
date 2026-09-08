@@ -77,29 +77,6 @@ module.exports = defineConfig([
     },
   },
   {
-    // Фича не знает о других фичах — ни через алиас, ни относительным путём.
-    // Относительный путь запрещён выше корня фичи: всё, что дальше, — это
-    // либо соседняя фича, либо другой слой, а другой слой берут через `@/`.
-    files: ['src/features/**/*.{ts,tsx}'],
-    rules: {
-      'no-restricted-imports': [
-        'error',
-        {
-          patterns: [
-            {
-              group: ['@/features/*', '@/features/*/**'],
-              message: 'Фича не импортирует другую фичу. Общее уезжает в shared.',
-            },
-            {
-              group: ['../../*', '../../**', '../../../**'],
-              message: 'Выход за корень фичи. Соседняя фича закрыта, другой слой берут через @/.',
-            },
-          ],
-        },
-      ],
-    },
-  },
-  {
     files: ['**/*.{ts,tsx}'],
     rules: {
       '@typescript-eslint/no-unused-vars': [
@@ -153,6 +130,85 @@ module.exports = defineConfig([
         {
           selector: "Property[key.name='borderRadius'][value.type='Literal']",
           message: 'Скругление — из radius в @/shared/theme.',
+        },
+        {
+          // Путь строкой расходится с маршрутом молча: опечатку видно только
+          // на устройстве, а переименование маршрута ломает N мест разом.
+          selector:
+            "CallExpression[callee.object.name='router'][callee.property.name=/^(push|replace|navigate)$/] > Literal:first-child",
+          message: 'Адрес экрана — из `to` в @/shared/nav, а не строкой.',
+        },
+      ],
+    },
+  },
+  {
+    // Канон стекла: сырые примитивы живут в одном месте. Иначе детект
+    // платформы и три платформенных вида расползаются копипастой по экранам —
+    // ровно то, ради чего примитив и заводился.
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/shared/ui/glass/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'expo-glass-effect',
+              message:
+                'Сырое стекло — только в @/shared/ui/glass. Снаружи: <Glass> или <GlassButton>.',
+            },
+            {
+              name: 'expo-blur',
+              message:
+                'Сырой blur — только в @/shared/ui/glass. Снаружи: <Glass> или <GlassButton>.',
+            },
+          ],
+          patterns: [
+            {
+              group: ['@/features/*/*'],
+              message: 'Импортируйте фичу через её публичный вход: @/features/<имя>.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // Фича не знает о других фичах — ни через алиас, ни относительным путём.
+    // Относительный путь запрещён выше корня фичи: всё, что дальше, — это
+    // либо соседняя фича, либо другой слой, а другой слой берут через `@/`.
+    //
+    // Блок стоит последним намеренно: плоский конфиг не объединяет
+    // одноимённые правила между блоками — побеждает последний совпавший.
+    // Пока этот запрет стоял выше канона стекла, тот его молча затирал, и
+    // импорт чужой фичи проходил проверку.
+    files: ['src/features/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'expo-glass-effect',
+              message:
+                'Сырое стекло — только в @/shared/ui/glass. Снаружи: <Glass> или <GlassButton>.',
+            },
+            {
+              name: 'expo-blur',
+              message:
+                'Сырой blur — только в @/shared/ui/glass. Снаружи: <Glass> или <GlassButton>.',
+            },
+          ],
+          patterns: [
+            {
+              group: ['@/features/*', '@/features/*/**'],
+              message: 'Фича не импортирует другую фичу. Общее уезжает в shared.',
+            },
+            {
+              group: ['../../*', '../../**', '../../../**'],
+              message: 'Выход за корень фичи. Соседняя фича закрыта, другой слой берут через @/.',
+            },
+          ],
         },
       ],
     },

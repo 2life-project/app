@@ -2,28 +2,31 @@
   "expo": {
     "name": "2Life",
     "slug": "2life",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "scheme": "twolife",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "backgroundColor": "#f9fafb",
     "icon": "./assets/images/icon.png",
     "ios": {
-      "bundleIdentifier": "com.twolife.app",
+      "bundleIdentifier": "dev.blackshift.twolife",
       "supportsTablet": false,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "buildNumber": "1"
     },
     "android": {
-      "package": "com.twolife.app",
+      "package": "dev.blackshift.twolife",
       "adaptiveIcon": {
         "backgroundColor": "#f9fafb",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "versionCode": 1,
+      "permissions": ["android.permission.BLUETOOTH_SCAN", "android.permission.BLUETOOTH_CONNECT"]
     },
     "web": {
       "output": "static",
@@ -38,7 +41,16 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 96
         }
-      ]
+      ],
+      [
+        "react-native-ble-plx",
+        {
+          "isBackgroundEnabled": false,
+          "modes": ["central"],
+          "bluetoothAlwaysPermission": "Нужен, чтобы найти ваш браслет и забирать с него измерения."
+        }
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,
