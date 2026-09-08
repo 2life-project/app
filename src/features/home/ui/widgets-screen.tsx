@@ -41,7 +41,22 @@ export function WidgetsScreen() {
     // Отказ обязан быть виден. Молчаливый провал выглядит как «переключатель
     // не работает»: он отскакивает назад, и причины на экране нет.
     void saveHomeLayout(current, next)
-      .then(() => layout.refresh())
+      .then((saved) => {
+        // Сервер отвечает 2xx и на запись, которую не принял целиком: он
+        // возвращает свою раскладку, а не нашу. Молча показывать отскочивший
+        // переключатель нельзя — сравниваем и говорим, что не вышло.
+        const kept = cellsOf(saved).some((cell) => cell.widget === type);
+        if (kept !== on) {
+          logger.warn('Сервер вернул другую раскладку', {
+            type,
+            on,
+            sent: next.length,
+            got: cellsOf(saved).length,
+          });
+          setFailed(true);
+        }
+        layout.refresh();
+      })
       .catch((failure: unknown) => {
         logger.warn('Раскладка не сохранилась', { type, on, failure });
         setFailed(true);
