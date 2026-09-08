@@ -81,7 +81,10 @@ export function FuelWidget({ home }: { home: HomeData }) {
       action={{ label: 'Body', onPress: () => router.push(to.body()) }}
       ring={view.ring}
       tiles={view.tiles}>
-      <MealStrip dailyGoal={nutritionOf(home)?.goalCalories ?? null} />
+      <MealStrip
+        dailyGoal={nutritionOf(home)?.goalCalories ?? null}
+        eatenToday={nutritionOf(home)?.eatenCalories ?? null}
+      />
     </MetricWidget>
   );
 }

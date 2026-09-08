@@ -2,70 +2,93 @@ import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
 import { to } from '@/shared/nav';
-import { radius, size, space, theme } from '@/shared/theme';
-import { Pressable, Stack, Text } from '@/shared/ui';
+import { size, space } from '@/shared/theme';
+import { Pressable, ProgressBar, ProgressRing, Stack, Text } from '@/shared/ui';
 
-import { MEALS, kcal, mealGoal } from '../model/food';
+import { MEALS, kcal, mealGoal, share } from '../model/food';
 
 /**
- * Приёмы пищи одной полосой: четыре кружка, под каждым — сколько съедено.
- * Нажатие сразу ведёт к добавлению в этот приём, а не к списку списков:
- * человек открывает питание, чтобы что-то записать, а не осмотреться.
+ * Приёмы пищи полосой: кольцо с едой внутри, под ним — сколько съедено из
+ * цели этого приёма. Нажатие ведёт прямо к записи еды, а не на промежуточный
+ * список: человек открывает питание, чтобы записать, а не осмотреться.
  *
- * Съеденное по приёмам сервер пока не разделяет — числа появятся, когда
- * дневная ручка начнёт отдавать записи по приёмам (см. docs/backend-gaps.md).
+ * Дуга рисуется только там, где известно съеденное. Сервер пока отдаёт итог
+ * за день, но не разбивку по приёмам, поэтому у приёмов кольцо остаётся
+ * дорожкой — доля, которой никто не считал, здесь не появится.
  */
 export function MealStrip({
   eaten,
+  eatenToday,
   dailyGoal,
 }: {
-  /** Съедено за каждый приём. Пусто — значит записей ещё нет. */
+  /** Съедено за каждый приём. Пусто — сервер разбивку ещё не отдаёт. */
   eaten?: Partial<Record<string, number>>;
+  /** Съедено за день целиком: это сервер знает и сейчас. */
+  eatenToday?: number | null;
   dailyGoal: number | null;
 }) {
+  const total = share(dailyGoal, eatenToday ?? 0);
+
   return (
-    <View style={styles.row}>
-      {MEALS.map((meal) => {
-        const value = eaten?.[meal.type];
-        const goal = mealGoal(dailyGoal, meal.type);
-        return (
-          <Pressable
-            key={meal.type}
-            accessibilityLabel={meal.title}
-            style={styles.meal}
-            onPress={() => router.push(to.addFood(meal.type))}>
-            <Stack gap="xs" align="center">
-              <View style={[styles.circle, value ? styles.done : null]}>
-                <Text variant="subtitle">{meal.icon}</Text>
-              </View>
-              <Text variant="caption" tone="muted" numberOfLines={1}>
-                {meal.title.toUpperCase()}
-              </Text>
-              <Text variant="footnote" numberOfLines={1}>
-                {value === undefined ? (goal === null ? '—' : kcal(goal)) : kcal(value)}
-              </Text>
-            </Stack>
-          </Pressable>
-        );
-      })}
-    </View>
+    <Stack gap="md">
+      <View style={styles.row}>
+        {MEALS.map((meal) => {
+          const goal = mealGoal(dailyGoal, meal.type);
+          const value = eaten?.[meal.type];
+          return (
+            <Pressable
+              key={meal.type}
+              accessibilityLabel={meal.title}
+              haptic={false}
+              scaleTo={0.96}
+              style={styles.meal}
+              onPress={() => router.push(to.addFood(meal.type))}>
+              <Stack gap="xs" align="center">
+                <ProgressRing
+                  size={RING}
+                  thickness={THICKNESS}
+                  value={value === undefined || goal === null ? null : share(goal, value)}
+                  valueLabel={meal.icon}
+                />
+                <Text variant="caption" tone="muted" numberOfLines={1}>
+                  {meal.title.toUpperCase()}
+                </Text>
+                <Text variant="footnote" numberOfLines={1}>
+                  {value === undefined
+                    ? goal === null
+                      ? '—'
+                      : kcal(goal)
+                    : `${Math.round(value)} / ${goal ?? '—'}`}
+                </Text>
+              </Stack>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {/* Итог дня сервер знает уже сейчас — он и держит полосу. */}
+      {total === null ? null : (
+        <Stack gap="xs">
+          <ProgressBar value={total} tone="highlight" />
+          <Stack direction="row" justify="space-between">
+            <Text variant="footnote" tone="muted">
+              {TOTAL_LABEL}
+            </Text>
+            <Text variant="footnote" tone="muted">
+              {`${Math.round(eatenToday ?? 0)} / ${dailyGoal ?? '—'} kcal`}
+            </Text>
+          </Stack>
+        </Stack>
+      )}
+    </Stack>
   );
 }
 
-const CIRCLE = 48;
+const TOTAL_LABEL = 'TODAY';
+const RING = 44;
+const THICKNESS = 4;
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', gap: space.sm },
-  meal: { flex: 1 },
-  circle: {
-    width: CIRCLE,
-    height: CIRCLE,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.full,
-    borderWidth: size.border,
-    borderColor: theme.color.border,
-    backgroundColor: theme.color.surfaceInner,
-  },
-  done: { borderColor: theme.color.success.solid, backgroundColor: theme.color.success.surface },
+  row: { flexDirection: 'row', gap: space.xs },
+  meal: { flex: 1, paddingVertical: space.xs, minHeight: size.tapTarget },
 });

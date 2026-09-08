@@ -30,6 +30,8 @@ export type NutritionView = {
   meals: number;
   /** Дневная цель по калориям: по ней полоса приёмов считает цель каждого. */
   goalCalories: number | null;
+  /** Съедено за день — итог сервер знает, разбивку по приёмам пока нет. */
+  eatenCalories: number | null;
 };
 
 function amount(value: number | null | undefined, unit: string): string {
@@ -99,5 +101,6 @@ export function nutritionOf(home: HomeData): NutritionView | null {
     insight: { title: insight.title, text: insight.text },
     meals: meals.length,
     goalCalories,
+    eatenCalories: eaten,
   };
 }

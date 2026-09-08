@@ -62,7 +62,7 @@ export function Nutrition({ home }: { home: HomeData }) {
       {/* Приёмы пищи — главное действие раздела: нажатие ведёт прямо к
           добавлению, а не на промежуточный список. */}
       <WidgetCard title="Meals" caption={view.meals === 0 ? 'nothing logged yet' : undefined}>
-        <MealStrip dailyGoal={view.goalCalories} />
+        <MealStrip dailyGoal={view.goalCalories} eatenToday={view.eatenCalories} />
       </WidgetCard>
 
       <InfoCard title={view.insight.title} text={view.insight.text} />
