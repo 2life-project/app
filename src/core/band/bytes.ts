@@ -96,3 +96,28 @@ export function concat(...parts: readonly Uint8Array[]): Uint8Array {
   }
   return out;
 }
+
+/**
+ * Обмен с BLE идёт строками base64: обёртка радио не знает, что внутри кадра, и
+ * не разбирает его. `Buffer` для этого не годится — в React Native его нет,
+ * а `atob`/`btoa` есть.
+ */
+export function fromBase64(value: string): Uint8Array {
+  const binary = globalThis.atob(value);
+  const out = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) out[index] = binary.charCodeAt(index);
+  return out;
+}
+
+export function toBase64(data: Uint8Array): string {
+  let binary = '';
+  for (const byte of data) binary += String.fromCharCode(byte);
+  return globalThis.btoa(binary);
+}
+
+/** Строка ASCII из байтов: версии прошивки, модель, серийный номер. */
+export function toAsciiString(data: Uint8Array): string {
+  let text = '';
+  for (const byte of data) text += String.fromCharCode(byte);
+  return text;
+}

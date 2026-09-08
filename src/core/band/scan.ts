@@ -3,6 +3,7 @@ import { State } from 'react-native-ble-plx';
 import { ble, isReady, requestScanPermission } from '@/core/ble';
 import { logger } from '@/core/log/logger';
 
+import { fromBase64 } from './bytes';
 import { BAND_NAME } from './names';
 
 export type FoundBand = {
@@ -27,7 +28,7 @@ export type ScanResult = { ok: true; stop: () => void } | { ok: false; problem: 
 function macFromAdvertisement(manufacturerData: string | null): string | undefined {
   if (!manufacturerData) return undefined;
 
-  const bytes = Uint8Array.from(Buffer.from(manufacturerData, 'base64'));
+  const bytes = fromBase64(manufacturerData);
   if (bytes.length < 8) return undefined;
 
   // Первые два байта — код производителя, дальше шесть байт адреса.

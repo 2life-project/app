@@ -1,4 +1,4 @@
-import { byteAt, dateAt, toBe32 } from './bytes';
+import { byteAt, dateAt, toAsciiString, toBe32 } from './bytes';
 
 /**
  * Разбор полезной нагрузки браслета.
@@ -78,7 +78,7 @@ export function intField(fields: readonly Field[], tag: number): number | undefi
  */
 export function toAscii(value: Uint8Array | undefined): string | undefined {
   if (!value || value.length === 0) return undefined;
-  return Buffer.from(value).toString('ascii').replace(/\0+$/, '');
+  return toAsciiString(value).replace(/\0+$/, '');
 }
 
 export function toUtf16(value: Uint8Array | undefined): string | undefined {

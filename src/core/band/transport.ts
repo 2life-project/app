@@ -1,11 +1,9 @@
-import { Buffer } from 'buffer';
-
 import type { Device, Subscription } from 'react-native-ble-plx';
 
 import { ble } from '@/core/ble';
 import { logger } from '@/core/log/logger';
 
-import { byteAt } from './bytes';
+import { byteAt, fromBase64, toBase64 } from './bytes';
 import { FrameAssembler, decode } from './frame';
 
 /** Сервис и характеристики рабочего канала браслета. */
@@ -68,7 +66,7 @@ export class BandTransport {
           return;
         }
         const value = characteristic?.value;
-        if (value) this.dispatch(Uint8Array.from(Buffer.from(value, 'base64')));
+        if (value) this.dispatch(fromBase64(value));
       },
     );
   }
@@ -135,8 +133,8 @@ export class BandTransport {
     ]);
 
     return {
-      low: Uint8Array.from(Buffer.from(low.value ?? '', 'base64')),
-      high: Uint8Array.from(Buffer.from(high.value ?? '', 'base64')),
+      low: fromBase64(low.value ?? ''),
+      high: fromBase64(high.value ?? ''),
     };
   }
 
@@ -177,11 +175,7 @@ export class BandTransport {
     const since = Date.now() - this.lastWrite;
     if (since < WRITE_GAP_MS) await delay(WRITE_GAP_MS - since);
 
-    await this.device.writeCharacteristicWithoutResponseForService(
-      SERVICE,
-      WRITE,
-      Buffer.from(frame).toString('base64'),
-    );
+    await this.device.writeCharacteristicWithoutResponseForService(SERVICE, WRITE, toBase64(frame));
     this.lastWrite = Date.now();
   }
 }
