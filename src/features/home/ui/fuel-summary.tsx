@@ -1,44 +1,77 @@
 import { StyleSheet, View } from 'react-native';
 
 import { space } from '@/shared/theme';
-import { ProgressBar, Text } from '@/shared/ui';
+import { ProgressBar, ProgressRing, Text } from '@/shared/ui';
 
-import type { MacroCell } from '../model/nutrition';
+import type { NutritionView } from '../model/nutrition';
 
 /**
- * Итог дня по питанию: четыре одинаковые строки — калории и три макроса.
+ * Сводка дня по питанию.
  *
- * Полосы идут во всю ширину, а не тремя колонками. Долю читают по длине, и на
- * огрызке в треть ширины она не читается — приходится искать число рядом.
- * Одинаковая длина у всех четырёх ещё и позволяет сравнивать их между собой.
+ * В центре — «осталось», а не «съедено»: экран открывают, чтобы понять,
+ * сколько ещё можно, и это число не должно требовать вычитания. По бокам от
+ * кольца стоят слагаемые баланса, чтобы главное число не выглядело взявшимся
+ * ниоткуда.
+ *
+ * Макросы — тремя колонками под кольцом. Короткая полоса точной доли не даёт,
+ * поэтому под ней стоит число; работает это только потому, что макросы здесь
+ * вторые, а не главные.
  */
-export function FuelSummary({ cells }: { cells: readonly MacroCell[] }) {
-  if (cells.length === 0) return null;
+export function FuelSummary({ view }: { view: NutritionView }) {
+  const { balance } = view;
 
   return (
     <View style={styles.root}>
-      {cells.map((cell, index) => (
-        <View key={cell.id} style={styles.row}>
-          <View style={styles.head}>
-            {/* Калории — заголовок дня, макросы под ними подписаны ровно. */}
-            <Text
-              variant={index === 0 ? 'subtitle' : 'bodySmall'}
-              tone={index === 0 ? 'default' : 'muted'}>
-              {cell.label}
+      <View style={styles.balance}>
+        <View style={styles.side}>
+          <Text variant="subtitle">{balance.eaten}</Text>
+          <Text variant="caption" tone="muted">
+            {EATEN}
+          </Text>
+        </View>
+
+        <ProgressRing
+          size={RING}
+          value={balance.fill}
+          valueLabel={balance.left}
+          valueVariant="headline"
+          note={LEFT}
+        />
+
+        <View style={styles.side}>
+          <Text variant="subtitle">{balance.burned}</Text>
+          <Text variant="caption" tone="muted">
+            {BURNED}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.macros}>
+        {view.grid.slice(1).map((macro) => (
+          <View key={macro.id} style={styles.macro}>
+            <Text variant="caption" tone="muted" numberOfLines={1}>
+              {macro.label.toUpperCase()}
             </Text>
-            <Text variant={index === 0 ? 'subtitle' : 'bodySmall'} numberOfLines={1}>
-              {cell.text}
+            <ProgressBar value={macro.fill ?? 0} tone={macro.tone} />
+            <Text variant="footnote" tone="muted" numberOfLines={1}>
+              {macro.text}
             </Text>
           </View>
-          <ProgressBar value={cell.fill ?? 0} tone={cell.tone} />
-        </View>
-      ))}
+        ))}
+      </View>
     </View>
   );
 }
 
+const EATEN = 'EATEN';
+const LEFT = 'left';
+const BURNED = 'BURNED';
+const RING = 116;
+
 const styles = StyleSheet.create({
-  root: { gap: space.md },
-  row: { gap: space.xs },
-  head: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
+  root: { gap: space.lg },
+  balance: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  side: { alignItems: 'center', gap: space.xs, flex: 1 },
+  macros: { flexDirection: 'row', gap: space.md },
+  macro: { flex: 1, gap: space.xs },
 });

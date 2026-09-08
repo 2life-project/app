@@ -47,6 +47,11 @@ export type NutritionView = {
   eatenCalories: number | null;
   /** Четыре числа дня одной сеткой: калории, белки, углеводы, жиры. */
   grid: MacroCell[];
+  /**
+   * Баланс дня: съедено, осталось, сожжено. «Осталось» — главное число:
+   * оно отвечает на вопрос, ради которого экран и открывают.
+   */
+  balance: { eaten: string; left: string; burned: string; fill: number | null };
 };
 
 function amount(value: number | null | undefined, unit: string): string {
@@ -136,6 +141,16 @@ export function nutritionOf(home: HomeData): NutritionView | null {
     meals: meals.length,
     goalCalories,
     eatenCalories: eaten,
+    balance: {
+      eaten: amount(eaten, 'kcal'),
+      left: amount(remainingCalories, 'kcal'),
+      // Сожжённое читается с устройства, а его сейчас нет — прочерк честнее нуля.
+      burned: NO_VALUE,
+      fill:
+        goalCalories && goalCalories > 0 && eaten !== null
+          ? Math.min(1, eaten / goalCalories)
+          : null,
+    },
     grid: [
       cell('calories', 'Calories', eaten, goalCalories, 'kcal'),
       cell('protein', 'Protein', totals.protein, goals.protein, 'g'),

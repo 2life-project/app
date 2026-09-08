@@ -79,7 +79,7 @@ export function FuelWidget({ home }: { home: HomeData }) {
 
   return (
     <WidgetCard title="Fuel" action={{ label: 'Nutrition', onPress: () => router.push(to.body()) }}>
-      <FuelSummary cells={view.grid} />
+      <FuelSummary view={view} />
     </WidgetCard>
   );
 }
