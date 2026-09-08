@@ -1,7 +1,4 @@
-import { StyleSheet } from 'react-native';
-
-import { type FoundBand, isOurBand } from '@/core/band';
-import { space } from '@/shared/theme';
+import type { FoundBand } from '@/core/band';
 import { Banner, Button, Card, ListRow, Stack, Text } from '@/shared/ui';
 
 import type { BandState } from '../model/use-band';
@@ -74,9 +71,6 @@ export function BandConnect({
     );
   }
 
-  const ours = state.found.filter(isOurBand);
-  const others = state.found.filter((device) => !isOurBand(device));
-
   return (
     <Stack gap="md">
       {state.problem === 'connect-failed' ? (
@@ -92,13 +86,13 @@ export function BandConnect({
         <Stack gap="sm">
           <Text variant="title">Searching…</Text>
 
-          {ours.length === 0 && others.length === 0 ? (
+          {state.found.length === 0 ? (
             <Text variant="bodySmall" tone="muted">
               Nothing yet. Keep the band close to the phone.
             </Text>
           ) : null}
 
-          {ours.map((device) => (
+          {state.found.map((device) => (
             <ListRow
               key={device.id}
               title={device.name}
@@ -106,30 +100,8 @@ export function BandConnect({
               onPress={() => onConnect(device)}
             />
           ))}
-
-          {others.length > 0 ? (
-            <Stack gap="xs" style={styles.others}>
-              <Text variant="bodySmall" tone="muted">
-                Other devices nearby
-              </Text>
-              {others.slice(0, 4).map((device) => (
-                <ListRow
-                  key={device.id}
-                  title={device.name}
-                  subtitle={`signal ${device.rssi} dBm`}
-                  onPress={() => onConnect(device)}
-                />
-              ))}
-            </Stack>
-          ) : null}
         </Stack>
       </Card>
     </Stack>
   );
 }
-
-const styles = StyleSheet.create({
-  others: {
-    marginTop: space.sm,
-  },
-});

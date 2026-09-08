@@ -20,7 +20,7 @@ export { BYTES_PER_SECOND } from './recorder';
 export { MeasureType } from './commands';
 
 export { BAND_NAME, SCAN_TIMEOUT_MS } from './names';
-export { isOurBand, mergeFound, scanForBands, sortByProximity } from './scan';
+export { mergeFound, scanForBands, sortByProximity } from './scan';
 export type { FoundBand, ScanProblem, ScanResult } from './scan';
 
 export { toOgg, durationSeconds } from './audio';

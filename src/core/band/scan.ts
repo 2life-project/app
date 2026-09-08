@@ -4,7 +4,7 @@ import { ble, isReady, requestScanPermission } from '@/core/ble';
 import { logger } from '@/core/log/logger';
 
 import { fromBase64 } from './bytes';
-import { BAND_NAME } from './names';
+import { BAND_NAME, BAND_SERVICE } from './names';
 
 export type FoundBand = {
   id: string;
@@ -36,7 +36,36 @@ function macFromAdvertisement(manufacturerData: string | null): string | undefin
 }
 
 /**
+ * Сколько ждать, пока поднимется стек Bluetooth.
+ *
+ * Сразу после запуска приложения и сразу после выдачи разрешения состояние
+ * радио — `Unknown`: система ещё не ответила. Если принять это за отказ, человек
+ * увидит «нет доступа» ровно в тот момент, когда доступ только что дал.
+ */
+const STATE_TIMEOUT_MS = 5000;
+
+function waitForState(manager: ReturnType<typeof ble>): Promise<State> {
+  return new Promise((resolve) => {
+    const subscription = manager.onStateChange((state) => {
+      if (state === State.Unknown || state === State.Resetting) return;
+      subscription.remove();
+      resolve(state);
+    }, true);
+
+    setTimeout(() => {
+      subscription.remove();
+      resolve(State.Unknown);
+    }, STATE_TIMEOUT_MS);
+  });
+}
+
+/**
  * Искать браслеты.
+ *
+ * Фильтр по сервису задаётся радио, а не проверяется после: иначе в списке
+ * оказываются наушники, телевизоры и чужие часы, среди которых свой браслет
+ * ещё надо найти. Наше устройство рекламирует сервис `0x5555`, и этого
+ * достаточно, чтобы всё лишнее до приложения не доходило.
  *
  * Поиск не останавливается сам: устройство рекламирует себя с паузами и на
  * коротком окне регулярно пропускается. Останавливать должен экран — когда
@@ -46,23 +75,23 @@ export async function scanForBands(onFound: (band: FoundBand) => void): Promise<
   if (!(await requestScanPermission())) return { ok: false, problem: 'no-permission' };
 
   const manager = ble();
-  const state = await manager.state();
+  const state = await waitForState(manager);
   if (!isReady(state)) {
     return { ok: false, problem: state === State.PoweredOff ? 'bluetooth-off' : 'no-permission' };
   }
 
-  manager.startDeviceScan(null, { allowDuplicates: false }, (error, device) => {
+  manager.startDeviceScan([BAND_SERVICE], { allowDuplicates: false }, (error, device) => {
     if (error) {
       logger.warn('band: поиск прервался', { reason: error.message });
       return;
     }
-
-    const name = device?.name ?? device?.localName;
-    if (!device || !name) return;
+    if (!device) return;
 
     onFound({
       id: device.id,
-      name,
+      // Имя в рекламе бывает пустым, пока устройство не ответит на запрос —
+      // с фильтром по сервису это всё равно наш браслет, и прятать его нельзя.
+      name: device.name ?? device.localName ?? BAND_NAME,
       rssi: device.rssi ?? -127,
       mac: macFromAdvertisement(device.manufacturerData),
     });
@@ -71,17 +100,9 @@ export async function scanForBands(onFound: (band: FoundBand) => void): Promise<
   return { ok: true, stop: () => manager.stopDeviceScan() };
 }
 
-/** Наш браслет среди найденного. Остальные устройства показываем ниже списком. */
-export function isOurBand(band: FoundBand): boolean {
-  return band.name.toUpperCase().startsWith(BAND_NAME);
-}
-
-/** Ближайшее сверху: браслет на руке всегда громче соседского телевизора. */
+/** Ближайшее сверху: браслет на руке всегда громче лежащего в ящике. */
 export function sortByProximity(bands: readonly FoundBand[]): FoundBand[] {
-  return [...bands].sort((a, b) => {
-    if (isOurBand(a) !== isOurBand(b)) return isOurBand(a) ? -1 : 1;
-    return b.rssi - a.rssi;
-  });
+  return [...bands].sort((a, b) => b.rssi - a.rssi);
 }
 
 /** Добавить найденное, не плодя дубликатов: устройство попадается несколько раз. */
