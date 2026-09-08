@@ -20,6 +20,19 @@ export type MacroView = {
   progress?: { value: number; tone: BarTone };
 };
 
+/**
+ * Ячейка сетки макросов: кольцо, название и «съедено из цели». Одно число —
+ * одно место: калории раньше стояли и в кольце, и в остатке, и в полосе дня.
+ */
+export type MacroCell = {
+  id: string;
+  label: string;
+  /** Готовая подпись «1 000 / 2 300 ккал»: единица у калорий своя. */
+  text: string;
+  fill: number | null;
+  tone: BarTone;
+};
+
 export type NutritionView = {
   ring: { value: number | null; valueLabel: string; note?: string; tone?: StatusTone };
   caption: string;
@@ -32,6 +45,8 @@ export type NutritionView = {
   goalCalories: number | null;
   /** Съедено за день — итог сервер знает, разбивку по приёмам пока нет. */
   eatenCalories: number | null;
+  /** Четыре числа дня одной сеткой: калории, белки, углеводы, жиры. */
+  grid: MacroCell[];
 };
 
 function amount(value: number | null | undefined, unit: string): string {
@@ -57,6 +72,25 @@ function macro(label: string, eaten: number | null, goal: number | null): MacroV
     value: amount(eaten, 'g'),
     note: goal ? `of ${formatNumber(goal, 'g')} g` : undefined,
     progress: ratio === null ? undefined : { value: Math.min(1, ratio), tone: macroTone(ratio) },
+  };
+}
+
+/** Ячейка сетки: доля и тон считаются от цели, которую назвал сервер. */
+function cell(
+  id: string,
+  label: string,
+  eaten: number | null,
+  goal: number | null,
+  unit: string,
+): MacroCell {
+  const ratio = goal && goal > 0 && eaten !== null ? eaten / goal : null;
+  const left = goal === null ? '' : ` / ${formatNumber(goal, unit)}`;
+  return {
+    id,
+    label,
+    text: `${amount(eaten, unit)}${left} ${unit}`.trim(),
+    fill: ratio === null ? null : Math.min(1, ratio),
+    tone: ratio === null ? 'highlight' : macroTone(ratio),
   };
 }
 
@@ -102,5 +136,11 @@ export function nutritionOf(home: HomeData): NutritionView | null {
     meals: meals.length,
     goalCalories,
     eatenCalories: eaten,
+    grid: [
+      cell('calories', 'Calories', eaten, goalCalories, 'kcal'),
+      cell('protein', 'Protein', totals.protein, goals.protein, 'g'),
+      cell('carbs', 'Carbs', totals.carbs, goals.carbs, 'g'),
+      cell('fat', 'Fat', totals.fat, goals.fat, 'g'),
+    ],
   };
 }

@@ -1,18 +1,15 @@
 import { router } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
 
 import { shortDay } from '@/shared/lib/day';
 import { to } from '@/shared/nav';
-import { space } from '@/shared/theme';
 import {
   Card,
   DatePager,
   InfoCard,
   LinkCard,
-  SectionCaption,
-  SectionSummary,
+  ListRow,
+  MacroGrid,
   Stack,
-  StatTile,
   Text,
   WidgetCard,
 } from '@/shared/ui';
@@ -40,29 +37,31 @@ export function Nutrition({ home }: { home: HomeData }) {
     <Stack gap="md">
       <DatePager label={`Today · ${shortDay(home.date)}`} />
 
-      <SectionSummary
-        title="Nutrition"
-        action={{ label: 'Add', chevron: true, onPress: () => router.push(to.meal('new')) }}
-        caption={<SectionCaption>{view.caption}</SectionCaption>}
-        ring={view.ring}
-        rows={view.rows.map(({ metric, ...row }) => ({
-          ...row,
-          onPress: metric ? () => router.push(to.metric(metric)) : undefined,
-        }))}
-      />
+      {/* Четыре числа дня одной сеткой. Кольцо секции и плитки макросов
+          показывали ровно их же — три вида одних цифр заставляли человека
+          сверять их между собой. */}
+      <Card>
+        <MacroGrid cells={view.grid} />
+      </Card>
 
       <Card>
-        <View style={styles.macros}>
-          {view.macros.map((macro) => (
-            <StatTile key={macro.label} {...macro} />
+        <Stack gap="sm">
+          {view.rows.map(({ metric, ...row }) => (
+            <ListRow
+              key={row.id}
+              title={row.title}
+              subtitle={row.subtitle}
+              trailing={row.value}
+              onPress={metric ? () => router.push(to.metric(metric)) : undefined}
+            />
           ))}
-        </View>
+        </Stack>
       </Card>
 
       {/* Приёмы пищи — главное действие раздела: нажатие ведёт прямо к
           добавлению, а не на промежуточный список. */}
       <WidgetCard title="Meals" caption={view.meals === 0 ? 'nothing logged yet' : undefined}>
-        <MealStrip dailyGoal={view.goalCalories} eatenToday={view.eatenCalories} />
+        <MealStrip dailyGoal={view.goalCalories} />
       </WidgetCard>
 
       <InfoCard title={view.insight.title} text={view.insight.text} />
@@ -71,7 +70,3 @@ export function Nutrition({ home }: { home: HomeData }) {
     </Stack>
   );
 }
-
-const styles = StyleSheet.create({
-  macros: { flexDirection: 'row', gap: space.sm },
-});

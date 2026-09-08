@@ -8,8 +8,9 @@ export const MEAL_TITLES: Record<string, string> = {
 
 export const ADD_FOOD = {
   title: 'Add food',
-  subtitle: 'search the base or describe it in your own words',
-  addedCount: (count: number) => `${count} added — keep going or tap Done`,
+  subtitle: 'type — the list finds it as you go',
+  added: (calories: number) => `+${Math.round(calories)} kcal recorded — add more or tap Done`,
+  nothingFound: 'Nothing matched. Try another word, or describe the meal instead.',
   searchLabel: 'What did you eat',
   searchHint: 'bread, cucumber, chicken…',
   textLabel: 'Describe the meal',
@@ -17,10 +18,8 @@ export const ADD_FOOD = {
   /** Разбор словами делает сервер, и он ошибается — об этом надо сказать. */
   textNote:
     'The description is parsed on the server and lands as separate items. Check the numbers afterwards — a guess from words is still a guess.',
-  find: 'Search',
   parse: 'Add from description',
   done: 'Done',
-  searchFailed: 'The search did not run. Try again.',
   saveFailed: 'It did not save. Try again.',
   analyzeFailed: 'The description was not parsed. Try simpler wording.',
 } as const;

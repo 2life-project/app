@@ -13,6 +13,7 @@ import {
   BarChart,
   LineChart,
   ListRow,
+  MacroGrid,
   MetricWidget,
   ProgressRing,
   Stack,
@@ -23,7 +24,7 @@ import {
 
 import type { HomeData, WidgetType } from '../api/contract';
 import { nutritionOf } from '../model/nutrition';
-import { fuelOf, type RingView, type SystemView } from '../model/vitals';
+import type { RingView, SystemView } from '../model/vitals';
 
 import { MealStrip } from './meal-strip';
 
@@ -73,19 +74,16 @@ export function SystemWidget({ widget, view }: { widget: WidgetType; view: Syste
  * отсюда: под числами стоит полоса приёмов, и нажатие ведёт к записи еды.
  */
 export function FuelWidget({ home }: { home: HomeData }) {
-  const view = fuelOf(home);
+  const view = nutritionOf(home);
+  if (!view) return null;
+
   return (
-    <MetricWidget
-      icon={SYSTEM_ICON.fuel ?? 'circle'}
-      title={view.title}
-      action={{ label: 'Body', onPress: () => router.push(to.body()) }}
-      ring={view.ring}
-      tiles={view.tiles}>
-      <MealStrip
-        dailyGoal={nutritionOf(home)?.goalCalories ?? null}
-        eatenToday={nutritionOf(home)?.eatenCalories ?? null}
-      />
-    </MetricWidget>
+    <WidgetCard title="Fuel" action={{ label: 'Nutrition', onPress: () => router.push(to.body()) }}>
+      <Stack gap="lg">
+        <MacroGrid cells={view.grid} />
+        <MealStrip dailyGoal={view.goalCalories} />
+      </Stack>
+    </WidgetCard>
   );
 }
 
