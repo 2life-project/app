@@ -9,6 +9,8 @@ import type { Href } from 'expo-router';
  */
 export const to = {
   home: (): Href => '/',
+  login: (): Href => '/login',
+  register: (): Href => '/register',
   journal: (): Href => '/journal',
   body: (): Href => '/body',
   records: (): Href => '/records',

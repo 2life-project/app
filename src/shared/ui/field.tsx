@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import { type ReactNode, type Ref } from 'react';
 import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
 
 import { radius, size, space, theme } from '@/shared/theme';
@@ -12,10 +12,12 @@ export type FieldProps = TextInputProps & {
   hint?: string;
   /** Кнопка внутри поля справа: показать пароль, очистить, выбрать единицу. */
   trailing?: ReactNode;
+  /** Ссылка на само поле: вернуть в него фокус, очистить, перевести ввод. */
+  ref?: Ref<TextInput>;
 };
 
 /** Поле ввода с подписью. Единственный способ спросить у человека текст. */
-export function Field({ label, hint, multiline, style, trailing, ...rest }: FieldProps) {
+export function Field({ label, hint, multiline, style, trailing, ref, ...rest }: FieldProps) {
   return (
     <Stack gap="xs">
       <Text variant="caption" tone="muted">
@@ -25,6 +27,7 @@ export function Field({ label, hint, multiline, style, trailing, ...rest }: Fiel
           начинает прыгать при появлении и исчезновении кнопки. */}
       <View>
         <TextInput
+          ref={ref}
           {...rest}
           multiline={multiline}
           placeholder={hint}

@@ -5,6 +5,7 @@
  */
 export const AUTH = {
   title: 'Welcome to 2Life',
+  registerTitle: 'Create an account',
   /** Подзаголовок меняется вместе с режимом: он и объясняет, где ты сейчас. */
   subtitle: {
     in: 'Your metrics, documents and protocols in one place.',
@@ -16,6 +17,7 @@ export const AUTH = {
   /** Ссылка внизу ведёт в другой режим и называет тот, куда ведёт. */
   switchTo: { in: 'I am new here — create an account', up: 'I already have an account' },
   or: 'or',
+  loginRule: '3 to 32 characters: latin letters, digits, dot, dash or underscore.',
   needBoth: { in: 'Enter a login and a password.', up: 'Pick a login and a password.' },
   showPassword: 'Show password',
   hidePassword: 'Hide password',
