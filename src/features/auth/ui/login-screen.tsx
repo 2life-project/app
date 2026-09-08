@@ -131,29 +131,24 @@ export function LoginScreen() {
           <View style={styles.line} />
         </View>
 
-        {/* Кнопки на месте, но нажать их нечем: обменять токен Apple или Google
-            сервер пока не умеет. Живая кнопка, которая ничего не делает, хуже
-            погашенной — по ней не понять, сломалось или так задумано. */}
+        {/* Кнопки живые, но обменять токен Apple или Google сервер пока не
+            умеет — нажатие честно об этом говорит. Погашенная кнопка молчит, и
+            по ней не понять, сломалось или так задумано. */}
         <Stack gap="sm">
           <Button
             label={AUTH.google}
             variant="tonal"
             tone="neutral"
-            disabled
-            icon={
-              <FontAwesome name="google" size={size.icon.md} color={theme.color.textDisabled} />
-            }
+            onPress={() => setError(AUTH.socialSoon)}
+            icon={<FontAwesome name="google" size={size.icon.md} color={theme.color.text} />}
           />
           <Button
             label={AUTH.apple}
             variant="tonal"
             tone="neutral"
-            disabled
-            icon={<FontAwesome name="apple" size={size.icon.md} color={theme.color.textDisabled} />}
+            onPress={() => setError(AUTH.socialSoon)}
+            icon={<FontAwesome name="apple" size={size.icon.md} color={theme.color.text} />}
           />
-          <Text variant="bodySmall" tone="muted" style={styles.center}>
-            {AUTH.socialSoon}
-          </Text>
         </Stack>
 
         <Text variant="bodySmall" tone="muted" style={styles.center}>
