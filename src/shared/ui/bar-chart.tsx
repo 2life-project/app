@@ -13,9 +13,19 @@ export type BarChartProps = {
   axis?: [string, string];
 };
 
+/** Доля высоты у пустого столбца: он остаётся засечкой на оси, а не столбцом. */
+const EMPTY_HEIGHT = 2;
+
+/** Минимум для непустого столбца: иначе единица на фоне тысячи исчезает вовсе. */
+const MIN_HEIGHT = 8;
+
 /**
  * Столбчатый график периода. Значения нормируются по максимуму — так столбцы
  * занимают всю высоту независимо от единиц измерения.
+ *
+ * Ноль рисуется засечкой, а не коротким столбцом: общий минимум высоты делал
+ * пустой час неотличимым от часа с парой шагов, и день из трёх прогулок
+ * выглядел как день сплошной активности.
  */
 export function BarChart({ values, highlightIndex, tone = 'success', axis }: BarChartProps) {
   const peak = Math.max(...values, 1);
@@ -29,9 +39,13 @@ export function BarChart({ values, highlightIndex, tone = 'success', axis }: Bar
             style={[
               styles.bar,
               {
-                height: `${Math.max(6, (value / peak) * 100)}%`,
+                height: `${value === 0 ? EMPTY_HEIGHT : Math.max(MIN_HEIGHT, (value / peak) * 100)}%`,
                 backgroundColor:
-                  index === highlightIndex ? theme.color[tone].solid : theme.color[tone].border,
+                  value === 0
+                    ? theme.color.border
+                    : index === highlightIndex
+                      ? theme.color[tone].solid
+                      : theme.color[tone].border,
               },
             ]}
           />

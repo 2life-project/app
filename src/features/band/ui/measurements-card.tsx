@@ -1,4 +1,6 @@
-import { Card, Stack, SummaryRow, Text } from '@/shared/ui';
+import { StyleSheet, View } from 'react-native';
+
+import { ActionLink, Card, Stack, SummaryRow, Text } from '@/shared/ui';
 
 import { seriesOf, type Point } from '../model/day-metrics';
 import type { BandState } from '../model/use-band';
@@ -11,7 +13,7 @@ import type { BandState } from '../model/use-band';
  * единственное число за ряд. Прочерк здесь тоже данные — он говорит, что
  * датчик сегодня не включался.
  */
-export function MeasurementsCard({ state }: { state: BandState }) {
+export function MeasurementsCard({ state, onOpen }: { state: BandState; onOpen: () => void }) {
   const rows = [
     row('Blood oxygen', unit(pick(state, 'bloodOxygen'), '%')),
     row('HRV', unit(pick(state, 'hrv'), ' ms')),
@@ -23,7 +25,10 @@ export function MeasurementsCard({ state }: { state: BandState }) {
   return (
     <Card variant="sunken">
       <Stack gap="sm">
-        <Text variant="subtitle">Measurements</Text>
+        <View style={styles.header}>
+          <Text variant="subtitle">Measurements</Text>
+          <ActionLink label="History" chevron onPress={onOpen} />
+        </View>
         {rows.map((item, index) => (
           <SummaryRow
             key={item.title}
@@ -69,3 +74,11 @@ function pressure(state: BandState): string {
     last(seriesOf(state.today, (s) => s.diastolic));
   return high && low ? `${high}/${low}` : '—';
 }
+
+const styles = StyleSheet.create({
+  header: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+});

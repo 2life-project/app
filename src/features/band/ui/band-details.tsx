@@ -3,18 +3,20 @@ import { Sheet } from '@/shared/ui';
 import type { BandState } from '../model/use-band';
 
 import { HeartDetail } from './heart-detail';
+import { MeasurementsDetail } from './measurements-detail';
 import { SleepDetail } from './sleep-detail';
 import { StressDetail } from './stress-detail';
 import { WalkDetail } from './walk-detail';
 
 /** Какой блок раскрыт. `null` — панель закрыта. */
-export type DetailKind = 'heart' | 'walk' | 'sleep' | 'stress' | null;
+export type DetailKind = 'heart' | 'walk' | 'sleep' | 'stress' | 'measurements' | null;
 
 const TITLES: Record<Exclude<DetailKind, null>, string> = {
   heart: 'Heart rate',
   walk: 'Walking',
   sleep: 'Sleep',
   stress: 'Stress',
+  measurements: 'Measurements',
 };
 
 /**
@@ -39,6 +41,7 @@ export function BandDetails({
       {kind === 'walk' ? <WalkDetail state={state} /> : null}
       {kind === 'sleep' ? <SleepDetail state={state} /> : null}
       {kind === 'stress' ? <StressDetail state={state} /> : null}
+      {kind === 'measurements' ? <MeasurementsDetail state={state} /> : null}
     </Sheet>
   );
 }

@@ -52,7 +52,7 @@ export function BandMetrics({
         {stress.length > 0 ? <ZoneBars zones={zonesOf(stress, STRESS_ZONES)} /> : null}
       </MetricCard>
 
-      <MeasurementsCard state={state} />
+      <MeasurementsCard state={state} onOpen={() => onOpen('measurements')} />
     </Stack>
   );
 }
