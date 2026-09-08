@@ -15,6 +15,7 @@ function publish() {
 }
 
 export function openThread(id: string): void {
+  if (chosen === id) return;
   chosen = id;
   publish();
 }

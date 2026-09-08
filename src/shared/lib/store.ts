@@ -26,7 +26,9 @@ export function usePersistentState<T>(key: string, initial: T): [T, (next: T) =>
     AsyncStorage.getItem(PREFIX + key)
       .then((raw) => {
         if (!alive) return;
-        if (raw !== null) setValue(JSON.parse(raw) as T);
+        // `loaded` уже true, если человек успел нажать до ответа диска:
+        // прочитанное старое значение затёрло бы его выбор.
+        if (raw !== null && !loaded.current) setValue(JSON.parse(raw) as T);
         loaded.current = true;
       })
       .catch((error: unknown) => {

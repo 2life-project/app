@@ -107,7 +107,9 @@ export function AddFoodScreen({ meal }: { meal: string }) {
     setFailed(null);
     try {
       const { items } = await analyzeText(text);
-      for (const item of items) await logMeal(date, meal as MealType, itemMacros(item));
+      // Параллельно, а не по одной: последовательные записи складываются в
+      // секунды ожидания, а человек всё это время смотрит на кнопку.
+      await Promise.all(items.map((item) => logMeal(date, meal as MealType, itemMacros(item))));
       const total = items.reduce((sum, item) => sum + item.calories, 0);
       setLogged({ calories: (logged?.calories ?? 0) + total, protein: 0, fat: 0, carbs: 0 });
       setQuery('');
@@ -180,7 +182,9 @@ export function AddFoodScreen({ meal }: { meal: string }) {
                     title={hit.name}
                     subtitle={[hit.brand, servingLabel(hit)].filter(Boolean).join(' · ')}
                     trailing={kcal(macros.calories)}
-                    onPress={() => void record(macros, 1)}
+                    // Пока запись идёт, строка не нажимается: два тапа подряд
+                    // записали бы один продукт дважды.
+                    onPress={busy ? undefined : () => void record(macros, 1)}
                   />
                 );
               })}

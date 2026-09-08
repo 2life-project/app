@@ -1,6 +1,6 @@
 import type { FoodHit, FoodItem } from '../api/food';
 
-import { left, mealGoal, portion, share, sum, itemMacros, NOTHING } from './food';
+import { itemMacros, mealGoal, portion } from './food';
 
 const hit = (extra: Partial<FoodHit>) =>
   ({ calories100g: 100, protein100g: 10, fat100g: 5, carbs100g: 20, ...extra }) as FoodHit;
@@ -12,17 +12,6 @@ describe('portion', () => {
 
   it('незаполненное поле продукта считаем нулём, а не роняем расчёт', () => {
     expect(portion(hit({ protein100g: null }), 100).protein).toBe(0);
-  });
-});
-
-describe('sum', () => {
-  it('пустой список даёт нули', () => {
-    expect(sum([])).toEqual(NOTHING);
-  });
-
-  it('складывает все четыре числа', () => {
-    const total = sum([portion(hit({}), 100), portion(hit({}), 100)]);
-    expect(total).toEqual({ calories: 200, protein: 20, fat: 10, carbs: 40 });
   });
 });
 
@@ -42,27 +31,5 @@ describe('mealGoal', () => {
 
   it('без дневной цели цели приёма тоже нет', () => {
     expect(mealGoal(null, 'lunch')).toBeNull();
-  });
-});
-
-describe('left', () => {
-  it('перебор показывается отрицательным, а не нулём', () => {
-    expect(left(2000, 2300)).toBe(-300);
-  });
-
-  it('без цели остатка не существует', () => {
-    expect(left(null, 500)).toBeNull();
-  });
-});
-
-describe('share', () => {
-  it('доля не выходит за отрезок', () => {
-    expect(share(1000, 500)).toBe(0.5);
-    expect(share(1000, 1500)).toBe(1);
-  });
-
-  it('без цели и при нулевой цели доли нет', () => {
-    expect(share(null, 100)).toBeNull();
-    expect(share(0, 100)).toBeNull();
   });
 });

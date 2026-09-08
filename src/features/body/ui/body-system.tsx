@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { useQuery } from '@/core/http/use-query';
+import { logger } from '@/core/log/logger';
 import { shortDay } from '@/shared/lib/day';
 import { to } from '@/shared/nav';
 import { space } from '@/shared/theme';
@@ -53,6 +54,7 @@ export function BodySystem({
     fetchSubsystem(section, date, timeZone, signal),
   );
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   const data = query.data;
   if (!data) return <Stack gap="md">{fallback}</Stack>;
@@ -66,6 +68,12 @@ export function BodySystem({
   return (
     <Stack gap="md">
       <DatePager label={`Today · ${shortDay(data.date)}`} />
+
+      {failed ? (
+        <Card variant="sunken">
+          <Text tone="danger">The ring metric did not save. Try again.</Text>
+        </Card>
+      ) : null}
 
       {empty ? (
         <>
@@ -143,8 +151,18 @@ export function BodySystem({
               subtitle={option.subtitle}
               selected={option.id === data.preferences.ringMetric}
               onPress={() => {
-                void saveRingMetric(data.preferences, option.id).then(() => query.refresh());
                 setPickerOpen(false);
+                setFailed(false);
+                saveRingMetric(data.preferences, option.id).then(
+                  () => query.refresh(),
+                  (failure: unknown) => {
+                    // Сервер принимает настройку только против той ревизии,
+                    // которую видел клиент: отказ здесь обычное дело, и
+                    // молчать о нём нельзя — кольцо просто вернётся назад.
+                    logger.error('Показатель кольца не сохранился', { failure });
+                    setFailed(true);
+                  },
+                );
               }}
             />
           ))}

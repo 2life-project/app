@@ -6,9 +6,17 @@ import type { Course, CourseSlot } from '../api/courses';
  */
 const WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
 
+/**
+ * Сервер нумерует дни с воскресенья (0), как это принято в JavaScript, а
+ * неделя у человека начинается с понедельника. Порядок показа считаем этой
+ * же функцией, иначе воскресенье уезжает в начало списка с подписью «Sun».
+ */
+export function weekdayOrder(dayOfWeek: number): number {
+  return (dayOfWeek + 6) % 7;
+}
+
 export function weekdayName(dayOfWeek: number): string {
-  // Сервер нумерует дни с воскресенья (0), как это принято в JavaScript.
-  return WEEK[(dayOfWeek + 6) % 7] ?? '—';
+  return WEEK[weekdayOrder(dayOfWeek)] ?? '—';
 }
 
 export type CourseDay = { day: number; title: string; slots: CourseSlot[] };
@@ -19,7 +27,7 @@ export function byDay(course: Course | null): CourseDay[] {
     days.set(slot.dayOfWeek, [...(days.get(slot.dayOfWeek) ?? []), slot]);
   }
   return [...days.entries()]
-    .sort((a, b) => a[0] - b[0])
+    .sort((a, b) => weekdayOrder(a[0]) - weekdayOrder(b[0]))
     .map(([day, slots]) => ({
       day,
       title: weekdayName(day),

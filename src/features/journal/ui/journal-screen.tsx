@@ -6,6 +6,7 @@ import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useQuery } from '@/core/http/use-query';
+import { logger } from '@/core/log/logger';
 import { longDay, useToday } from '@/shared/lib/day';
 import { usePersistentState } from '@/shared/lib/store';
 import { to } from '@/shared/nav';
@@ -29,6 +30,7 @@ import {
 
 import type { CalendarEvent, Layer } from '../api/contract';
 import { eventsKey, fetchEvents, fetchMonth, markDone, monthKey } from '../api/journal';
+import { AGENDA_DAYS, agendaEnd, firstWeekday, groupByDate, quickAddHref } from '../model/calendar';
 import {
   ALL_LAYERS,
   EMPTY_DAY,
@@ -47,8 +49,6 @@ const VIEWS = [
 
 type JournalView = (typeof VIEWS)[number]['value'];
 
-const AGENDA_DAYS = 7;
-
 export function JournalScreen() {
   const insets = useSafeAreaInsets();
   const { date, timeZone } = useToday();
@@ -57,6 +57,7 @@ export function JournalScreen() {
   const [view, setView] = useState<JournalView>('calendar');
   const [selected, setSelected] = useState(today ?? 1);
   const [layersOpen, setLayersOpen] = useState(false);
+  const [failed, setFailed] = useState(false);
   const [shown, setShown] = usePersistentState<Layer[]>('journal:layers', [...ALL_LAYERS]);
 
   const monthQuery = useQuery(monthKey(year ?? 0, month ?? 0, timeZone, shown.join()), (signal) =>
@@ -80,7 +81,10 @@ export function JournalScreen() {
   };
 
   const mark = (event: CalendarEvent) => {
-    void markDone(event, !isDone(event)).then(refresh);
+    markDone(event, !isDone(event)).then(refresh, (failure: unknown) => {
+      logger.error('Отметка события не сохранилась', { id: event.id, failure });
+      setFailed(true);
+    });
   };
 
   const events = dayQuery.data?.events ?? [];
@@ -137,6 +141,12 @@ export function JournalScreen() {
                 selected={selected}
                 onSelect={setSelected}
               />
+
+              {failed ? (
+                <Card variant="sunken">
+                  <Text tone="danger">The change did not save. Try again.</Text>
+                </Card>
+              ) : null}
 
               {events.length === 0 ? (
                 <>
@@ -259,38 +269,6 @@ export function JournalScreen() {
 }
 
 /** Куда ведёт быстрое добавление: у каждого пункта свой экран создания. */
-function quickAddHref(id: string) {
-  if (id === 'workout') return to.workout('new');
-  if (id === 'meal') return to.meal('new');
-  if (id === 'stack') return to.course('all');
-  return to.checkIn();
-}
-
-/** Первый день месяца по календарю: понедельник — 1, воскресенье — 7. */
-function firstWeekday(date: string): number {
-  const [year, month] = date.split('-').map(Number);
-  const at = new Date(Date.UTC(year ?? 1970, (month ?? 1) - 1, 1));
-  return ((at.getUTCDay() + 6) % 7) + 1;
-}
-
-function agendaEnd(date: string): string {
-  const [year, month, day] = date.split('-').map(Number);
-  const at = new Date(Date.UTC(year ?? 1970, (month ?? 1) - 1, day ?? 1));
-  at.setUTCDate(at.getUTCDate() + AGENDA_DAYS - 1);
-  return at.toISOString().slice(0, 10);
-}
-
-/** События приходят одним списком — в агенде их читают по дням. */
-function groupByDate(events: readonly CalendarEvent[]) {
-  const byDate = new Map<string, CalendarEvent[]>();
-  for (const event of events) {
-    const list = byDate.get(event.date) ?? [];
-    list.push(event);
-    byDate.set(event.date, list);
-  }
-  return [...byDate.entries()].map(([date, list]) => ({ date, events: list }));
-}
-
 const LAYER_DOT = 9;
 const QUICK_ICON = 32;
 

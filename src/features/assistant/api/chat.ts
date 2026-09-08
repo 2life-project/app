@@ -1,4 +1,5 @@
 import { request } from '@/core/http/client';
+import { requestId } from '@/shared/lib/id';
 
 import type { ChatMessages, ChatThread, ChatThreads } from './contract';
 
@@ -20,7 +21,10 @@ export function fetchMessages(threadId: string, signal?: AbortSignal): Promise<C
 }
 
 export function createThread(): Promise<ChatThread> {
-  return request<ChatThread>('/api/chat/sessions', { method: 'POST', body: {} });
+  return request<ChatThread>('/api/chat/sessions', {
+    method: 'POST',
+    body: { requestId: requestId() },
+  });
 }
 
 /**
@@ -34,6 +38,9 @@ export function sendMessage(
   return request<unknown>('/api/chat', {
     method: 'POST',
     body: {
+      // Клиент повторяет запрос после продления ключа: без ключа
+      // идемпотентности та же реплика уйдёт в диалог дважды.
+      requestId: requestId(),
       sessionId: threadId,
       messages: history.map((message) => ({ role: message.role, content: message.content })),
     },

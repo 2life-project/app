@@ -219,9 +219,15 @@ function inHours(hours: number): string {
   return at.toISOString();
 }
 
+/**
+ * Ближайший момент с этим часом. Если он на сегодня уже прошёл — берём
+ * завтрашний: отложить «на вечер» в половину одиннадцатого значит отложить в
+ * прошлое, и сервер такое либо отвергнет, либо покажет решение сразу же.
+ */
 function atHour(hour: number, addDays = 0): string {
   const at = new Date();
   at.setDate(at.getDate() + addDays);
   at.setHours(hour, 0, 0, 0);
+  if (at.getTime() <= Date.now()) at.setDate(at.getDate() + 1);
   return at.toISOString();
 }

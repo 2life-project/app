@@ -117,33 +117,6 @@ export function recoverOf(data: HomeData): SystemView {
   };
 }
 
-export function fuelOf(data: HomeData): SystemView {
-  const nutrition = nutritionOf(data);
-  const goals = nutrition?.goals;
-
-  return {
-    title: 'Fuel',
-    ring: {
-      value: fuelFill(nutrition),
-      valueLabel: text(nutrition?.totals.calories, 'kcal'),
-      tone: serverTone(nutrition?.insight.tone),
-    },
-    tiles: [
-      {
-        label: 'PROTEIN',
-        value: text(nutrition?.totals.protein, 'g'),
-        unit: 'g',
-        note: goals?.protein ? `of ${formatNumber(goals.protein, 'g')}` : undefined,
-      },
-      {
-        label: 'LEFT',
-        value: text(nutrition?.remainingCalories, 'kcal'),
-        unit: 'kcal',
-      },
-    ],
-  };
-}
-
 export function moveOf(data: HomeData): SystemView {
   const movement = movementOf(data);
   const metrics = movement?.metrics;

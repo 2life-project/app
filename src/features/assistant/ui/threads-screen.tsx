@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 
 import { useQuery } from '@/core/http/use-query';
-import { shortDay } from '@/shared/lib/day';
+import { dayOf, shortDay } from '@/shared/lib/day';
 import { ActionLink, ListRow, SheetBody, Text } from '@/shared/ui';
 
 import { fetchThreads } from '../api/chat';
@@ -31,7 +31,7 @@ export function ThreadsScreen() {
           // Названия у ветки нет — сервер отдаёт последнюю реплику, и она
           // говорит о содержании больше любого придуманного заголовка.
           title={thread.lastMessage ?? 'Empty thread'}
-          subtitle={shortDay(new Date(thread.updatedAt).toISOString().slice(0, 10))}
+          subtitle={shortDay(dayOf(thread.updatedAt))}
           onPress={() => {
             openThread(thread.id);
             router.back();

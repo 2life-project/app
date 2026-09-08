@@ -106,5 +106,9 @@ export const GOALS = [
   },
 ] as const;
 
+/** Что такое протокол — на экране, где его целей может не быть вовсе. */
+export const PROTOCOL_NOTE =
+  'A protocol is a set of rules and the goals they move. The goals below come from the server; the rules are not described in the contract yet.';
+
 export const PROTOCOLS_VS_GOALS =
   'A goal is where you want a number to be. A protocol is the plan that moves it — and the only thing you actually do every day.';

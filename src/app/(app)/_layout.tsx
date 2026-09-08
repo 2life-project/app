@@ -1,6 +1,6 @@
 import Feather from '@expo/vector-icons/Feather';
 import { Redirect, router, Stack, usePathname } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { useSession } from '@/core/auth';
 import { AssistantScreenOptions } from '@/features/assistant';
@@ -35,9 +35,16 @@ export default function AppLayout() {
   const session = useSession();
   const pathname = usePathname();
 
-  // Пока читаем ключ из Keychain, не показываем ни приложение, ни вход:
-  // вошедший увидел бы форму входа и решил, что его выкинуло.
-  if (session.status === 'restoring') return <View style={styles.root} />;
+  // Пока читаем ключ из Keychain и меняем его на сервере, не показываем ни
+  // приложение, ни вход: вошедший увидел бы форму входа и решил, что его
+  // выкинуло. Но и пустой экран показывать нельзя — он неотличим от зависшего.
+  if (session.status === 'restoring') {
+    return (
+      <View style={styles.splash}>
+        <ActivityIndicator color={theme.color.accent.text} />
+      </View>
+    );
+  }
   if (session.status === 'anonymous') return <Redirect href={to.login()} />;
 
   return (
@@ -82,5 +89,11 @@ export default function AppLayout() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.color.background },
+  splash: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.color.background,
+  },
   assistant: { position: 'absolute', right: space.lg, bottom: 108 },
 });

@@ -12,11 +12,13 @@ describe('authMessage', () => {
   });
 
   it('тело приходит строкой — код всё равно читается', () => {
-    expect(authMessage(fail('{"error":"username_taken"}'), 'x')).toBe(AUTH.loginTaken);
+    expect(authMessage(fail('{"error":"invalid_username"}'), 'x')).toBe(AUTH.badUsername);
   });
 
   it('незнакомый код не выдумываем — отдаём общую строку', () => {
     expect(authMessage(fail({ error: 'quota_exceeded_v7' }), 'общая')).toBe('общая');
+    // Коды, которых сервер нам не присылал, в таблице отсутствуют намеренно.
+    expect(authMessage(fail({ error: 'username_taken' }), 'общая')).toBe('общая');
   });
 
   it('битое или чужое тело не роняет разбор', () => {

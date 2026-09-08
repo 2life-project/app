@@ -1,6 +1,5 @@
 export { setPairedBand, useBandConnected, usePairedBand, type PairedBand } from './connection';
 export {
-  acceptsManualEntry,
   availability,
   coverageRatio,
   isStale,

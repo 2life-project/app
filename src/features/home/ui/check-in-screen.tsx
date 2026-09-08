@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { StyleSheet, TextInput } from 'react-native';
 
 import { useQuery } from '@/core/http/use-query';
+import { logger } from '@/core/log/logger';
 import { useToday } from '@/shared/lib/day';
 import { radius, space, theme } from '@/shared/theme';
 import {
@@ -32,6 +33,7 @@ export function CheckInScreen() {
   const [edits, setEdits] = useState<Record<string, number>>({});
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   const query = useQuery(checkinKey(date, timeZone, form), (signal) =>
     fetchCheckin(date, timeZone, form, signal),
@@ -48,8 +50,15 @@ export function CheckInScreen() {
     const jobs: Promise<unknown>[] = [saveCheckin(checkin, edits, at)];
     if (note.trim()) jobs.push(createNote(note.trim(), at, timeZone));
 
-    void Promise.all(jobs)
+    setFailed(false);
+    Promise.all(jobs)
       .then(() => router.back())
+      .catch((failure: unknown) => {
+        // Ответы человека остаются на экране: уходить с него при отказе
+        // значит потерять написанное без единого слова.
+        logger.error('Чек-ин не сохранился', { failure });
+        setFailed(true);
+      })
       .finally(() => setSaving(false));
   };
 
@@ -130,6 +139,10 @@ export function CheckInScreen() {
                 />
               </Stack>
             </Card>
+
+            {failed ? (
+              <Text tone="danger">It did not save. Your answers are still here.</Text>
+            ) : null}
 
             <Button
               label={saving ? 'Saving…' : 'Save the check-in'}

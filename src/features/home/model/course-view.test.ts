@@ -56,3 +56,13 @@ describe('isRunning', () => {
     expect(isRunning(course({ isActive: false }), '2026-09-08')).toBe(false);
   });
 });
+
+describe('порядок дней', () => {
+  it('воскресенье идёт последним, а не первым', () => {
+    const course = {
+      schedule: [slot({ dayOfWeek: 0, timeLabel: 'вс' }), slot({ dayOfWeek: 1, timeLabel: 'пн' })],
+    } as unknown as Course;
+
+    expect(byDay(course).map((d) => d.title)).toEqual(['Mon', 'Sun']);
+  });
+});

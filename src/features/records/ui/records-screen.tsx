@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
 import { useQuery } from '@/core/http/use-query';
-import { shortDay } from '@/shared/lib/day';
+import { dayOf, shortDay } from '@/shared/lib/day';
 import { to } from '@/shared/nav';
 import { radius, size, space, theme } from '@/shared/theme';
 import {
@@ -66,9 +66,7 @@ export function RecordsScreen() {
 function subtitle(markers: number, documents: readonly DocumentRow[]): string {
   if (markers === 0 && documents.length === 0) return 'loading…';
   const last = [...documents].sort((a, b) => b.uploadedAt - a.uploadedAt)[0];
-  const when = last
-    ? ` · last upload ${shortDay(new Date(last.uploadedAt).toISOString().slice(0, 10))}`
-    : '';
+  const when = last ? ` · last upload ${shortDay(dayOf(last.uploadedAt))}` : '';
   return `${documents.length} documents · ${markers} markers${when}`;
 }
 
@@ -177,7 +175,7 @@ function Documents({
             key={document.id}
             leading={<DocumentIcon />}
             title={document.originalFilename}
-            subtitle={`${shortDay(new Date(document.uploadedAt).toISOString().slice(0, 10))} · ${document.parseStatus}`}
+            subtitle={`${shortDay(dayOf(document.uploadedAt))} · ${document.parseStatus}`}
             onPress={() => router.push(to.lab(document.id))}
           />
         ))}

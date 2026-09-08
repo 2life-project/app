@@ -10,13 +10,14 @@ import { AUTH } from './copy';
  * Незнакомый код превращается в общую строку: выдумывать смысл кода, которого
  * мы не видели, нельзя.
  */
+/**
+ * Только те коды, которые сервер действительно присылал. Остальные добавятся,
+ * когда бэк опишет список — до тех пор незнакомый код даёт общую строку, а
+ * догадка о его смысле показала бы человеку неверную причину отказа.
+ */
 const MESSAGES: Record<string, string> = {
   invalid_credentials: AUTH.wrongPair,
   invalid_username: AUTH.badUsername,
-  invalid_password: AUTH.badPassword,
-  weak_password: AUTH.badPassword,
-  username_taken: AUTH.loginTaken,
-  user_exists: AUTH.loginTaken,
 };
 
 export function authMessage(failure: unknown, fallback: string): string {

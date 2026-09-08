@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import { useQuery } from '@/core/http/use-query';
+import { logger } from '@/core/log/logger';
 import {
   availability,
   baselineText,
@@ -43,6 +44,7 @@ export function MetricScreen({ id }: { id: string }) {
   const [entering, setEntering] = useState(false);
   const [input, setInput] = useState('');
   const [failed, setFailed] = useState(false);
+  const [saving, setSaving] = useState(false);
   const start = rangeStart(date, range);
 
   const query = useQuery(metricKey(id, start, date, timeZone), (signal) =>
@@ -141,14 +143,23 @@ export function MetricScreen({ id }: { id: string }) {
           title={`Add ${metric.name.toLowerCase()}`}
           action={
             <ActionLink
-              label="Save"
-              disabled={manualError(metric, input) !== null}
+              label={saving ? 'Saving…' : 'Save'}
+              disabled={saving || manualError(metric, input) !== null}
               onPress={() => {
-                setEntering(false);
-                saveMeasurement(metric, manualValue(input), timeZone).then(
-                  () => query.refresh(),
-                  () => setFailed(true),
-                );
+                // Шит закрываем только после ответа: сообщение об отказе живёт
+                // внутри него, и закрытие раньше времени уносило бы его с собой.
+                setFailed(false);
+                setSaving(true);
+                saveMeasurement(metric, manualValue(input), timeZone)
+                  .then(() => {
+                    setEntering(false);
+                    query.refresh();
+                  })
+                  .catch((failure: unknown) => {
+                    logger.error('Измерение не записалось', { key: metric.key, failure });
+                    setFailed(true);
+                  })
+                  .finally(() => setSaving(false));
               }}
             />
           }>

@@ -43,6 +43,13 @@ let access: string | null = null;
 let refreshToken: string | null = null;
 let state: SessionState = { status: 'restoring' };
 let inflight: Promise<boolean> | null = null;
+/**
+ * Поколение сессии. Растёт на каждом выходе и на каждой неудаче обмена.
+ * Ответ обмена, начатого до выхода, приходит уже в другое поколение — и его
+ * нельзя применять: иначе выход молча отменяется, а ключ возвращается в
+ * Keychain, хотя человек только что вышел.
+ */
+let generation = 0;
 
 const listeners = new Set<() => void>();
 
@@ -70,7 +77,9 @@ export async function restoreSession(): Promise<void> {
   try {
     refreshToken = await SecureStore.getItemAsync(REFRESH_KEY);
   } catch (failure) {
-    logger.warn('Хранилище ключей недоступно', { failure });
+    // Без Keychain человек будет входить заново каждый запуск, и без записи
+    // в лог причина остаётся неизвестной: warn в релизе не пишется.
+    logger.error('Хранилище ключей недоступно', { failure });
   }
 
   if (refreshToken === null) {
@@ -97,6 +106,7 @@ export async function register(
 
 export async function signOut(): Promise<void> {
   const token = refreshToken;
+  generation += 1;
   access = null;
   refreshToken = null;
   publish({ status: 'anonymous' });
@@ -123,11 +133,20 @@ export function refreshSession(): Promise<boolean> {
 
 async function exchange(): Promise<boolean> {
   if (refreshToken === null) return false;
+  const started = generation;
   try {
-    await keep(await post<Tokens>('/api/v2/auth/refresh', { refreshToken }));
+    const tokens = await post<Tokens>('/api/v2/auth/refresh', { refreshToken });
+    // Пока ходили за ключом, человек мог выйти. Применить ответ значит вернуть
+    // его в аккаунт и записать ключ обратно на диск.
+    if (started !== generation) return false;
+    await keep(tokens);
     return true;
   } catch (failure) {
-    logger.warn('Сессию продлить не удалось', { failure });
+    // Провал обмена — это конец сессии, а не отладочный шум: в релизе
+    // logger.warn не пишется вовсе, и причина выхода потерялась бы.
+    logger.error('Сессию продлить не удалось', { failure });
+    if (started !== generation) return false;
+    generation += 1;
     access = null;
     refreshToken = null;
     await SecureStore.deleteItemAsync(REFRESH_KEY).catch(() => undefined);

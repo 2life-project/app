@@ -129,11 +129,6 @@ export function availability(metric: MetricValue): MetricAvailability {
   return 'missing';
 }
 
-/** Ввод руками предлагают только там, где сервер его принимает. */
-export function acceptsManualEntry(metric: MetricValue): boolean {
-  return metric.manual?.allowed === true;
-}
-
 export function isStale(metric: MetricValue): boolean {
   return metric.freshness?.stale ?? metric.stale ?? false;
 }

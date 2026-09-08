@@ -1,4 +1,4 @@
-import { dayIn, longDay, shortDay, weekdayOf } from './day';
+import { dayIn, dayOf, longDay, shortDay, weekdayOf } from './day';
 
 describe('день в часовом поясе', () => {
   // Полночь по Москве — это ещё вчера по UTC. Запрос за «сегодня» обязан
@@ -25,5 +25,19 @@ describe('вид даты', () => {
   it('нераспознанная дата возвращается как есть, а не превращается в NaN', () => {
     expect(shortDay('')).toBe('');
     expect(weekdayOf('')).toBe('');
+  });
+});
+
+describe('dayOf', () => {
+  it('день считается в поясе устройства, а не в UTC', () => {
+    // 8 сентября 23:30 в Москве — это 20:30 UTC того же дня, но 9 сентября
+    // 00:30 в Токио: без пояса документ показался бы завтрашним.
+    const at = Date.UTC(2026, 8, 8, 20, 30);
+    expect(dayOf(at, 'Europe/Moscow')).toBe('2026-09-08');
+    expect(dayOf(at, 'Asia/Tokyo')).toBe('2026-09-09');
+  });
+
+  it('битый момент времени не роняет разбор', () => {
+    expect(dayOf('не дата', 'Europe/Moscow')).toBe('');
   });
 });

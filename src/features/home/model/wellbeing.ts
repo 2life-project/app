@@ -1,6 +1,6 @@
 import { formatNumber, NO_VALUE } from '@/shared/domain';
 
-import type { CheckinAnswer, Checkin } from '../api/checkin';
+import type { Checkin } from '../api/checkin';
 import type { HomeData, WellbeingData } from '../api/contract';
 
 import { dataOf, serverTone, type StatusTone } from './section';
@@ -58,11 +58,6 @@ export function wellbeingOf(home: HomeData): WellbeingView | null {
       actions: recommendation.actions,
     },
   };
-}
-
-/** Ответ показывают против его собственной шкалы — она едет вместе с ответом. */
-export function answerText(answer: CheckinAnswer | null): string {
-  return answer === null ? NO_VALUE : `${formatNumber(answer.value, 'score')} of ${answer.maximum}`;
 }
 
 export function checkinCaption(checkin: Checkin | null): string | undefined {

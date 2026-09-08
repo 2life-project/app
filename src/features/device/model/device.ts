@@ -157,6 +157,10 @@ export const PAIRING = {
       'Without permission to search the list stays empty — grant it in the system settings.',
     scan: 'The search stopped. Try again.',
     connect: 'The band did not answer. Bring it closer and try again.',
+    // Список показывает всё, что рядом: признака нашего браслета в эфире мы
+    // не знаем. Проверка после подключения — единственный способ не запомнить
+    // телевизор как браслет.
+    notBand: 'That device is not a band — it does not report a battery. Pick another one.',
   } as Record<string, string>,
   note: 'Only the band is remembered, on this phone. Measurements are not read yet — that needs the band protocol.',
 } as const;

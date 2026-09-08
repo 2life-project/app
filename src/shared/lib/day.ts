@@ -86,3 +86,12 @@ export function weekdayOf(date: string): string {
   const at = new Date(Date.UTC(parts.year, parts.month - 1, parts.day));
   return WEEKDAYS[at.getUTCDay()] ?? '';
 }
+
+/**
+ * День момента времени в поясе устройства. `toISOString()` даёт UTC, и
+ * загруженное в 23:30 показывалось бы завтрашним числом.
+ */
+export function dayOf(at: number | string, timeZone = deviceTimeZone()): string {
+  const date = new Date(at);
+  return Number.isNaN(date.getTime()) ? '' : dayIn(timeZone, date);
+}

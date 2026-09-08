@@ -30,9 +30,6 @@ export function mealGoal(dailyGoal: number | null, meal: MealType): number | nul
 
 export type Macros = { calories: number; protein: number; fat: number; carbs: number };
 
-export const NOTHING: Macros = { calories: 0, protein: 0, fat: 0, carbs: 0 };
-
-/** Продукт из поиска, пересчитанный на съеденные граммы. */
 export function portion(hit: FoodHit, grams: number): Macros {
   const scale = grams / 100;
   return {
@@ -43,19 +40,6 @@ export function portion(hit: FoodHit, grams: number): Macros {
   };
 }
 
-export function sum(items: readonly Macros[]): Macros {
-  return items.reduce(
-    (total, item) => ({
-      calories: total.calories + item.calories,
-      protein: total.protein + item.protein,
-      fat: total.fat + item.fat,
-      carbs: total.carbs + item.carbs,
-    }),
-    NOTHING,
-  );
-}
-
-/** Разобранная позиция из фото или текста — уже в граммах, пересчёт не нужен. */
 export function itemMacros(item: FoodItem): Macros {
   return {
     calories: item.calories,
@@ -63,24 +47,6 @@ export function itemMacros(item: FoodItem): Macros {
     fat: item.fat,
     carbs: item.carbs,
   };
-}
-
-/**
- * Сколько осталось до цели. Отрицательное значение не прячем: перебор — это
- * тоже факт дня, и «0 осталось» вместо «−300» скрыл бы его.
- */
-export function left(goal: number | null, eaten: number): number | null {
-  return goal === null ? null : goal - eaten;
-}
-
-/** Доля цели, 0–1. Без цели доли нет: считать её от нуля нечестно. */
-export function share(goal: number | null, eaten: number): number | null {
-  if (goal === null || goal <= 0) return null;
-  return Math.min(1, Math.max(0, eaten / goal));
-}
-
-export function grams(value: number): string {
-  return `${Math.round(value)} g`;
 }
 
 export function kcal(value: number): string {

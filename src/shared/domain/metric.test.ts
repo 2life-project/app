@@ -1,5 +1,4 @@
 import {
-  acceptsManualEntry,
   availability,
   coverageRatio,
   isThin,
@@ -97,13 +96,6 @@ describe('состояние метрики', () => {
     ).toBe('unavailable');
   });
 
-  it('ввод руками предлагают только там, где сервер его принимает', () => {
-    expect(acceptsManualEntry(weight)).toBe(true);
-    expect(acceptsManualEntry(empty)).toBe(false);
-  });
-});
-
-describe('доверие к числу', () => {
   it('покрытие считается от ожидаемых дней', () => {
     expect(coverageRatio(weight)).toBe(1);
     expect(coverageRatio(empty)).toBe(0);

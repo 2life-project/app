@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { State } from 'react-native-ble-plx';
 
 import { ble, isReady, requestScanPermission } from '@/core/ble';
@@ -32,6 +32,8 @@ export function useBand() {
   const [found, setFound] = useState<readonly Found[]>([]);
   const [link, setLink] = useState<BandLink>(EMPTY_LINK);
   const [error, setError] = useState<string | null>(null);
+  /** Таймер остановки поиска: его надо снять при уходе с экрана. */
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Состояние радио читаем подпиской, а не разово: человек включает Bluetooth
   // прямо на этом экране, и список должен ожить сам.
@@ -62,26 +64,50 @@ export function useBand() {
 
     // Поиск сам себя останавливает: работающий радиоприёмник ест батарею
     // телефона, а браслет находится за секунды.
-    setTimeout(() => {
+    timer.current = setTimeout(() => {
       ble().stopDeviceScan();
       setScanning(false);
     }, SCAN_SECONDS * 1000);
   }, []);
 
   const stop = useCallback(() => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
     ble().stopDeviceScan();
     setScanning(false);
   }, []);
+
+  // Уходя с экрана, гасим радио: работающий приёмник ест батарею телефона, а
+  // сработавший позже таймер трогал бы состояние размонтированного экрана.
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+      ble().stopDeviceScan();
+    },
+    [],
+  );
 
   const pair = useCallback(
     async (device: Found) => {
       stop();
       setError(null);
       try {
-        await ble().connectToDevice(device.id);
+        // Признака нашего браслета в эфире мы не знаем, поэтому в списке
+        // видно всё подряд — телевизор, наушники, весы. Убедиться, что это
+        // носимое устройство, можно только спросив его: браслет отдаёт заряд
+        // по стандартной службе, а телевизор — нет. Без этой проверки в
+        // Keychain лёг бы чужой прибор, и Главная сказала бы «браслет
+        // привязан».
+        const link = await read(device.id);
+        if (link.battery === null) {
+          logger.error('Устройство не похоже на браслет', { id: device.id, name: device.name });
+          setError('notBand');
+          return;
+        }
         setPairedBand({ id: device.id, name: device.name, pairedAt: new Date().toISOString() });
+        setLink(link);
       } catch (failure) {
-        logger.warn('Не подключились к браслету', { id: device.id, failure });
+        logger.error('Не подключились к браслету', { id: device.id, failure });
         setError('connect');
       }
     },

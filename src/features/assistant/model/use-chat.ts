@@ -6,6 +6,7 @@ import { logger } from '@/core/log/logger';
 import { createThread, fetchMessages, fetchThreads, messagesKey, sendMessage } from '../api/chat';
 
 import { latestThread, shownMessages, type Shown } from './thread';
+import { openThread, useChosenThread } from './thread-choice';
 
 /**
  * Диалог с ассистентом. Ветку выбираем сами: сервер их хранит списком, а
@@ -16,7 +17,9 @@ import { latestThread, shownMessages, type Shown } from './thread';
  * Настоящую ленту вернёт сервер — своя лишь закрывает ожидание.
  */
 export function useChat() {
-  const [threadId, setThreadId] = useState<string | null>(null);
+  // Ветку выбирают в панели истории — это отдельный маршрут, и передать ему
+  // состояние экрана нельзя. Выбор живёт в общем факте, экран за ним следит.
+  const threadId = useChosenThread();
   const [pending, setPending] = useState<Shown[]>([]);
   const [asking, setAsking] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -36,11 +39,13 @@ export function useChat() {
 
     setAsking(true);
     setFailed(false);
-    setPending([{ id: `pending:${Date.now()}`, side: 'you', text }]);
+    // Неотправленные реплики копятся, а не затирают друг друга: иначе
+    // предыдущий неудавшийся вопрос исчезал бы из ленты без предупреждения.
+    setPending([...pending, { id: `pending:${Date.now()}`, side: 'you', text }]);
 
     try {
       const id = current ?? (await createThread()).id;
-      if (current === null) setThreadId(id);
+      if (current === null) openThread(id);
 
       await sendMessage(id, [
         ...(history.data?.messages ?? []).map((m) => ({ role: m.role, content: m.content })),
@@ -57,13 +62,6 @@ export function useChat() {
     }
   };
 
-  const start = () => {
-    setThreadId(null);
-    setPending([]);
-    setFailed(false);
-    threads.refresh();
-  };
-
   return {
     messages,
     threads: threads.data?.sessions ?? [],
@@ -71,10 +69,5 @@ export function useChat() {
     asking,
     failed,
     ask,
-    start,
-    open: (id: string) => {
-      setThreadId(id);
-      setPending([]);
-    },
   };
 }

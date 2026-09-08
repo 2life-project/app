@@ -1,4 +1,5 @@
 import { request } from '@/core/http/client';
+import { requestId } from '@/shared/lib/id';
 
 /**
  * Питание. Формы взяты из спеки — здесь она их описывает, в отличие от
@@ -71,6 +72,9 @@ export function logMeal(
   return request('/api/daily/' + encodeURIComponent(date) + '/meal', {
     method: 'POST',
     body: {
+      // Клиент повторяет запрос после продления ключа, а человек может нажать
+      // дважды: без ключа идемпотентности это два одинаковых приёма в дне.
+      requestId: requestId(),
       mealType: meal,
       time: new Date().toISOString(),
       calories: Math.round(item.calories),
