@@ -74,7 +74,9 @@ export function ListRow({
           ) : null}
         </View>
       ) : null}
-      {onPress ? (
+      {/* Шеврон обещает переход. Строка с переключателем никуда не ведёт —
+          нажатие на неё переключает, и стрелка соврала бы. */}
+      {onPress && !trailingSlot ? (
         <Feather name="chevron-right" size={size.icon.md} color={theme.color.textDisabled} />
       ) : null}
     </View>

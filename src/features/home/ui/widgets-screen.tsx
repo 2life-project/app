@@ -101,6 +101,9 @@ export function WidgetsScreen() {
                   key={widget.type}
                   title={WIDGET_TITLES[widget.type] ?? widget.type}
                   subtitle={widget.type}
+                  // Переключает вся строка, а не только тумблер: 51 точка
+                  // против всей ширины — промахнуться мимо строки нельзя.
+                  onPress={() => toggle(widget.type, !shown.has(widget.type))}
                   trailingSlot={
                     <Toggle
                       value={shown.has(widget.type)}
