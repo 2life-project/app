@@ -50,6 +50,8 @@ export class BandTransport {
   private notifications: Subscription | null = null;
   private disconnection: Subscription | null = null;
   private readonly lost = new Set<() => void>();
+  /** Связь потеряна: дальше нет смысла ни писать, ни ждать ответа. */
+  private gone = false;
   private waiter: Waiter | null = null;
   private queue: Promise<unknown> = Promise.resolve();
   private lastWrite = 0;
@@ -67,10 +69,7 @@ export class BandTransport {
   async start(): Promise<void> {
     if (this.notifications) return;
 
-    this.disconnection = this.device.onDisconnected(() => {
-      this.failWaiter(new Error('связь с браслетом разорвана'));
-      for (const listener of this.lost) listener();
-    });
+    this.disconnection = this.device.onDisconnected(() => this.declareLost());
 
     this.notifications = this.device.monitorCharacteristicForService(
       SERVICE,
@@ -88,6 +87,7 @@ export class BandTransport {
   }
 
   async stop(): Promise<void> {
+    this.gone = true;
     this.notifications?.remove();
     this.notifications = null;
     this.disconnection?.remove();
@@ -243,13 +243,47 @@ export class BandTransport {
   }
 
   private async write(frame: Uint8Array): Promise<void> {
+    // Раз связи нет, остальные команды пачки отвечать не начнут: без этой
+    // проверки одно обновление данных давало семь одинаковых отказов подряд —
+    // по строке на каждый показатель.
+    if (this.gone) throw new Error('связь с браслетом потеряна');
+
     const since = Date.now() - this.lastWrite;
     if (since < WRITE_GAP_MS) await delay(WRITE_GAP_MS - since);
 
     logger.debug('band ->', { frame: hex(frame) });
-    await this.device.writeCharacteristicWithoutResponseForService(SERVICE, WRITE, toBase64(frame));
+    try {
+      await this.device.writeCharacteristicWithoutResponseForService(
+        SERVICE,
+        WRITE,
+        toBase64(frame),
+      );
+    } catch (failure) {
+      // Отказ «устройство не подключено» — приговор сеансу, а не одной команде.
+      // Через эту запись проходит каждая команда, поэтому связь объявляется
+      // потерянной здесь: иначе экран остаётся «подключённым», а всё, что на
+      // нём нажимают, молча уходит в закрытое соединение.
+      if (isLostConnection(failure)) this.declareLost();
+      throw failure;
+    }
     this.lastWrite = Date.now();
   }
+
+  private declareLost(): void {
+    if (this.gone) return;
+    this.gone = true;
+    this.failWaiter(new Error('связь с браслетом потеряна'));
+    for (const listener of this.lost) listener();
+  }
+}
+
+/** Ошибка означает, что связи больше нет, а не что команда не удалась. */
+function isLostConnection(failure: unknown): boolean {
+  if (!(failure instanceof BleError)) return false;
+  return (
+    failure.errorCode === BleErrorCode.DeviceNotConnected ||
+    failure.errorCode === BleErrorCode.DeviceDisconnected
+  );
 }
 
 function hex(bytes: Uint8Array): string {
