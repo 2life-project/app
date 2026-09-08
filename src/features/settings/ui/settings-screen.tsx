@@ -2,7 +2,8 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { signOut } from '@/core/auth';
+import { signOut, useSession } from '@/core/auth';
+import { useQuery } from '@/core/http/use-query';
 import { setPairedBand } from '@/shared/domain';
 import { clearStore, usePersistentState } from '@/shared/lib/store';
 import { to } from '@/shared/nav';
@@ -23,6 +24,8 @@ import {
   Text,
 } from '@/shared/ui';
 
+import { fetchProfile } from '../api/settings';
+import { displayName, initials, memberSince } from '../model/profile';
 import {
   ADD_DEVICE,
   RESET,
@@ -47,6 +50,8 @@ export const SettingsScreenOptions = { headerShown: false };
 
 /** Настройки: профиль, источники данных, приложение, данные, аккаунт. */
 export function SettingsScreen() {
+  const session = useSession();
+  const profile = useQuery('profile', (signal) => fetchProfile(signal));
   const [choice, setChoice] = useState<string | null>(null);
   const [picked, setPicked] = usePersistentState<Record<string, string>>('settings', {});
   const [confirm, setConfirm] = useState<string | null>(null);
@@ -59,6 +64,11 @@ export function SettingsScreen() {
   };
 
   const sheet = choice ? SETTINGS_CHOICES[choice] : undefined;
+  const user = session.status === 'signed' ? session.user : null;
+  const name = displayName(profile.data?.profile ?? null, user);
+  const since = memberSince(profile.data?.profile ?? null);
+  /** Статус подписки приходит в самом ключе доступа — отдельной ручки нет. */
+  const plan = user?.subscriptionStatus === 'active' ? PROFILE.plan : null;
 
   return (
     <Screen>
@@ -72,16 +82,18 @@ export function SettingsScreen() {
           <View style={styles.profile}>
             <View style={styles.avatar}>
               <Text variant="subtitle" tone="onHighlight">
-                {PROFILE.initials}
+                {initials(name)}
               </Text>
             </View>
             <View style={styles.identity}>
-              <Text variant="subtitle">{PROFILE.name}</Text>
+              <Text variant="subtitle">{name}</Text>
+              {/* Дату показываем только у заполненного профиля: у пустого
+                  сервер отдаёт значения по умолчанию, и она ничего не значит. */}
               <Text variant="bodySmall" tone="muted">
-                {PROFILE.since}
+                {since ? `with 2Life since ${since}` : (user?.username ?? '')}
               </Text>
             </View>
-            <Tag label={PROFILE.plan} tone="accent" />
+            {plan ? <Tag label={plan} tone="accent" /> : null}
           </View>
         </Card>
 
