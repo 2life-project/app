@@ -1,3 +1,5 @@
+import type { VitalGroup } from '@/shared/domain';
+
 /**
  * Четыре системы тела по единому шаблону. Содержимое из макета: у каждой своё
  * кольцо, сводка, живые показатели и два графика.
@@ -20,3 +22,16 @@ export const NO_DATA = {
   connect: 'Connect a device',
   manual: 'Enter a measurement by hand',
 } as const;
+
+/**
+ * Какая группа показаний браслета относится к системе.
+ *
+ * Состав тела браслету неизвестен: вес и доли человек вводит сам или получает
+ * с весов, а устройство их не меряет — подставлять туда что-то с руки нельзя.
+ */
+export function bandGroupOf(section: string): VitalGroup | null {
+  if (section === 'heart') return 'heart';
+  if (section === 'breathing') return 'breathing';
+  if (section === 'recovery') return 'recovery';
+  return null;
+}

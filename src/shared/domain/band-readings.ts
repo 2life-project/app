@@ -130,3 +130,80 @@ export function readingsNote(current: BandReadings | null, now = new Date()): st
   const hours = Math.round(age / 60);
   return hours < 24 ? `from your band, ${hours} h ago` : 'from your band, over a day ago';
 }
+
+/**
+ * Показания строками.
+ *
+ * Живут рядом с самими показаниями, а не в фиче: их показывают и Главная, и
+ * «Тело», и правило «непрочитанный показатель исчезает, а не становится
+ * прочерком» должно быть одно на оба экрана — пустая строка «HRV —» сообщает
+ * ровно то же, что её отсутствие, но выглядит как поломка.
+ */
+export type Vital = { id: string; title: string; value: string; note?: string };
+
+/**
+ * К какой стороне тела относится показатель. Разделы «Тела» спрашивают своё,
+ * Главная — всё сразу.
+ */
+export type VitalGroup = 'all' | 'heart' | 'breathing' | 'recovery';
+
+export function vitalsOf(band: BandReadings | null, group: VitalGroup = 'all'): Vital[] {
+  if (!band) return [];
+
+  const wants = (...groups: VitalGroup[]) => group === 'all' || groups.includes(group);
+  const vitals: Vital[] = [];
+
+  if (wants('heart')) {
+    // Пульс покоя важнее текущего: он и есть показатель, а текущий — момент.
+    if (band.restingHeartRate !== undefined) {
+      vitals.push({
+        id: 'resting',
+        title: 'Resting heart rate',
+        value: `${band.restingHeartRate} bpm`,
+        note: heartRange(band),
+      });
+    } else if (band.heartRate !== undefined) {
+      vitals.push({
+        id: 'heart',
+        title: 'Heart rate',
+        value: `${band.heartRate} bpm`,
+        note: heartRange(band),
+      });
+    }
+  }
+
+  if (wants('recovery') && band.sleepMinutes !== undefined) {
+    vitals.push({
+      id: 'sleep',
+      title: 'Last night',
+      value: sleepDuration(band.sleepMinutes),
+      note: band.sleepEfficiency === undefined ? undefined : `${band.sleepEfficiency}% efficiency`,
+    });
+  }
+
+  if (wants('heart', 'recovery') && band.hrv !== undefined) {
+    vitals.push({ id: 'hrv', title: 'Heart rate variability', value: `${band.hrv} ms` });
+  }
+
+  if (wants('breathing') && band.bloodOxygen !== undefined) {
+    vitals.push({ id: 'oxygen', title: 'Blood oxygen', value: `${band.bloodOxygen}%` });
+  }
+
+  if (wants('recovery') && band.stress !== undefined) {
+    vitals.push({ id: 'stress', title: 'Stress', value: String(band.stress), note: 'out of 100' });
+  }
+
+  return vitals;
+}
+
+/** Размах пульса за сутки: одно число без него не говорит, много это или мало. */
+function heartRange(band: BandReadings): string | undefined {
+  const { minHeartRate, maxHeartRate } = band;
+  if (minHeartRate === undefined || maxHeartRate === undefined) return undefined;
+  return `${minHeartRate}–${maxHeartRate} today`;
+}
+
+function sleepDuration(minutes: number): string {
+  if (minutes < 60) return `${minutes}m`;
+  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+}

@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
-import { type BandReadings } from '@/shared/domain';
+import { vitalsOf, type BandReadings } from '@/shared/domain';
 import { shortDay } from '@/shared/lib/day';
 import { to } from '@/shared/nav';
 import { space } from '@/shared/theme';
@@ -21,7 +21,6 @@ import {
 
 import type { HomeData } from '../api/contract';
 import { activityOf } from '../model/activity';
-import { bandVitals } from '../model/band-vitals';
 
 /**
  * Активность дня. Истории нагрузки в ответе Главной нет — графики периода
@@ -29,7 +28,7 @@ import { bandVitals } from '../model/band-vitals';
  */
 export function Activity({ home, band }: { home: HomeData; band: BandReadings | null }) {
   const view = activityOf(home, band);
-  const vitals = bandVitals(band);
+  const vitals = vitalsOf(band);
 
   if (!view) {
     return (

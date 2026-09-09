@@ -21,7 +21,10 @@ export {
   readingsNote,
   setBandReadings,
   useBandReadings,
+  vitalsOf,
   type BandReadings,
+  type Vital,
+  type VitalGroup,
 } from './band-readings';
 export { setPairedBand, useBandConnected, usePairedBand, type PairedBand } from './connection';
 export {

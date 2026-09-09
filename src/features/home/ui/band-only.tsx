@@ -1,12 +1,10 @@
 import { router } from 'expo-router';
 import { View, StyleSheet } from 'react-native';
 
-import { readingsNote, type BandReadings } from '@/shared/domain';
+import { readingsNote, vitalsOf, type BandReadings } from '@/shared/domain';
 import { to } from '@/shared/nav';
 import { space } from '@/shared/theme';
 import { ActionLink, Card, ListRow, SectionCaption, Stack, StatTile, Text } from '@/shared/ui';
-
-import { bandVitals } from '../model/band-vitals';
 
 /**
  * Активность, когда сервер не ответил, а браслет — да.
@@ -17,7 +15,7 @@ import { bandVitals } from '../model/band-vitals';
  * что он собрал своим телом за сегодня.
  */
 export function BandOnly({ band }: { band: BandReadings }) {
-  const vitals = bandVitals(band);
+  const vitals = vitalsOf(band);
 
   return (
     <Stack gap="md">
