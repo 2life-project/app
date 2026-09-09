@@ -1,11 +1,8 @@
 import { StyleSheet, View } from 'react-native';
 
-import { sleepTotals } from '@/core/band';
 import { space } from '@/shared/theme';
 import { Card, ProgressBar, Stack, StatTile, SummaryRow, Text } from '@/shared/ui';
 
-import { lastNight } from '../model/day-metrics';
-import { qualityOf } from '../model/detail';
 import type { BandState } from '../model/use-band';
 
 import { Hypnogram } from './hypnogram';
@@ -20,7 +17,7 @@ const TARGET_MINUTES = 8 * 60;
  * числе эта разница не видна.
  */
 export function SleepDetail({ state }: { state: BandState }) {
-  const night = lastNight(state.sleep);
+  const night = state.sleep[state.sleep.length - 1];
 
   if (!night) {
     return (
@@ -30,8 +27,8 @@ export function SleepDetail({ state }: { state: BandState }) {
     );
   }
 
-  const totals = sleepTotals(night.segments);
-  const quality = qualityOf(night, totals);
+  const totals = night.totals;
+  const quality = night;
 
   return (
     <Stack gap="md">

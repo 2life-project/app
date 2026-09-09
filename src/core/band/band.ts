@@ -17,7 +17,6 @@ import { Mode } from './frame';
 import {
   type DaySummary,
   type Measurement,
-  type SleepSegment,
   type StressSample,
   decodeDaySummary,
   decodeMeasurement,
@@ -29,6 +28,7 @@ import { BandNotifications } from './notifications';
 import * as recorder from './recorder';
 import { BandRecorder } from './recorder-api';
 import { BandSettings } from './settings';
+import { type SleepSession, groupSleep } from './sleep';
 import { type BandTransport, connectTransport } from './transport';
 import { BandWorkouts } from './workouts';
 
@@ -174,8 +174,12 @@ export class Band {
     await this.transport.send(cmd.writeHeartRateInterval(intervalMinutes));
   }
 
-  async sleep(from: Date, to: Date): Promise<SleepSegment[]> {
-    return decodeSleep(await this.transport.request(cmd.readSleep(from, to)));
+  /**
+   * Сон сессиями. Границы ставит само устройство маркерами — эвристике по
+   * разрыву во времени здесь верить незачем, когда есть прямой признак.
+   */
+  async sleep(from: Date, to: Date): Promise<SleepSession[]> {
+    return groupSleep(decodeSleep(await this.transport.request(cmd.readSleep(from, to))));
   }
 
   async stress(from: Date, to: Date): Promise<StressSample[]> {

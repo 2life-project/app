@@ -20,6 +20,8 @@ export type { BatteryState, Capabilities, DeviceInfo, FeatureName } from './devi
 export { Feature, supports } from './device';
 export type { DaySummary, Measurement, SleepSegment, SleepStageName, StressSample } from './health';
 export { SleepStage, sleepTotals } from './health';
+export type { SleepSession } from './sleep';
+export { groupSleep, lastSleep } from './sleep';
 export type { Recording, RecorderEvent, Storage } from './recorder';
 export { BYTES_PER_SECOND } from './recorder';
 

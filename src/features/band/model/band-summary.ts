@@ -35,9 +35,8 @@ export function summaryOfBand(state: BandState): Summary {
   const oxygen = state.measurement?.bloodOxygen ?? state.live?.bloodOxygen;
   const distance = state.summary?.distance ?? walk?.distance ?? 0;
 
-  const sleepMinutes = state.sleep
-    .filter((segment) => segment.stage !== 'awake' && segment.minutes > 0)
-    .reduce((total, segment) => total + segment.minutes, 0);
+  // Последняя сессия, а не сумма за неделю: сложенные ночи не значат ничего.
+  const sleepMinutes = state.sleep[state.sleep.length - 1]?.asleep ?? 0;
 
   return {
     // Шкала кольца — сегодняшний размах пульса: цели по частоте человек не

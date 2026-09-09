@@ -1,6 +1,6 @@
-import type { ActivitySample, SleepSegment } from '@/core/band';
+import type { ActivitySample } from '@/core/band';
 
-import type { Point, Night } from './day-metrics';
+import type { Point } from './day-metrics';
 
 /**
  * Глубокая статистика показателя: то, ради чего человек проваливается внутрь
@@ -101,61 +101,4 @@ export function boutsOf(samples: readonly ActivitySample[]): Bout[] {
   flush();
 
   return bouts.sort((a, b) => b.steps - a.steps);
-}
-
-export type SleepQuality = {
-  /** Минуты от засыпания до подъёма, включая пробуждения. */
-  inBed: number;
-  asleep: number;
-  /** Доля сна во времени в постели. */
-  efficiency: number;
-  awakenings: number;
-  /** Циклы считаем по возвратам в быстрый сон: он завершает цикл. */
-  cycles: number;
-  longestBlock: number;
-  shares: { deep: number; light: number; rem: number; awake: number };
-};
-
-export function qualityOf(night: Night, totals: Record<string, number>): SleepQuality {
-  const asleep = night.minutes - (totals.awake ?? 0);
-  const awakenings = night.segments.filter((segment) => segment.stage === 'awake').length;
-
-  let cycles = 0;
-  let previous: string | null = null;
-  for (const segment of night.segments) {
-    if (segment.stage === 'rem' && previous !== 'rem') cycles += 1;
-    previous = segment.stage;
-  }
-
-  return {
-    inBed: night.minutes,
-    asleep,
-    efficiency: night.minutes === 0 ? 0 : Math.round((asleep / night.minutes) * 100),
-    awakenings,
-    cycles,
-    longestBlock: longestAsleep(night.segments),
-    shares: {
-      deep: percent(totals.deep ?? 0, night.minutes),
-      light: percent(totals.light ?? 0, night.minutes),
-      rem: percent(totals.rem ?? 0, night.minutes),
-      awake: percent(totals.awake ?? 0, night.minutes),
-    },
-  };
-}
-
-/** Самый длинный сон без пробуждений: он важнее суммы для восстановления. */
-function longestAsleep(segments: readonly SleepSegment[]): number {
-  let best = 0;
-  let current = 0;
-
-  for (const segment of segments) {
-    if (segment.stage === 'awake') current = 0;
-    else current += segment.minutes;
-    best = Math.max(best, current);
-  }
-  return best;
-}
-
-function percent(part: number, total: number): number {
-  return total === 0 ? 0 : Math.round((part / total) * 100);
 }

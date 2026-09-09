@@ -9,7 +9,7 @@ import {
   type Recording,
   type SavedRecording,
   type ScanProblem,
-  type SleepSegment,
+  type SleepSession,
   type Storage,
   type StressSample,
   connectedBands,
@@ -49,7 +49,7 @@ export type BandState = {
   summary?: DaySummary;
   measurement?: Measurement;
   worn?: boolean;
-  sleep: SleepSegment[];
+  sleep: SleepSession[];
   /** Поминутная история за сегодня: из неё строятся все графики дня. */
   today: ActivitySample[];
   stress: StressSample[];

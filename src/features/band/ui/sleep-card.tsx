@@ -1,10 +1,8 @@
 import { StyleSheet, View } from 'react-native';
 
-import { type SleepSegment, sleepTotals } from '@/core/band';
+import type { SleepSession } from '@/core/band';
 import { space } from '@/shared/theme';
 import { ActionLink, Card, ProgressBar, Stack, Text } from '@/shared/ui';
-
-import { lastNight } from '../model/day-metrics';
 
 import { Hypnogram } from './hypnogram';
 
@@ -21,10 +19,11 @@ export function SleepCard({
   sleep,
   onOpen,
 }: {
-  sleep: readonly SleepSegment[];
+  sleep: readonly SleepSession[];
   onOpen: () => void;
 }) {
-  const night = lastNight(sleep);
+  // Сессии приходят по возрастанию времени: последняя — самая свежая.
+  const night = sleep[sleep.length - 1];
 
   if (!night) {
     return (
@@ -39,10 +38,9 @@ export function SleepCard({
     );
   }
 
-  const totals = sleepTotals(night.segments);
   // Время во сне без пробуждений: именно оно сравнивается с нормой, а «в
   // постели» завышает результат на каждый подъём среди ночи.
-  const asleep = night.minutes - totals.awake;
+  const asleep = night.asleep;
 
   return (
     <Card variant="sunken">
@@ -65,7 +63,7 @@ export function SleepCard({
 
         <ProgressBar value={Math.min(1, asleep / TARGET_MINUTES)} tone={toneOf(asleep)} />
 
-        <Hypnogram segments={night.segments} totals={totals} />
+        <Hypnogram segments={night.segments} totals={night.totals} />
       </Stack>
     </Card>
   );

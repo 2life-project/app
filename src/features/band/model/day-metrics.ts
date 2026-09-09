@@ -1,4 +1,4 @@
-import type { ActivitySample, SleepSegment, StressSample } from '@/core/band';
+import type { ActivitySample, StressSample } from '@/core/band';
 
 /**
  * Показатели дня из поминутной истории браслета.
@@ -177,52 +177,4 @@ export function stressPoints(samples: readonly StressSample[], from: Date): Poin
     .filter((sample) => sample.at >= from)
     .map((sample) => ({ at: sample.at, value: sample.value }))
     .sort((a, b) => a.at.getTime() - b.at.getTime());
-}
-
-/**
- * Ночь целиком: от засыпания до пробуждения. Маркеры начала и конца сессии
- * длительности не несут, поэтому в подсчёт стадий не идут.
- */
-export type Night = {
-  from: Date;
-  to: Date;
-  minutes: number;
-  segments: SleepSegment[];
-};
-
-export function lastNight(segments: readonly SleepSegment[]): Night | null {
-  const real = segments.filter(
-    (segment) =>
-      segment.minutes > 0 && segment.stage !== 'sessionStart' && segment.stage !== 'sessionEnd',
-  );
-  if (real.length === 0) return null;
-
-  const sorted = [...real].sort((a, b) => a.at.getTime() - b.at.getTime());
-  const first = sorted[0];
-  const last = sorted[sorted.length - 1];
-  if (!first || !last) return null;
-
-  // Ночь может начаться до полуночи, поэтому берём последний непрерывный
-  // отрезок: разрыв больше трёх часов — это уже другой сон.
-  const night: SleepSegment[] = [last];
-  for (let index = sorted.length - 2; index >= 0; index -= 1) {
-    const current = sorted[index];
-    const next = night[0];
-    if (!current || !next) break;
-    const gapMinutes =
-      (next.at.getTime() - (current.at.getTime() + current.minutes * 60_000)) / 60_000;
-    if (gapMinutes > 180) break;
-    night.unshift(current);
-  }
-
-  const start = night[0];
-  const end = night[night.length - 1];
-  if (!start || !end) return null;
-
-  return {
-    from: start.at,
-    to: new Date(end.at.getTime() + end.minutes * 60_000),
-    minutes: night.reduce((total, segment) => total + segment.minutes, 0),
-    segments: night,
-  };
 }
