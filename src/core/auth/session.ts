@@ -54,6 +54,9 @@ let generation = 0;
 const listeners = new Set<() => void>();
 
 function publish(next: SessionState) {
+  // Смена состояния сессии переключает целый слой маршрутов, поэтому она
+  // обязана быть в следе: падения приходятся ровно на такие переходы.
+  logger.debug('Сессия', { status: next.status });
   state = next;
   for (const listener of listeners) listener();
 }
