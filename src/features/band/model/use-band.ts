@@ -48,12 +48,23 @@ export type BandStage = 'idle' | 'scanning' | 'connecting' | 'connected' | 'fail
 /** Как часто обновлять сводку дня при открытом разделе. */
 const LIVE_POLL_MS = 30_000;
 
+/**
+ * Паузы перед попытками переподключения. Первая почти сразу — обрыв чаще всего
+ * мгновенный и связь поднимается с первого раза; дальше реже, чтобы не жечь
+ * радио и заряд у браслета, которого просто нет рядом.
+ */
+const RETRY_DELAYS_MS = [1_000, 5_000, 15_000, 30_000, 60_000] as const;
+
 export function useBand() {
   const paired = usePairedBand();
   const foreground = useForeground();
   const [state, setState] = useState<BandState>(INITIAL);
   const band = useRef<Band | null>(null);
   const stopScan = useRef<(() => void) | null>(null);
+  /** Какая по счёту попытка переподключения идёт. Сбрасывается удачной связью. */
+  const retry = useRef(0);
+  /** Человек отключился сам — тогда обратно его не тащим. */
+  const manual = useRef(false);
   /** Зеркало состояния: снимок на диск пишется вне рендера, из обработчиков. */
   const latest = useRef<BandState>(INITIAL);
 
@@ -178,6 +189,7 @@ export function useBand() {
   const connect = useCallback(
     async (device: FoundBand) => {
       stopScan.current?.();
+      manual.current = false;
       patch({
         stage: 'connecting',
         step: 'opening',
@@ -198,7 +210,10 @@ export function useBand() {
         // устройству, а не аккаунту, и переподключаться после каждого входа
         // человек не должен.
         setPairedBand({ id: device.id, name: device.name, pairedAt: new Date().toISOString() });
-        patch({ stage: 'connected', step: 'reading' });
+        // Связь есть — счётчик попыток начинается заново: следующий обрыв
+        // должен восстанавливаться быстро, а не с минутной паузы.
+        retry.current = 0;
+        patch({ stage: 'connected', step: 'reading', retrying: false, problem: undefined });
 
         // Профиль уезжает при каждом подключении, а не только при первом.
         // Прочитать, что сейчас записано в устройстве, нечем — команды чтения
@@ -224,11 +239,13 @@ export function useBand() {
   );
 
   const disconnect = useCallback(async () => {
+    // Отключение по кнопке: обратно не тащим, иначе кнопка ничего не значит.
+    manual.current = true;
     await band.current?.disconnect();
     band.current = null;
     // Данные и привязка остаются: отключение — это разрыв связи, а не отказ от
     // браслета. Забыть его — отдельное действие.
-    patch({ stage: 'idle', found: [], problem: undefined });
+    patch({ stage: 'idle', found: [], problem: undefined, retrying: false });
   }, [patch]);
 
   /**
@@ -270,24 +287,37 @@ export function useBand() {
     setState(INITIAL);
   }, [paired]);
 
-  // Запомненный браслет поднимается сам: человек привязал его один раз, и
-  // нажимать «искать» при каждом запуске незачем. Промах уводит в 'failed', и
-  // на экране появляется кнопка повтора — молча в поиске зависать нельзя.
-  const attempted = useRef<string | null>(null);
-
-  // Возврат на экран — повод попробовать снова. Без сброса одна неудачная
-  // попытка при запуске оставляла браслет неподключённым до перезапуска
-  // приложения: экран уже смонтирован, а второй попытки не будет никогда.
+  /**
+   * Запомненный браслет поднимается сам и сам возвращается после обрыва.
+   *
+   * Связь с этим устройством рвётся: оно уходит из зоны, засыпает, отдаёт себя
+   * другому телефону. Раньше попытка была ровно одна на запуск — после первого
+   * же обрыва раздел оставался пустым до тех пор, пока приложение не свернут и
+   * не развернут обратно. Человек при этом видел «последние известные» цифры и
+   * не знал, что они уже не обновляются.
+   *
+   * Пауза растёт с каждой попыткой: браслет вне зоны или занятый чужим
+   * телефоном не появится оттого, что мы стучимся чаще, а радио и заряд
+   * тратятся на каждой.
+   */
   useEffect(() => {
-    if (foreground) attempted.current = null;
-  }, [foreground]);
+    if (!paired || manual.current) return;
+    // В фоне система придерживает радио: попытка всё равно не пройдёт, а
+    // счётчик она израсходует.
+    if (!foreground) return;
+    if (state.stage === 'connected' || state.stage === 'connecting') return;
+    if (state.stage === 'scanning') return;
 
-  useEffect(() => {
-    if (!paired || band.current) return;
-    if (attempted.current === paired.id) return;
-    attempted.current = paired.id;
-    void connect({ id: paired.id, name: paired.name, rssi: 0 });
-  }, [connect, paired]);
+    const wait = RETRY_DELAYS_MS[Math.min(retry.current, RETRY_DELAYS_MS.length - 1)] ?? 0;
+    patch({ retrying: retry.current > 0 });
+
+    const timer = setTimeout(() => {
+      retry.current += 1;
+      void connect({ id: paired.id, name: paired.name, rssi: 0 });
+    }, wait);
+
+    return () => clearTimeout(timer);
+  }, [connect, foreground, paired, patch, state.stage]);
 
   // Будильники держат своё состояние: список читается по требованию, и тянуть
   // двадцать обменов по радио в общее состояние раздела незачем.

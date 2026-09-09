@@ -9,6 +9,7 @@ import type { BandState } from '../model/band-state';
 import { signalText } from '../model/device-view';
 
 import { ConnectSteps } from './connect-steps';
+import { ForgetBand } from './forget-band';
 
 /**
  * Подключение браслета.
@@ -71,16 +72,22 @@ export function BandConnect({
     return (
       <Card>
         <Stack gap="md">
-          <Stack gap="xs">
+          <Stack direction="row" gap="sm" align="center">
+            {state.retrying ? <ActivityIndicator color={theme.color.accent.solid} /> : null}
             <Text variant="title">{paired.name}</Text>
-            <Text variant="bodySmall" tone="muted">
-              {problem === 'connect-failed'
-                ? 'Out of range, or another phone is holding it. It reconnects on its own once it is near.'
-                : 'Paired with this phone. It reconnects on its own.'}
-            </Text>
           </Stack>
+          <Text variant="bodySmall" tone="muted">
+            {/* Переподключение человек не начинал — и не должен решать, что
+                приложение зависло. Об этом говорим отдельно от первого
+                подключения и от отказа. */}
+            {state.retrying
+              ? 'Lost the connection — trying again on its own. Keep the band nearby.'
+              : problem === 'connect-failed'
+                ? 'Out of range, or another phone is holding it. It comes back on its own once it is near.'
+                : 'Paired with this phone. It connects on its own.'}
+          </Text>
           <Button label="Connect now" onPress={() => onConnect({ ...paired, rssi: 0 })} />
-          <Button label="Forget this band" variant="plain" onPress={onForget} />
+          <ForgetBand onForget={onForget} />
         </Stack>
       </Card>
     );
