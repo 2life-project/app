@@ -6,14 +6,30 @@ import { field, intField, parseModal, parseTagged, toDate } from './tlv';
  * замера.
  */
 
+/** Слагаемое дневного итога: устройство считает типы активности по отдельности. */
+export type ActivityBlock = {
+  /** Номер блока в протоколе. Что именно он означает, вендор не документирует. */
+  block: number;
+  steps: number;
+  /** Метры. */
+  distance: number;
+  calories: number;
+};
+
 export type DaySummary = {
-  /** Пульс на момент выборки. */
+  /** Пульс на момент выборки, а не средний за день. */
   heartRate?: number;
   measuredAt?: Date;
   steps: number;
   /** Метры. */
   distance: number;
   calories: number;
+  /**
+   * Из чего сложился итог. Калории приходят несколькими блоками — активность
+   * отдельно, базовый обмен отдельно, — и без разбивки одно от другого уже не
+   * отделить.
+   */
+  byActivity: ActivityBlock[];
 };
 
 /**
@@ -28,6 +44,7 @@ export function decodeDaySummary(body: Uint8Array): DaySummary {
     steps: 0,
     distance: 0,
     calories: 0,
+    byActivity: [],
     heartRate: intField(fields, 0x02),
   };
 
@@ -40,9 +57,17 @@ export function decodeDaySummary(body: Uint8Array): DaySummary {
     if (!block) continue;
 
     const metrics = parseTagged(block);
-    summary.calories += intField(metrics, 0x01) ?? 0;
-    summary.distance += intField(metrics, 0x02) ?? 0;
-    summary.steps += intField(metrics, 0x05) ?? 0;
+    const part: ActivityBlock = {
+      block: tag,
+      calories: intField(metrics, 0x01) ?? 0,
+      distance: intField(metrics, 0x02) ?? 0,
+      steps: intField(metrics, 0x05) ?? 0,
+    };
+
+    summary.byActivity.push(part);
+    summary.calories += part.calories;
+    summary.distance += part.distance;
+    summary.steps += part.steps;
   }
 
   return summary;

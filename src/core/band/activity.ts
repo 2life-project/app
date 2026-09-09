@@ -29,9 +29,16 @@ export type ActivitySample = {
   hrv?: number;
   /** Ммоль/л. */
   bloodSugar?: number;
+  /**
+   * Слот ещё набирается: это живой отчёт по текущей минуте, а не её итог.
+   * Устройство сбрасывает счётчики на границе минуты, поэтому такой слот
+   * занижен и перезаписывать им готовую историю нельзя.
+   */
+  partial?: boolean;
 };
 
-type Slot = keyof Omit<ActivitySample, 'at'>;
+// `partial` — признак кадра, а не показатель: в слоты по маске он не пишется.
+type Slot = keyof Omit<ActivitySample, 'at' | 'partial'>;
 
 /** Однобайтовые показатели: номер бита → поле. */
 const SINGLE: Record<number, Slot> = {
@@ -163,6 +170,10 @@ export function decodeLiveSample(frame: Uint8Array): ActivitySample | null {
   const { mask, size } = readMask(frame, 10);
   if (size === 0) return null;
 
-  const { sample } = readSlot(frame, 10 + size, mask, new Date(base * 1000));
-  return hasValues(sample) ? sample : null;
+  // Отметка времени округляется до начала минуты: живой отчёт относится к
+  // текущей минуте целиком, и без округления один и тот же слот приезжает
+  // несколько раз с разными секундами.
+  const at = new Date(Math.floor(base / 60) * 60 * 1000);
+  const { sample } = readSlot(frame, 10 + size, mask, at);
+  return hasValues(sample) ? { ...sample, partial: true } : null;
 }

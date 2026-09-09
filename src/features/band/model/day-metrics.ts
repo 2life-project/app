@@ -1,4 +1,6 @@
-import type { ActivitySample, StressSample } from '@/core/band';
+import { type ActivitySample, type StressSample } from '@/core/band';
+
+export { HEART_RATE_ZONES, STRESS_ZONES } from '@/core/band';
 
 /**
  * Показатели дня из поминутной истории браслета.
@@ -34,12 +36,21 @@ export function startOfToday(now = new Date()): Date {
  * Отчёты приходят каждые десять секунд, а слот в истории — минутный: без
  * замены по времени один и тот же час превращается в шесть точек на минуту, и
  * график дня растёт быстрее самого дня.
+ *
+ * Живой отчёт при этом слабее истории: он несёт накопленное за незавершённую
+ * минуту, а история — её итог.
  */
 export function appendSample(
   samples: readonly ActivitySample[],
   sample: ActivitySample,
 ): ActivitySample[] {
   const minute = Math.floor(sample.at.getTime() / 60_000);
+  const existing = samples.find((item) => Math.floor(item.at.getTime() / 60_000) === minute);
+
+  // Готовую минуту из истории живым отчётом не трогаем: он накапливается по
+  // ходу минуты и всегда занижен относительно её итога.
+  if (existing && !existing.partial && sample.partial) return [...samples];
+
   const kept = samples.filter((item) => Math.floor(item.at.getTime() / 60_000) !== minute);
   kept.push(sample);
   return kept.sort((a, b) => a.at.getTime() - b.at.getTime());
@@ -154,22 +165,6 @@ export function zonesOf(points: readonly Point[], ranges: readonly Omit<Zone, 's
     return { ...range, share: Math.round((hits / total) * 100) };
   });
 }
-
-export const HEART_RATE_ZONES = [
-  { label: 'Rest', from: 0, to: 98 },
-  { label: 'Warm-up', from: 99, to: 118 },
-  { label: 'Fat burn', from: 119, to: 137 },
-  { label: 'Aerobic', from: 138, to: 157 },
-  { label: 'Anaerobic', from: 158, to: 177 },
-  { label: 'Peak', from: 178, to: 250 },
-] as const;
-
-export const STRESS_ZONES = [
-  { label: 'Relaxed', from: 1, to: 29 },
-  { label: 'Normal', from: 30, to: 59 },
-  { label: 'Medium', from: 60, to: 79 },
-  { label: 'High', from: 80, to: 100 },
-] as const;
 
 /** Стресс приходит своим каналом, а не в поминутных слотах. */
 export function stressPoints(samples: readonly StressSample[], from: Date): Point[] {

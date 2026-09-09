@@ -1,4 +1,4 @@
-import type { ActivitySample } from '@/core/band';
+import { type ActivitySample, WALKING_STEPS_PER_MINUTE } from '@/core/band';
 
 import type { Point } from './day-metrics';
 
@@ -56,8 +56,6 @@ export type Bout = {
   speed: number;
 };
 
-const WALKING_STEPS = 20;
-
 /**
  * Разбить день на прогулки. Дневной итог отвечает «сколько», прогулки — «когда
  * и как»: три часовых выхода и восемь минутных перебежек дают одно и то же
@@ -91,7 +89,7 @@ export function boutsOf(samples: readonly ActivitySample[]): Bout[] {
   let previous: number | null = null;
   for (const sample of sorted) {
     const minute = Math.round(sample.at.getTime() / 60_000);
-    const walking = (sample.steps ?? 0) >= WALKING_STEPS;
+    const walking = (sample.steps ?? 0) >= WALKING_STEPS_PER_MINUTE;
     // Пропуск в истории рвёт прогулку так же, как минута покоя: слоты приходят
     // не подряд, и склеивать их значит выдавать два выхода за один.
     if (!walking || previous === null || minute - previous !== 1) flush();

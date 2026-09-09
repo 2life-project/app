@@ -144,12 +144,21 @@ export function decodeStorage(frameData: Uint8Array): Storage | null {
   };
 }
 
-export type RecorderEvent =
+/**
+ * Событие диктофона.
+ *
+ * `at` ставит телефон по приходу отчёта: устройство времени события не даёт, а
+ * `session` — это время НАЧАЛА записи, а не момент паузы. Без отдельной отметки
+ * восстановить, когда именно человек ставил паузу, невозможно: запись на семь
+ * секунд звука может растянуться на сорок минут стенных часов.
+ */
+export type RecorderEvent = { at: Date } & (
   | { kind: 'started'; session: number }
   | { kind: 'paused'; session: number }
   | { kind: 'resumed'; session: number }
   | { kind: 'finished'; session: number; bytes: number; byButton: boolean }
-  | { kind: 'marked'; session: number; offsetSeconds: number; index: number };
+  | { kind: 'marked'; session: number; offsetSeconds: number; index: number }
+);
 
 /**
  * События диктофона приходят сами, опрашивать устройство не нужно. В кадре
@@ -159,21 +168,23 @@ export function decodeRecorderEvent(data: Uint8Array): RecorderEvent | null {
   if (data.length < 7 || byteAt(data, 0) !== RECORDER || byteAt(data, 2) !== 0x00) return null;
 
   const session = readU32(data, 3);
+  const at = new Date();
 
   switch (byteAt(data, 1)) {
     case Op.start:
     case Op.startAck:
-      return { kind: 'started', session };
+      return { kind: 'started', session, at };
     case Op.pause:
-      return { kind: 'paused', session };
+      return { kind: 'paused', session, at };
     case Op.resume:
-      return { kind: 'resumed', session };
+      return { kind: 'resumed', session, at };
     case Op.stop:
       if (data.length < 13) return null;
       // Байт источника остановки: единица означает «нажали кнопку на браслете».
       return {
         kind: 'finished',
         session,
+        at,
         bytes: readU32(data, 9),
         byButton: byteAt(data, 7) === 1,
       };
@@ -182,6 +193,7 @@ export function decodeRecorderEvent(data: Uint8Array): RecorderEvent | null {
       return {
         kind: 'marked',
         session,
+        at,
         offsetSeconds: readU32(data, 7),
         index: le16(data, 11) ?? 0,
       };

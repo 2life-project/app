@@ -6,6 +6,16 @@
  * внутренние детали и за пределы модуля не выходят.
  */
 
+export {
+  AUDIO_BYTES_PER_SECOND,
+  HEART_RATE_ZONES,
+  SLEEP_GAP_MINUTES,
+  SLEEP_TARGET_MINUTES,
+  STRESS_ZONES,
+  STRIDE_METRES,
+  WALKING_STEPS_PER_MINUTE,
+} from './analysis';
+
 export { Band } from './band';
 export type { BandEvent, BandListener } from './band';
 

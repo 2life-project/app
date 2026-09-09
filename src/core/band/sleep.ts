@@ -1,3 +1,4 @@
+import { SLEEP_GAP_MINUTES } from './analysis';
 import type { SleepSegment, SleepStageName } from './health';
 import { sleepTotals } from './health';
 
@@ -12,9 +13,6 @@ import { sleepTotals } from './health';
  * Плоский список сегментов без сессий бессмыслен: стадии имеют смысл внутри
  * одного сна, а сложенные за неделю не значат ничего.
  */
-
-/** Разрыв, по которому режем сон, когда маркеров нет. */
-const GAP_MINUTES = 180;
 
 export type SleepSession = {
   from: Date;
@@ -63,7 +61,7 @@ export function groupSleep(segments: readonly SleepSegment[]): SleepSession[] {
     if (segment.minutes === 0) continue;
 
     const previous = current[current.length - 1];
-    if (previous && gap(previous, segment) > GAP_MINUTES) close();
+    if (previous && gap(previous, segment) > SLEEP_GAP_MINUTES) close();
 
     current.push(segment);
   }

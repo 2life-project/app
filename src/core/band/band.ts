@@ -57,6 +57,8 @@ export type BandListener = (event: BandEvent) => void;
 export class Band {
   private readonly listeners = new Set<BandListener>();
   private capabilities: Capabilities | null = null;
+  private skew: number | null = null;
+  private readonly openedAt = new Date();
 
   /**
    * Разделы устройства отдельными входами. Плоский фасад на сорок методов
@@ -94,10 +96,36 @@ export class Band {
     const transport = await connectTransport(deviceId);
     const band = new Band(transport);
 
+    // Часы читаем ДО того, как выставим свои: после синхронизации расхождение
+    // исчезает, а это единственный факт, объясняющий сдвинутые даты в истории.
+    // Стоит он одного запроса.
+    await band.measureClockSkew();
     await band.syncTime();
     await band.loadCapabilities();
 
     return band;
+  }
+
+  /**
+   * На сколько секунд часы браслета отставали от телефона в момент подключения.
+   * Положительное значение — устройство спешило.
+   */
+  get clockSkewSeconds(): number | null {
+    return this.skew;
+  }
+
+  /** Когда открылось это соединение: вне него отчёты устройства не приходят. */
+  get connectedAt(): Date {
+    return this.openedAt;
+  }
+
+  private async measureClockSkew(): Promise<void> {
+    try {
+      const onDevice = await this.deviceTime();
+      if (onDevice) this.skew = Math.round((onDevice.getTime() - Date.now()) / 1000);
+    } catch (error) {
+      logger.warn('band: часы устройства не прочитались', { reason: String(error) });
+    }
   }
 
   async disconnect(): Promise<void> {

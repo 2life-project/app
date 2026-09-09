@@ -1,4 +1,4 @@
-import type { ActivitySample } from '@/core/band';
+import { type ActivitySample, STRIDE_METRES, WALKING_STEPS_PER_MINUTE } from '@/core/band';
 
 import type { Point } from './day-metrics';
 
@@ -29,14 +29,8 @@ export type Walk = {
   longestWalk: number;
 };
 
-/** Минута считается ходьбой от этого числа шагов: ниже — это жесты рукой. */
-const WALKING_STEPS = 20;
-
-const MIN_STRIDE = 0.3;
-const MAX_STRIDE = 1.2;
-
 export function walkOf(samples: readonly ActivitySample[]): Walk | null {
-  const active = samples.filter((sample) => (sample.steps ?? 0) >= WALKING_STEPS);
+  const active = samples.filter((sample) => (sample.steps ?? 0) >= WALKING_STEPS_PER_MINUTE);
 
   let steps = 0;
   let distance = 0;
@@ -90,7 +84,9 @@ function round(value: number): number {
 function strideOf(distance: number, steps: number): number | null {
   if (steps === 0) return null;
   const stride = distance / steps;
-  return stride < MIN_STRIDE || stride > MAX_STRIDE ? null : round(stride * 100) / 100;
+  return stride < STRIDE_METRES.min || stride > STRIDE_METRES.max
+    ? null
+    : round(stride * 100) / 100;
 }
 
 /** Самая длинная цепочка подряд идущих активных минут. */
@@ -102,7 +98,7 @@ function longestRun(samples: readonly ActivitySample[]): number {
   let previous: number | null = null;
 
   for (const sample of sorted) {
-    const walking = (sample.steps ?? 0) >= WALKING_STEPS;
+    const walking = (sample.steps ?? 0) >= WALKING_STEPS_PER_MINUTE;
     const minute = Math.round(sample.at.getTime() / 60_000);
     // Разрыв во времени рвёт цепочку так же, как минута покоя: пропущенных
     // слотов в истории хватает, и склеивать их значит завышать прогулку.
@@ -119,7 +115,7 @@ function longestRun(samples: readonly ActivitySample[]): number {
 /** Темп по минутам — для графика: он показывает не «сколько», а «как быстро». */
 export function cadenceSeries(samples: readonly ActivitySample[]): Point[] {
   return samples
-    .filter((sample) => (sample.steps ?? 0) >= WALKING_STEPS)
+    .filter((sample) => (sample.steps ?? 0) >= WALKING_STEPS_PER_MINUTE)
     .map((sample) => ({ at: sample.at, value: sample.steps ?? 0 }))
     .sort((a, b) => a.at.getTime() - b.at.getTime());
 }
