@@ -1,8 +1,14 @@
+import { ActivityIndicator } from 'react-native';
+
 import type { PairedBand } from '@/shared/domain';
-import { Banner, Button, Card, ListRow, Stack, Text } from '@/shared/ui';
+import { theme } from '@/shared/theme';
+import { Banner, Button, Card, EmptyPanel, ListRow, Stack, Text } from '@/shared/ui';
 
 import type { FoundBand } from '../api';
 import type { BandState } from '../model/band-state';
+import { signalText } from '../model/device-view';
+
+import { ConnectSteps } from './connect-steps';
 
 /**
  * Подключение браслета.
@@ -10,6 +16,10 @@ import type { BandState } from '../model/band-state';
  * Устройство рекламирует себя с паузами, поэтому поиск не ограничен по времени
  * и не показывает «ничего не найдено» через пять секунд: чаще всего это значит,
  * что искали слишком мало, а не что браслета рядом нет.
+ *
+ * Каждый отказ назван своей причиной. «Не получилось» одинаково выглядит и при
+ * выключенном Bluetooth, и при отозванном доступе, и при не поднявшемся радио —
+ * а чинятся они тремя разными действиями.
  */
 export function BandConnect({
   state,
@@ -24,49 +34,32 @@ export function BandConnect({
   onConnect: (device: FoundBand) => void;
   onForget: () => void;
 }) {
-  if (state.problem === 'bluetooth-off') {
+  const problem = state.problem;
+
+  if (problem === 'bluetooth-off' || problem === 'no-permission' || problem === 'radio-silent') {
+    const text = TROUBLE[problem];
     return (
       <Banner
         tone="warning"
-        title="Bluetooth выключен"
-        subtitle="Включите его в настройках системы и повторите поиск."
-        action={{ label: 'Искать', onPress: onScan }}
+        checked={false}
+        title={text.title}
+        subtitle={text.subtitle}
+        action={{ label: 'Search again', onPress: onScan }}
       />
     );
   }
 
-  if (state.problem === 'no-permission') {
+  if (state.stage === 'connecting' || state.step !== undefined) {
     return (
-      <Banner
-        tone="warning"
-        title="Нет доступа к поиску"
-        subtitle="Разрешите приложению доступ к Bluetooth, чтобы найти браслет."
-        action={{ label: 'Искать', onPress: onScan }}
-      />
-    );
-  }
-
-  // Радио не ответило за отведённое время. Это не отказ в правах и не
-  // выключенный Bluetooth — стек ещё поднимается, и повтор обычно срабатывает.
-  if (state.problem === 'radio-silent') {
-    return (
-      <Banner
-        tone="warning"
-        title="Bluetooth ещё не готов"
-        subtitle="Система пока не ответила. Повторите поиск через мгновение."
-        action={{ label: 'Искать', onPress: onScan }}
-      />
-    );
-  }
-
-  if (state.stage === 'connecting') {
-    return (
-      <Card variant="sunken">
-        <Stack gap="xs">
-          <Text variant="title">Connecting to {state.device?.name ?? 'band'}…</Text>
-          <Text variant="bodySmall" tone="muted">
-            Браслет держит одно соединение. Закройте приложение производителя, если оно его заняло.
-          </Text>
+      <Card>
+        <Stack gap="lg">
+          <Stack gap="xs">
+            <Text variant="title">Connecting to {state.device?.name ?? 'the band'}</Text>
+            <Text variant="bodySmall" tone="muted">
+              Takes up to half a minute. Keep the band on your wrist.
+            </Text>
+          </Stack>
+          <ConnectSteps current={state.step ?? 'opening'} />
         </Stack>
       </Card>
     );
@@ -76,39 +69,33 @@ export function BandConnect({
   // идентификатор и подключается по нему напрямую.
   if (paired && state.stage !== 'scanning') {
     return (
-      <Card variant="sunken">
+      <Card>
         <Stack gap="md">
           <Stack gap="xs">
             <Text variant="title">{paired.name}</Text>
             <Text variant="bodySmall" tone="muted">
-              {state.problem === 'connect-failed'
-                ? 'Вне зоны или занят другим телефоном. Подключится, как только окажется рядом.'
-                : 'Привязан к этому телефону. Подключение произойдёт само.'}
+              {problem === 'connect-failed'
+                ? 'Out of range, or another phone is holding it. It reconnects on its own once it is near.'
+                : 'Paired with this phone. It reconnects on its own.'}
             </Text>
           </Stack>
-          <Button label="Подключить" onPress={() => onConnect({ ...paired, rssi: 0 })} />
-          <Button label="Забыть браслет" variant="plain" onPress={onForget} />
+          <Button label="Connect now" onPress={() => onConnect({ ...paired, rssi: 0 })} />
+          <Button label="Forget this band" variant="plain" onPress={onForget} />
         </Stack>
       </Card>
     );
   }
 
-  // Найденное до поиска — это уже подключённые устройства: их надо показать
-  // сразу, иначе человек ищет то, что у него и так на связи.
   if (state.stage === 'idle' && state.found.length === 0) {
     return (
-      <Card variant="sunken">
-        <Stack gap="md">
-          <Stack gap="xs">
-            <Text variant="title">Браслет не подключён</Text>
-            <Text variant="bodySmall" tone="muted">
-              Wear the band and start the search. It advertises itself in bursts, so it may take up
-              to half a minute.
-            </Text>
-          </Stack>
-          <Button label="Искать браслет" onPress={onScan} />
-        </Stack>
-      </Card>
+      <Stack gap="md">
+        <EmptyPanel
+          icon="watch"
+          title="No band connected"
+          text="Wear the band and start the search. It advertises itself in bursts, so it can take up to half a minute to appear."
+        />
+        <Button label="Find my band" onPress={onScan} />
+      </Stack>
     );
   }
 
@@ -116,22 +103,26 @@ export function BandConnect({
 
   return (
     <Stack gap="md">
-      {state.problem === 'connect-failed' ? (
+      {problem === 'connect-failed' ? (
         <Banner
           tone="danger"
-          title="Не удалось подключиться"
-          subtitle="Браслет может быть занят другим телефоном."
-          action={{ label: 'Повторить', onPress: onScan }}
+          checked={false}
+          title="Could not connect"
+          subtitle="The band keeps one connection at a time — another phone or the maker’s app may hold it."
+          action={{ label: 'Retry', onPress: onScan }}
         />
       ) : null}
 
-      <Card variant="sunken">
+      <Card>
         <Stack gap="sm">
-          <Text variant="title">{searching ? 'Ищем…' : 'Найдено рядом'}</Text>
+          <Stack direction="row" gap="sm" align="center">
+            {searching ? <ActivityIndicator color={theme.color.accent.solid} /> : null}
+            <Text variant="title">{searching ? 'Searching…' : 'Found nearby'}</Text>
+          </Stack>
 
           {state.found.length === 0 ? (
             <Text variant="bodySmall" tone="muted">
-              Пока пусто. Держите браслет рядом с телефоном.
+              Nothing yet. Keep the band close to the phone — it goes quiet between bursts.
             </Text>
           ) : null}
 
@@ -139,20 +130,32 @@ export function BandConnect({
             <ListRow
               key={device.id}
               title={device.name}
-              subtitle={subtitle(device)}
+              subtitle={
+                device.connected ? 'already connected to this phone' : signalText(device.rssi)
+              }
               onPress={() => onConnect(device)}
             />
           ))}
 
-          {searching ? null : <Button label="Искать снова" variant="plain" onPress={onScan} />}
+          {searching ? null : <Button label="Search again" variant="plain" onPress={onScan} />}
         </Stack>
       </Card>
     </Stack>
   );
 }
 
-/** Чем устройство подписано в списке: адрес, сила сигнала или готовая связь. */
-function subtitle(device: FoundBand): string {
-  if (device.connected) return 'уже подключён к этому телефону';
-  return device.mac ?? `сигнал ${device.rssi} dBm`;
-}
+/** Три отказа поиска — три разных действия, а не одно «попробуйте ещё раз». */
+const TROUBLE = {
+  'bluetooth-off': {
+    title: 'Bluetooth is off',
+    subtitle: 'Turn it on in system settings, then search again.',
+  },
+  'no-permission': {
+    title: 'No Bluetooth access',
+    subtitle: 'Allow the app to use Bluetooth so it can find the band.',
+  },
+  'radio-silent': {
+    title: 'Bluetooth is still starting',
+    subtitle: 'The system has not answered yet. Try again in a moment.',
+  },
+} as const;

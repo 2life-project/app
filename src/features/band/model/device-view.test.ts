@@ -1,4 +1,4 @@
-import { batteryText, clockSkewText, featureLabels, storageText } from './device-view';
+import { batteryText, clockSkewText, featureLabels, signalText, storageText } from './device-view';
 
 describe('clockSkewText', () => {
   it('расхождение меньше минуты — это синхронные часы', () => {
@@ -65,5 +65,17 @@ describe('featureLabels', () => {
 
   it('служебные биты наружу не выходят', () => {
     expect(featureLabels(['noScreen', 'twoWaySettings', 'extendedHistory'])).toEqual([]);
+  });
+});
+
+describe('signalText', () => {
+  it('чем ближе устройство, тем короче путь к нему', () => {
+    expect(signalText(-45)).toBe('right here');
+    expect(signalText(-70)).toBe('nearby');
+    expect(signalText(-90)).toContain('closer');
+  });
+
+  it('нулевой сигнал — это запомненное устройство, а не мёртвая связь', () => {
+    expect(signalText(0)).toContain('paired');
   });
 });

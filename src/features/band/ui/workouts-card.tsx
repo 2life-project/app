@@ -44,22 +44,22 @@ export function WorkoutsCard({
   return (
     <WidgetCard
       variant="sunken"
-      title={session ? 'Тренировка идёт' : 'Активность'}
-      caption={session ? undefined : 'заходы браслет размечает сам'}
-      action={has && !session ? { label: 'Все', chevron: true, onPress: onOpen } : undefined}>
+      title={session ? 'Workout in progress' : 'Activity'}
+      caption={session ? undefined : 'bouts the band marks on its own'}
+      action={has && !session ? { label: 'All', chevron: true, onPress: onOpen } : undefined}>
       <Stack gap="sm">
         {session ? <WorkoutLive session={session} /> : null}
 
         {!session && !has ? (
-          <BandEmpty reading={reading} text="За сутки браслет ничего не разметил" />
+          <BandEmpty reading={reading} text="The band marked nothing in the last day" />
         ) : null}
 
         {!session && has ? (
           <Stack gap="sm">
             <Stack direction="row" gap="sm">
-              <StatTile label="Заходов" value={String(states.length)} />
-              <StatTile label="В движении" value={String(minutes)} unit="мин" />
-              <StatTile label="Тренировок" value={String(recorded.length)} />
+              <StatTile label="BOUTS" value={String(states.length)} />
+              <StatTile label="MOVING" value={String(minutes)} unit="min" />
+              <StatTile label="WORKOUTS" value={String(recorded.length)} />
             </Stack>
 
             {recorded
@@ -80,9 +80,9 @@ export function WorkoutsCard({
         ) : null}
 
         {session ? (
-          <Button label="Завершить" onPress={onStop} />
+          <Button label="Finish" onPress={onStop} />
         ) : (
-          <Button label="Начать тренировку" variant="tonal" onPress={onStart} disabled={!live} />
+          <Button label="Start a workout" variant="tonal" onPress={onStart} disabled={!live} />
         )}
       </Stack>
     </WidgetCard>

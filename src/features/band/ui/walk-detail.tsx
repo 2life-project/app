@@ -34,8 +34,8 @@ export function WalkDetail({ state }: { state: BandState }) {
   if (!walk) {
     return (
       <EmptyState
-        title="Шагов за сегодня нет"
-        description="Они появятся, как только браслет их насчитает."
+        title="No steps today"
+        description="They appear as soon as the band counts them."
       />
     );
   }
@@ -52,20 +52,20 @@ export function WalkDetail({ state }: { state: BandState }) {
             axis={['00:00', '24:00']}
           />
           <View style={styles.tiles}>
-            <StatTile label="Шаги" value={String(state.summary?.totals.steps ?? walk.steps)} />
+            <StatTile label="STEPS" value={String(state.summary?.totals.steps ?? walk.steps)} />
             <StatTile
-              label="Дистанция"
+              label="DISTANCE"
               value={kilometres(state.summary?.totals.distance ?? walk.distance)}
               unit="km"
             />
           </View>
           <View style={styles.tiles}>
             <StatTile
-              label="Калории"
+              label="CALORIES"
               value={String(state.summary?.totals.calories ?? walk.calories)}
-              unit="ккал"
+              unit="kcal"
             />
-            <StatTile label="Активность" value={`${walk.activeMinutes} мин`} />
+            <StatTile label="ACTIVE" value={`${walk.activeMinutes} min`} />
           </View>
         </Stack>
       </Card>
@@ -77,13 +77,13 @@ export function WalkDetail({ state }: { state: BandState }) {
             <LineChart values={thin(cadence, 160)} tone="success" height={120} />
             <View style={styles.tiles}>
               <StatTile
-                label="Среднее"
+                label="AVG"
                 value={String(walk.cadenceAverage)}
-                unit="шаг/мин"
+                unit="spm"
                 note={`пик ${walk.cadencePeak}`}
               />
               <StatTile
-                label="Длина шага"
+                label="STEP"
                 value={walk.stride === null ? '—' : walk.stride.toFixed(2)}
                 unit="m"
               />

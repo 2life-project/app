@@ -21,8 +21,8 @@ export function WorkoutsDetail({
   if (recorded.length === 0 && states.length === 0) {
     return (
       <EmptyState
-        title="Ничего не размечено"
-        description="Браслет размечает заходы движения сам, без кнопки старта. За последние сутки он не распознал ни одного."
+        title="Nothing marked"
+        description="The band marks movement bouts on its own, with no start button. It recognised none in the last day."
       />
     );
   }

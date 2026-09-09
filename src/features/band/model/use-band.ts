@@ -173,11 +173,16 @@ export function useBand() {
   const connect = useCallback(
     async (device: FoundBand) => {
       stopScan.current?.();
-      patch({ stage: 'connecting', device: { id: device.id, name: device.name } });
+      patch({
+        stage: 'connecting',
+        step: 'opening',
+        device: { id: device.id, name: device.name },
+      });
 
       try {
         const connected = await Band.connect(device.id);
         adopt(connected);
+        patch({ step: 'configuring' });
 
         // Пульс раз в минуту: это минимум, который принимает прошивка, и с ним
         // живые отчёты приходят каждые десять секунд.
@@ -188,7 +193,7 @@ export function useBand() {
         // устройству, а не аккаунту, и переподключаться после каждого входа
         // человек не должен.
         setPairedBand({ id: device.id, name: device.name, pairedAt: new Date().toISOString() });
-        patch({ stage: 'connected' });
+        patch({ stage: 'connected', step: 'reading' });
 
         // Профиль уезжает при каждом подключении, а не только при первом.
         // Прочитать, что сейчас записано в устройстве, нечем — команды чтения
@@ -202,10 +207,12 @@ export function useBand() {
         // Дочитать сутки, которые устройство ещё помнит, а телефон уже нет.
         // После `refresh`, а не вместо: экран к этому моменту уже полон, а
         // архив набивается молча — по кадру на минуту, это долго.
+        patch({ step: undefined });
+
         void backfillHistory(connected, latest.current.info?.mac);
       } catch (error) {
         logger.warn('band: подключение не удалось', { reason: String(error) });
-        patch({ stage: 'failed', problem: 'connect-failed' });
+        patch({ stage: 'failed', step: undefined, problem: 'connect-failed' });
       }
     },
     [adopt, patch, refresh],

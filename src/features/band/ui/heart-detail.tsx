@@ -45,8 +45,8 @@ export function HeartDetail({ state }: { state: BandState }) {
   if (!summary) {
     return (
       <EmptyState
-        title="Пульса за сегодня нет"
-        description="Браслет меряет его по расписанию и во время занятия. Нажмите «Замерить» на разделе, чтобы снять сейчас."
+        title="No heart rate today"
+        description="The band measures it on a schedule and during a workout. Use “Take a reading” to get one now."
       />
     );
   }
@@ -58,15 +58,15 @@ export function HeartDetail({ state }: { state: BandState }) {
           <Text variant="subtitle">За день</Text>
           <LineChart values={thin(points, 200)} tone="danger" height={140} />
           <View style={styles.tiles}>
-            <StatTile label="Минимум" value={String(summary.min)} unit="уд/мин" />
-            <StatTile label="Среднее" value={String(summary.average)} unit="уд/мин" />
+            <StatTile label="MIN" value={String(summary.min)} unit="bpm" />
+            <StatTile label="AVG" value={String(summary.average)} unit="bpm" />
           </View>
           <View style={styles.tiles}>
-            <StatTile label="Максимум" value={String(summary.max)} unit="уд/мин" />
+            <StatTile label="MAX" value={String(summary.max)} unit="bpm" />
             <StatTile
-              label="Покой"
+              label="RESTING"
               value={resting === undefined ? '—' : String(resting)}
-              unit="уд/мин"
+              unit="bpm"
             />
           </View>
         </Stack>
@@ -85,12 +85,12 @@ export function HeartDetail({ state }: { state: BandState }) {
           {peak ? (
             <>
               <SummaryRow
-                title="Самый спокойный час"
+                title="Calmest hour"
                 subtitle={`замеров: ${peak.low.count}`}
                 value={`${hourLabel(peak.low.hour)} · ${peak.low.value} уд/мин`}
               />
               <SummaryRow
-                title="Самый нагруженный час"
+                title="Busiest hour"
                 subtitle={`замеров: ${peak.high.count}`}
                 value={`${hourLabel(peak.high.hour)} · ${peak.high.value} уд/мин`}
                 divider

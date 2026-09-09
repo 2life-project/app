@@ -71,3 +71,17 @@ function duration(seconds: number): string {
   const rest = minutes % 60;
   return rest === 0 ? `${hours} h` : `${hours} h ${rest} min`;
 }
+
+/**
+ * Сила сигнала словами.
+ *
+ * Децибелы на экране выбора устройства бесполезны: человеку нужно понять, его
+ * это браслет на столе или чужой за стеной. Границы взяты по обычной для BLE
+ * шкале: около −60 это вытянутая рука, за −85 связь уже рвётся.
+ */
+export function signalText(rssi: number): string {
+  if (rssi === 0) return 'paired with this phone';
+  if (rssi > -60) return 'right here';
+  if (rssi > -75) return 'nearby';
+  return 'far — bring it closer';
+}

@@ -23,12 +23,12 @@ const METRICS: readonly {
   pick: (sample: ActivitySample) => number | undefined;
   tone: 'success' | 'warning' | 'danger' | 'highlight';
 }[] = [
-  { title: 'Кислород', unit: '%', pick: (s) => s.bloodOxygen, tone: 'highlight' },
-  { title: 'ВСР', unit: 'ms', pick: (s) => s.hrv, tone: 'success' },
-  { title: 'Систолическое', unit: 'мм рт. ст.', pick: (s) => s.systolic, tone: 'danger' },
-  { title: 'Диастолическое', unit: 'мм рт. ст.', pick: (s) => s.diastolic, tone: 'danger' },
-  { title: 'Настроение', unit: '', pick: (s) => s.mood, tone: 'highlight' },
-  { title: 'Сахар', unit: 'ммоль/л', pick: (s) => s.bloodSugar, tone: 'warning' },
+  { title: 'Blood oxygen', unit: '%', pick: (s) => s.bloodOxygen, tone: 'highlight' },
+  { title: 'HRV', unit: 'ms', pick: (s) => s.hrv, tone: 'success' },
+  { title: 'Systolic', unit: 'mmHg', pick: (s) => s.systolic, tone: 'danger' },
+  { title: 'Diastolic', unit: 'mmHg', pick: (s) => s.diastolic, tone: 'danger' },
+  { title: 'Mood', unit: '', pick: (s) => s.mood, tone: 'highlight' },
+  { title: 'Blood sugar', unit: 'mmol/L', pick: (s) => s.bloodSugar, tone: 'warning' },
 ];
 
 export function MeasurementsDetail({ state }: { state: BandState }) {
@@ -95,9 +95,9 @@ function Range({ points, unit }: { points: readonly Point[]; unit: string }) {
 
   return (
     <View style={styles.tiles}>
-      <StatTile label="Минимум" value={String(summary.min)} unit={unit || undefined} />
-      <StatTile label="Среднее" value={String(summary.average)} unit={unit || undefined} />
-      <StatTile label="Максимум" value={String(summary.max)} unit={unit || undefined} />
+      <StatTile label="MIN" value={String(summary.min)} unit={unit || undefined} />
+      <StatTile label="AVG" value={String(summary.average)} unit={unit || undefined} />
+      <StatTile label="MAX" value={String(summary.max)} unit={unit || undefined} />
     </View>
   );
 }

@@ -53,7 +53,7 @@ export function BandMetrics({
       <WalkCard state={state} reading={reading} onOpen={() => onOpen('walk')} />
 
       <MetricCard
-        title="Стресс"
+        title="Stress"
         value={String(state.measurement?.stress ?? stress[stress.length - 1]?.value ?? '\u2014')}
         caption={readingsCaption(stress.length)}
         tone="warning"

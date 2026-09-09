@@ -20,20 +20,20 @@ export function WorkoutLive({ session }: { session: WorkoutSession }) {
   return (
     <Stack gap="sm">
       <Stack direction="row" gap="sm">
-        <StatTile label="Время" value={stopwatch(session.seconds)} />
+        <StatTile label="TIME" value={stopwatch(session.seconds)} />
         <StatTile
-          label="Пульс"
+          label="HEART"
           value={session.heartRate === undefined ? '—' : String(session.heartRate)}
-          unit="уд/мин"
+          unit="bpm"
         />
-        <StatTile label="Шаги" value={String(session.steps)} />
+        <StatTile label="STEPS" value={String(session.steps)} />
       </Stack>
 
       <Stack direction="row" gap="sm">
-        <StatTile label="Дистанция" value={String(session.distance)} unit="м" />
-        <StatTile label="Средний" value={average === undefined ? '—' : String(average)} />
+        <StatTile label="DISTANCE" value={String(session.distance)} unit="m" />
+        <StatTile label="AVG" value={average === undefined ? '—' : String(average)} />
         <StatTile
-          label="Пик"
+          label="PEAK"
           value={session.peakHeartRate === undefined ? '—' : String(session.peakHeartRate)}
         />
       </Stack>

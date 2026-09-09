@@ -40,16 +40,16 @@ export function RecordingsCard({
   const free = freeKb === undefined ? null : Math.round((freeKb / KB) * 10) / 10;
 
   return (
-    <WidgetCard variant="sunken" title="Голосовые записи">
+    <WidgetCard variant="sunken" title="Voice recordings">
       <Stack gap="sm">
         <Stack direction="row" gap="sm">
-          <StatTile label="На браслете" value={String(onDevice.length)} />
-          <StatTile label="На телефоне" value={String(saved.length)} />
-          {free === null ? null : <StatTile label="Свободно" value={String(free)} unit="МБ" />}
+          <StatTile label="ON BAND" value={String(onDevice.length)} />
+          <StatTile label="ON PHONE" value={String(saved.length)} />
+          {free === null ? null : <StatTile label="FREE" value={String(free)} unit="MB" />}
         </Stack>
 
         {onDevice.length === 0 && saved.length === 0 ? (
-          <BandEmpty reading={reading} text="Записей пока нет" />
+          <BandEmpty reading={reading} text="No recordings yet" />
         ) : null}
 
         {saved.slice(0, SHOWN).map((item) => (
@@ -63,14 +63,14 @@ export function RecordingsCard({
             <Stack direction="row" gap="sm" align="center">
               {/* Без этого выгрузка кончалась ничем: файл лежал на телефоне, а
                   добраться до него из приложения было нельзя. */}
-              <ActionLink label="Отправить" onPress={() => void share(item.uri)} />
-              <ActionLink label="Удалить" onPress={() => onRemove(item.session)} />
+              <ActionLink label="Share" onPress={() => void share(item.uri)} />
+              <ActionLink label="Delete" onPress={() => onRemove(item.session)} />
             </Stack>
           </Stack>
         ))}
 
         <Button
-          label={busy ? 'Забираем…' : 'Забрать на телефон'}
+          label={busy ? 'Downloading…' : 'Download to the phone'}
           variant="tonal"
           onPress={onPull}
           disabled={!live || busy || onDevice.length === 0}
@@ -84,7 +84,7 @@ export function RecordingsCard({
 function describe(item: SavedRecording): string {
   const parts = [`${Math.round(item.seconds)} с`];
   if (item.marks.length > 0) parts.push(`меток: ${item.marks.length}`);
-  parts.push(item.uploaded ? 'отправлена' : 'не отправлена');
+  parts.push(item.uploaded ? 'uploaded' : 'not uploaded');
   return parts.join(' · ');
 }
 

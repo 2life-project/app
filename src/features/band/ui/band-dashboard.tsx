@@ -74,11 +74,11 @@ export function BandDashboard({
   return (
     <Stack gap="md">
       <SectionSummary
-        title={state.device?.name ?? 'Браслет'}
+        title={state.device?.name ?? 'Band'}
         action={
           live
-            ? { label: state.busy ? 'Читаем…' : 'Обновить', onPress: onRefresh }
-            : { label: 'Подключить', onPress: onScan }
+            ? { label: state.busy ? 'Reading…' : 'Refresh', onPress: onRefresh }
+            : { label: 'Connect', onPress: onScan }
         }
         caption={<SectionCaption>{summary.caption}</SectionCaption>}
         ring={summary.ring}
@@ -102,15 +102,15 @@ export function BandDashboard({
 
       <Card variant="sunken">
         <Stack gap="sm">
-          <Text variant="subtitle">Команды</Text>
+          <Text variant="subtitle">Commands</Text>
           <View style={styles.controls}>
-            <Button label="Замерить" onPress={onMeasure} disabled={!live} />
-            <Button label="Вибрация" variant="tonal" onPress={onVibrate} disabled={!live} />
+            <Button label="Take a reading" onPress={onMeasure} disabled={!live} />
+            <Button label="Buzz" variant="tonal" onPress={onVibrate} disabled={!live} />
             {state.recording ? (
-              <Button label="Остановить запись" variant="tonal" onPress={onStopRecording} />
+              <Button label="Stop recording" variant="tonal" onPress={onStopRecording} />
             ) : (
               <Button
-                label="Записать голос"
+                label="Record voice"
                 variant="tonal"
                 onPress={onStartRecording}
                 disabled={!live}
@@ -119,8 +119,8 @@ export function BandDashboard({
           </View>
           <Text variant="bodySmall" tone="muted">
             {live
-              ? 'Один замер занимает около минуты: оптический датчик включается ради него, а не работает постоянно.'
-              : 'Команды работают только на живой связи с браслетом.'}
+              ? 'A single reading takes about a minute — the optical sensor turns on for it rather than running all the time.'
+              : 'Commands need a live connection to the band.'}
           </Text>
         </Stack>
       </Card>
@@ -139,8 +139,8 @@ export function BandDashboard({
       <BandDetails kind={detail} state={state} onClose={() => setDetail(null)} />
 
       <View style={styles.footer}>
-        {live ? <Button label="Отключить" variant="plain" onPress={onDisconnect} /> : null}
-        <Button label="Забыть браслет" variant="plain" onPress={onForget} />
+        {live ? <Button label="Disconnect" variant="plain" onPress={onDisconnect} /> : null}
+        <Button label="Forget this band" variant="plain" onPress={onForget} />
       </View>
     </Stack>
   );

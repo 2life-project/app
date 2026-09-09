@@ -58,7 +58,7 @@ export function MetricCard({
         <View style={styles.header}>
           <Text variant="subtitle">{title}</Text>
           {onOpen ? (
-            <ActionLink label="Подробнее" chevron onPress={onOpen} disabled={value === EMPTY} />
+            <ActionLink label="Details" chevron onPress={onOpen} disabled={value === EMPTY} />
           ) : caption ? (
             <Text variant="bodySmall" tone="muted">
               {caption}
@@ -96,9 +96,9 @@ export function MetricCard({
 
         {summary && summary.count > 1 ? (
           <View style={styles.tiles}>
-            <StatTile label="Минимум" value={String(summary.min)} />
-            <StatTile label="Среднее" value={String(summary.average)} />
-            <StatTile label="Максимум" value={String(summary.max)} />
+            <StatTile label="MIN" value={String(summary.min)} />
+            <StatTile label="AVG" value={String(summary.average)} />
+            <StatTile label="MAX" value={String(summary.max)} />
           </View>
         ) : null}
 

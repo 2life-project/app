@@ -52,9 +52,9 @@ export function HeartCard({
 
   return (
     <MetricCard
-      title="Пульс"
+      title="Heart rate"
       value={current === undefined ? '—' : String(current)}
-      unit="уд/мин"
+      unit="bpm"
       caption={readingsCaption(points.length)}
       tone="danger"
       series={series}
@@ -64,10 +64,10 @@ export function HeartCard({
       {resting === undefined && !summary ? null : (
         <View style={styles.tiles}>
           {resting === undefined ? null : (
-            <StatTile label="Покой" value={String(resting)} unit="уд/мин" />
+            <StatTile label="RESTING" value={String(resting)} unit="bpm" />
           )}
           {summary && summary.count > 1 ? (
-            <StatTile label="Разброс" value={`${summary.min}–${summary.max}`} unit="уд/мин" />
+            <StatTile label="RANGE" value={`${summary.min}–${summary.max}`} unit="bpm" />
           ) : null}
         </View>
       )}
@@ -77,7 +77,7 @@ export function HeartCard({
       {heartbeat.available ? (
         <View style={styles.beat}>
           <Button
-            label={heartbeat.on ? 'Остановить ритм' : 'Почувствовать ритм'}
+            label={heartbeat.on ? 'Stop the beat' : 'Feel the beat'}
             variant={heartbeat.on ? 'filled' : 'tonal'}
             size="sm"
             onPress={heartbeat.toggle}

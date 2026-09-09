@@ -14,7 +14,7 @@ export function BandScreen() {
   return (
     <Screen>
       <Stack gap="md">
-        <ScreenHeader title="Устройство" />
+        <ScreenHeader title="Band" />
         <BandPanel />
       </Stack>
     </Screen>

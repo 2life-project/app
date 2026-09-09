@@ -43,8 +43,8 @@ export function StressDetail({ state }: { state: BandState }) {
   if (!summary) {
     return (
       <EmptyState
-        title="Замеров стресса сегодня нет"
-        description="Устройство меряет стресс само примерно раз в десять минут."
+        title="No stress readings today"
+        description="The band works stress out on its own, roughly every ten minutes."
       />
     );
   }
@@ -56,9 +56,9 @@ export function StressDetail({ state }: { state: BandState }) {
           <Text variant="subtitle">За день</Text>
           <LineChart values={thin(points, 200)} tone="warning" height={140} />
           <View style={styles.tiles}>
-            <StatTile label="Минимум" value={String(summary.min)} />
-            <StatTile label="Среднее" value={String(summary.average)} />
-            <StatTile label="Максимум" value={String(summary.max)} />
+            <StatTile label="MIN" value={String(summary.min)} />
+            <StatTile label="AVG" value={String(summary.average)} />
+            <StatTile label="MAX" value={String(summary.max)} />
           </View>
         </Stack>
       </Card>
@@ -76,12 +76,12 @@ export function StressDetail({ state }: { state: BandState }) {
           {peak ? (
             <>
               <SummaryRow
-                title="Самый спокойный час"
+                title="Calmest hour"
                 subtitle={`замеров: ${peak.low.count}`}
                 value={`${hourLabel(peak.low.hour)} · ${peak.low.value}`}
               />
               <SummaryRow
-                title="Самый напряжённый час"
+                title="Most strained hour"
                 subtitle={`замеров: ${peak.high.count}`}
                 value={`${hourLabel(peak.high.hour)} · ${peak.high.value}`}
                 divider
