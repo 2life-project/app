@@ -133,11 +133,23 @@ export const readActivityCount = (from: Date, to: Date) =>
 export const readActivityFrame = (from: Date, to: Date, index: number) =>
   encode(Cmd.history, Mode.read, 0x01, concat(encodeTime(from), encodeTime(to), word(index)));
 
+/**
+ * Распознанная устройством активность идёт двумя независимыми потоками.
+ * Различие между ними не установлено: в наблюдениях второй попадал внутрь окна
+ * тренировки, а первый шёл вне её.
+ */
 export const readStatusCount = (from: Date, to: Date) =>
   encode(Cmd.historyCount, Mode.read, 0x02, concat(encodeTime(from), encodeTime(to)));
 
 export const readStatusFrame = (from: Date, to: Date, index: number) =>
   encode(Cmd.history, Mode.read, 0x02, concat(encodeTime(from), encodeTime(to), word(index)));
+
+/** Счётчик второго потока: он спрашивается ещё и по типу движения. */
+export const readStateCount = (from: Date, to: Date, type = 0) =>
+  encode(Cmd.historyCount, Mode.read, 0x03, concat(encodeTime(from), encodeTime(to), byte(type)));
+
+export const readStateFrame = (from: Date, to: Date, index: number) =>
+  encode(Cmd.history, Mode.read, 0x03, concat(encodeTime(from), encodeTime(to), word(index)));
 
 export const readSleep = (from: Date, to: Date) =>
   encode(Cmd.history, Mode.read, 0x04, concat(encodeTime(from), encodeTime(to)));

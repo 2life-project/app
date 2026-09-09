@@ -55,5 +55,6 @@ export {
   savedSessions,
   usedBytes,
 } from './storage';
-export type { SavedRecording } from './storage';
+export type { RecordingMark, SavedRecording } from './storage';
+export { marksOf, rememberMark } from './storage';
 export { startBackgroundSync, stopBackgroundSync, syncRecordings } from './sync';

@@ -15,6 +15,7 @@ import {
   connectedBands,
   dropConnection,
   mergeFound,
+  rememberMark,
   scanForBands,
   sortByProximity,
   startBackgroundSync,
@@ -196,6 +197,14 @@ export function useBand() {
           }
           if (event.kind === 'recorder') {
             const recorderEvent = event.event;
+            // Метку сохраняем сразу: файл скачается позже, а до тех пор она
+            // существует только в этом отчёте.
+            if (recorderEvent.kind === 'marked') {
+              rememberMark(recorderEvent.session, {
+                index: recorderEvent.index,
+                offsetSeconds: recorderEvent.offsetSeconds,
+              });
+            }
             if (recorderEvent.kind === 'started') patch({ recording: true });
             if (recorderEvent.kind === 'finished') {
               patch({ recording: false });

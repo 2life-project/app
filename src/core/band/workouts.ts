@@ -54,10 +54,19 @@ export type ActivityState = {
   minutes: number;
   /** Тип движения по классификации прошивки. Во всех наблюдениях был `1`. */
   type: number;
+  /**
+   * Из какого потока запись. Чем потоки отличаются, не установлено: в
+   * наблюдениях события второго попадали внутрь окна тренировки, а первого —
+   * вне её. Признак сохраняется, чтобы это можно было выяснить на данных.
+   */
+  stream: 'status' | 'state';
 };
 
 const REF_SIZE = 8;
 const STATE_SIZE = 7;
+
+/** Потолок кадров одного потока: счётчик приходит одним байтом и может врать. */
+const MAX_STATE_FRAMES = 60;
 
 export function decodeWorkoutList(body: Uint8Array): WorkoutRef[] {
   const refs: WorkoutRef[] = [];
@@ -96,7 +105,10 @@ export function decodeWorkout(body: Uint8Array): Workout {
  * `02` и поле `03`. Чем они различаются, не установлено — в наблюдениях второй
  * шёл во время тренировки, а первый вне её.
  */
-export function decodeActivityStates(body: Uint8Array): ActivityState[] {
+export function decodeActivityStates(
+  body: Uint8Array,
+  stream: 'status' | 'state' = 'status',
+): ActivityState[] {
   const states: ActivityState[] = [];
 
   // Первые два байта — номер кадра, дальше записи по семь байт.
@@ -108,6 +120,7 @@ export function decodeActivityStates(body: Uint8Array): ActivityState[] {
       type: byteAt(body, offset),
       at: new Date(seconds * 1000),
       minutes: be16(body, offset + 5) ?? 0,
+      stream,
     });
   }
 
@@ -170,17 +183,36 @@ export class BandWorkouts {
   }
 
   /**
-   * Распознанные устройством события движения. Два потока: поле `02` и `03`.
-   * Счётчик кадров спрашивается отдельно, как и у истории.
+   * Распознанные устройством события движения — оба потока.
+   *
+   * Счётчик кадров спрашивается отдельно, как и у истории, и приходит одним
+   * коротким кадром без терминатора: сборщик многокадровых ответов ждал бы его
+   * до истечения времени.
    */
   async states(from: Date, to: Date): Promise<ActivityState[]> {
-    const count = await this.transport.requestRaw(cmd.readStatusCount(from, to), 0xc5);
+    return [
+      ...(await this.readStream(from, to, 'status')),
+      ...(await this.readStream(from, to, 'state')),
+    ].sort((a, b) => a.at.getTime() - b.at.getTime());
+  }
+
+  private async readStream(
+    from: Date,
+    to: Date,
+    stream: 'status' | 'state',
+  ): Promise<ActivityState[]> {
+    const counter =
+      stream === 'status' ? cmd.readStatusCount(from, to) : cmd.readStateCount(from, to);
+    const count = await this.transport.requestRaw(counter, 0xc5);
     const frames = count.length > 0 ? byteAt(count, count.length - 1) : 0;
 
     const states: ActivityState[] = [];
-    for (let index = 0; index < frames; index += 1) {
-      const body = await this.transport.request(cmd.readStatusFrame(from, to, index));
-      states.push(...decodeActivityStates(body));
+    for (let index = 0; index < Math.min(frames, MAX_STATE_FRAMES); index += 1) {
+      const frame =
+        stream === 'status'
+          ? cmd.readStatusFrame(from, to, index)
+          : cmd.readStateFrame(from, to, index);
+      states.push(...decodeActivityStates(await this.transport.request(frame), stream));
     }
     return states;
   }

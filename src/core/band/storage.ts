@@ -28,6 +28,16 @@ export type SavedRecording = {
   seconds: number;
   /** Выгружена ли на сервер. */
   uploaded: boolean;
+  /** Метки, поставленные кнопкой во время записи. */
+  marks: RecordingMark[];
+};
+
+/** Точка интереса внутри записи: человек нажал кнопку в этот момент. */
+export type RecordingMark = {
+  /** Номер метки в этой записи. */
+  index: number;
+  /** Смещение от начала файла. */
+  offsetSeconds: number;
 };
 
 function folder(): Directory {
@@ -78,6 +88,7 @@ export function saveRecording(session: number, raw: Uint8Array): SavedRecording 
     fileBytes: file.size ?? 0,
     seconds: durationSeconds(raw.length),
     uploaded: false,
+    marks: marksOf(session),
   };
 }
 
@@ -98,6 +109,7 @@ export function savedRecordings(): SavedRecording[] {
       fileBytes: entry.size ?? 0,
       seconds: durationSeconds(parsed.rawBytes),
       uploaded: parsed.uploaded,
+      marks: marksOf(parsed.session),
     });
   }
 
@@ -111,6 +123,40 @@ export function savedSessions(): Set<number> {
 
 export function pendingUploads(): SavedRecording[] {
   return savedRecordings().filter((item) => !item.uploaded);
+}
+
+/**
+ * Метки хранятся рядом с записью отдельным файлом.
+ *
+ * Они приходят отчётами по ходу записи, задолго до того, как файл скачан, и
+ * держать их в памяти нельзя: приложение закроют, а метка — единственное, что
+ * человек в этой записи отметил сам.
+ */
+function marksFile(session: number): File {
+  return new File(folder(), `${session}.marks.json`);
+}
+
+export function rememberMark(session: number, mark: RecordingMark): void {
+  const marks = marksOf(session).filter((item) => item.index !== mark.index);
+  marks.push(mark);
+  marks.sort((a, b) => a.offsetSeconds - b.offsetSeconds);
+
+  const file = marksFile(session);
+  if (!file.exists) file.create();
+  file.write(JSON.stringify(marks));
+}
+
+export function marksOf(session: number): RecordingMark[] {
+  const file = marksFile(session);
+  if (!file.exists) return [];
+
+  try {
+    const parsed: unknown = JSON.parse(file.textSync());
+    return Array.isArray(parsed) ? (parsed as RecordingMark[]) : [];
+  } catch (error) {
+    logger.warn('band: метки не прочитались', { session, reason: String(error) });
+    return [];
+  }
 }
 
 /**
@@ -136,6 +182,9 @@ export function markUploaded(session: number): void {
 
 export function removeSaved(session: number): void {
   fileOf(session)?.delete();
+
+  const marks = marksFile(session);
+  if (marks.exists) marks.delete();
 }
 
 /** Сколько места записи занимают на диске. */
