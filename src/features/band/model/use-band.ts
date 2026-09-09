@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { logger } from '@/core/log/logger';
-import { setPairedBand, usePairedBand } from '@/shared/domain';
+import { setPairedBand, syncBodyProfile, usePairedBand } from '@/shared/domain';
 
 import {
   Band,
@@ -16,8 +16,16 @@ import {
 } from '../api';
 
 import { useBandActions } from './band-actions';
-import { clearSnapshot, loadEverything, loadSnapshot, saveSnapshot } from './band-data';
+import {
+  backfillHistory,
+  clearSnapshot,
+  loadEverything,
+  loadSnapshot,
+  saveSnapshot,
+} from './band-data';
 import { INITIAL, type BandState } from './band-state';
+import { clearHistory } from './history-store';
+import { sendProfile } from './profile-sync';
 import { useBandEvents } from './use-band-events';
 import { useForeground } from './use-foreground';
 import { useOpenSession } from './use-open-session';
@@ -178,7 +186,20 @@ export function useBand() {
         // человек не должен.
         setPairedBand({ id: device.id, name: device.name, pairedAt: new Date().toISOString() });
         patch({ stage: 'connected' });
+
+        // Профиль уезжает при каждом подключении, а не только при первом.
+        // Прочитать, что сейчас записано в устройстве, нечем — команды чтения
+        // профиля в протоколе нет, — а разойтись они могут: браслет сбрасывают
+        // к заводским, вес человек меняет на другом экране. Без ожидания: связь
+        // уже установлена, и держать на этом обмене экран незачем.
+        void syncBodyProfile().then((profile) => sendProfile(connected, profile));
+
         await refresh();
+
+        // Дочитать сутки, которые устройство ещё помнит, а телефон уже нет.
+        // После `refresh`, а не вместо: экран к этому моменту уже полон, а
+        // архив набивается молча — по кадру на минуту, это долго.
+        void backfillHistory(connected, latest.current.mac);
       } catch (error) {
         logger.warn('band: подключение не удалось', { reason: String(error) });
         patch({ stage: 'failed', problem: 'connect-failed' });
@@ -226,6 +247,9 @@ export function useBand() {
 
     setPairedBand(null);
     clearSnapshot();
+    // Архив суток уходит вместе с браслетом: иначе история старого устройства
+    // подмешается к новому, а разделить их будет уже нечем.
+    await clearHistory().catch(() => undefined);
     latest.current = INITIAL;
     setState(INITIAL);
   }, [paired]);

@@ -1,3 +1,20 @@
+export {
+  ageOf,
+  bodyProfile,
+  EMPTY_PROFILE,
+  isComplete,
+  LIMITS,
+  runStepOf,
+  setBodyProfile,
+  sexOf,
+  syncBodyProfile,
+  useBodyProfile,
+  walkStepOf,
+  within,
+  type BodyProfile,
+  type Sex,
+  type Hand,
+} from './body-profile';
 export { setPairedBand, useBandConnected, usePairedBand, type PairedBand } from './connection';
 export {
   availability,

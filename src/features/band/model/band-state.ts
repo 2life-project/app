@@ -31,6 +31,8 @@ export type BandState = {
   device?: { id: string; name: string };
   battery?: number;
   firmware?: string;
+  /** Адрес устройства из паспорта. Им ключуются сутки в архиве. */
+  mac?: string;
   /** Последний живой отчёт: приходит сам каждые десять секунд. */
   live?: ActivitySample;
   summary?: DaySummary;

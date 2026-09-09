@@ -7,6 +7,7 @@ import { savedRecordings } from '../api';
 
 import type { BandState } from './band-state';
 import { startOfToday } from './day-metrics';
+import { loadDay, needsRead, recentDays, rememberDay } from './history-store';
 import { loadWorkouts } from './workout-store';
 
 /**
@@ -34,6 +35,7 @@ const KEY = '2life:band-snapshot.2';
 const KEEP = [
   'battery',
   'firmware',
+  'mac',
   'live',
   'summary',
   'measurement',
@@ -116,7 +118,7 @@ export async function loadEverything(
 
   await step('info', async () => {
     const info = await band.info();
-    patch({ battery: info.battery?.level, firmware: info.firmware });
+    patch({ battery: info.battery?.level, firmware: info.firmware, mac: info.mac });
   });
   await step('сводка дня', async () => patch({ summary: await band.daySummary() }));
   await step('записи', async () => patch({ recordings: await band.recorder.list() }));
@@ -158,4 +160,42 @@ async function step(what: string, run: () => Promise<void>): Promise<void> {
   } catch (failure) {
     logger.warn('band: не прочиталось', { what, reason: String(failure) });
   }
+}
+
+/**
+ * Дочитать сутки, которые устройство ещё помнит, а телефон уже нет.
+ *
+ * Отдельно от `loadEverything` и после него: это единственное чтение, которое
+ * нужно не экрану, а архиву. Идёт оно долго — по кадру на минуту, — и человек
+ * всё это время смотрит на уже показанные числа, а не на «читаем…».
+ *
+ * По одним суткам за раз: у браслета одна очередь команд, и параллельные
+ * запросы истории перемешали бы ответы.
+ */
+export async function backfillHistory(band: Band, mac?: string): Promise<string[]> {
+  const filled: string[] = [];
+
+  for (const day of recentDays()) {
+    const stored = await loadDay(day);
+    if (!needsRead(day, stored)) continue;
+
+    const [year, month, date] = day.split('-').map(Number);
+    if (!year || !month || !date) continue;
+
+    const from = new Date(year, month - 1, date);
+    // Сутки могут ещё идти: тогда конец окна — сейчас, а не полночь впереди.
+    const end = new Date(year, month - 1, date + 1);
+    const to = end > new Date() ? new Date() : end;
+
+    try {
+      await rememberDay(day, await band.history(from, to), mac);
+      filled.push(day);
+    } catch (failure) {
+      // Один непрочитанный день не отменяет остальные: связь могла оборваться
+      // на середине, и следующий заход дочитает то, что не успело.
+      logger.warn('band: сутки не дочитались', { day, reason: String(failure) });
+    }
+  }
+
+  return filled;
 }

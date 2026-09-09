@@ -1,10 +1,12 @@
 import { useCallback, type MutableRefObject } from 'react';
 
 import { logger } from '@/core/log/logger';
+import type { BodyProfile } from '@/shared/domain';
 
 import { Band, removeSaved, savedRecordings, syncRecordings } from '../api';
 
 import type { BandState } from './band-state';
+import { sendProfile } from './profile-sync';
 import { startSession } from './workout-session';
 import { clearOpenSession, rememberWorkout, saveOpenSession, toRecord } from './workout-store';
 
@@ -117,6 +119,22 @@ export function useBandActions({
   );
 
   /**
+   * Отправить профиль тела на устройство.
+   *
+   * Отдельным действием, а не только при подключении: человек правит рост или
+   * вес при живой связи, и ждать переподключения ради этого незачем. Без связи
+   * ничего не делаем — профиль уже сохранён на телефоне и уедет при следующем
+   * подключении.
+   */
+  const saveProfile = useCallback(
+    async (profile: BodyProfile) => {
+      const active = bandRef.current;
+      if (active) await sendProfile(active, profile);
+    },
+    [bandRef],
+  );
+
+  /**
    * Начать занятие. Считать его будет браслет, а копить — мы: устройство
    * присылает секунду за секундой и после финиша ничего не сохраняет.
    */
@@ -189,6 +207,7 @@ export function useBandActions({
     stopRecording,
     pullRecordings,
     removeRecording,
+    saveProfile,
     startWorkout,
     stopWorkout,
   };
