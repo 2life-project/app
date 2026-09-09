@@ -4,6 +4,7 @@ import { useBand } from '../model/use-band';
 
 import { BandConnect } from './band-connect';
 import { BandDashboard } from './band-dashboard';
+import { BandManage } from './band-manage';
 import { BodyProfileCard } from './body-profile-card';
 
 /**
@@ -52,6 +53,13 @@ export function BandPanel() {
           onForget={band.forget}
         />
       )}
+
+      <BandManage
+        alarms={band.alarms}
+        settings={band.settings}
+        supported={band.state.supported}
+        live={band.state.stage === 'connected'}
+      />
     </Stack>
   );
 }

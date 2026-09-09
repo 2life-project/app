@@ -2,8 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { logger } from '@/core/log/logger';
 
-import type { Band, Workout } from '../api';
-import { savedRecordings } from '../api';
+import type { Band, FeatureName, Workout } from '../api';
+import { Feature, savedRecordings, supports } from '../api';
 
 import type { BandState } from './band-state';
 import { startOfToday } from './day-metrics';
@@ -36,6 +36,7 @@ const KEEP = [
   'battery',
   'firmware',
   'mac',
+  'supported',
   'live',
   'summary',
   'measurement',
@@ -120,6 +121,11 @@ export async function loadEverything(
     const info = await band.info();
     patch({ battery: info.battery?.level, firmware: info.firmware, mac: info.mac });
   });
+
+  // Маски возможностей устройство отдало при подключении. Без них экран
+  // предлагал бы настраивать то, чего в этой прошивке нет: неподдержанную
+  // команду браслет подтверждает пустым эхом, неотличимым от успеха.
+  patch({ supported: supportedFeatures(band) });
   await step('сводка дня', async () => patch({ summary: await band.daySummary() }));
   await step('записи', async () => patch({ recordings: await band.recorder.list() }));
   await step('память', async () =>
@@ -151,6 +157,15 @@ export async function loadEverything(
   // История последней: она забирается кадр за кадром и идёт дольше всего
   // остального вместе взятого. Впереди неё числа успели бы устареть.
   await step('история', async () => patch({ today: await band.history(startOfToday(now), now) }));
+}
+
+/** Какие возможности взведены в масках этого устройства. */
+export function supportedFeatures(band: Band): FeatureName[] {
+  const capabilities = band.features;
+  if (!capabilities) return [];
+
+  const names = Object.keys(Feature) as FeatureName[];
+  return names.filter((name) => supports(capabilities, name));
 }
 
 /** Один шаг чтения. Провал одного не отменяет остальные, но виден в логе. */

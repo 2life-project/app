@@ -26,9 +26,11 @@ import {
 import { INITIAL, type BandState } from './band-state';
 import { clearHistory } from './history-store';
 import { sendProfile } from './profile-sync';
+import { useAlarms } from './use-alarms';
 import { useBandEvents } from './use-band-events';
 import { useForeground } from './use-foreground';
 import { useOpenSession } from './use-open-session';
+import { useDeviceSettings } from './use-settings';
 import { clearOpenSession, rememberWorkout, toRecord } from './workout-store';
 
 /**
@@ -273,6 +275,11 @@ export function useBand() {
     void connect({ id: paired.id, name: paired.name, rssi: 0 });
   }, [connect, paired]);
 
+  // Будильники держат своё состояние: список читается по требованию, и тянуть
+  // двадцать обменов по радио в общее состояние раздела незачем.
+  const alarms = useAlarms(band);
+  const settings = useDeviceSettings(band);
+
   const actions = useBandActions({
     bandRef: band,
     adopt,
@@ -291,6 +298,8 @@ export function useBand() {
     forget,
     paired,
     refresh,
+    alarms,
+    settings,
     ...actions,
   };
 }

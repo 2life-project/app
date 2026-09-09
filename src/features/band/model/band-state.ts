@@ -1,5 +1,6 @@
 import type {
   ActivitySample,
+  FeatureName,
   ActivityState,
   DaySummary,
   FoundBand,
@@ -33,6 +34,8 @@ export type BandState = {
   firmware?: string;
   /** Адрес устройства из паспорта. Им ключуются сутки в архиве. */
   mac?: string;
+  /** Что эта прошивка умеет. Пусто — масок ещё не читали, а не «ничего не умеет». */
+  supported: FeatureName[];
   /** Последний живой отчёт: приходит сам каждые десять секунд. */
   live?: ActivitySample;
   summary?: DaySummary;
@@ -62,6 +65,7 @@ export type BandState = {
 export const INITIAL: BandState = {
   stage: 'idle',
   found: [],
+  supported: [],
   sleep: [],
   today: [],
   stress: [],
