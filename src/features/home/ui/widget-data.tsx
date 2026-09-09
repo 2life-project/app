@@ -22,8 +22,10 @@ import {
 } from '@/shared/ui';
 
 import type { HomeData, WidgetType } from '../api/contract';
+import { customWidgetOf } from '../model/custom-widget';
 import { nutritionOf } from '../model/nutrition';
 import type { RingView, SystemView } from '../model/vitals';
+import { WIDGET_TITLES } from '../model/widgets';
 
 import { FuelSummary } from './fuel-summary';
 
@@ -96,9 +98,23 @@ type CustomWidgetData = HomeData['widgets'][number];
 /**
  * Виджет, собранный пользователем: рецепт называет вид и набор показателей,
  * сервер приносит их значения тем же конвертом, что и все остальные.
+ *
+ * Пока сервер не прислал ни рецепта, ни значений, карточка честно об этом
+ * говорит: сохранять рецепт ячейки бэкенду пока некуда (`docs/backend-gaps.md`,
+ * пункт 8), и виджет остаётся пустым до конца этой пары ручек.
  */
 export function CustomWidget({ widget }: { widget: CustomWidgetData }) {
-  const { recipe, metrics } = widget.data;
+  const view = customWidgetOf(widget.data);
+
+  if (!view) {
+    return (
+      <WidgetCard title={WIDGET_TITLES.custom ?? 'Custom widget'}>
+        <Text tone="muted">The server has not sent this widget’s recipe yet.</Text>
+      </WidgetCard>
+    );
+  }
+
+  const { recipe, metrics } = view;
   const first = metrics[0];
 
   return (

@@ -177,7 +177,14 @@ export type HomeData = {
   widgets: readonly {
     id: string;
     type: WidgetType;
-    data: { recipe: WidgetRecipe; metrics: readonly MetricValue[] };
+    /**
+     * У каждого типа виджета своя форма, и спека её не описывает вовсе
+     * (`x-untyped`). На живых ответах видно: `vitals` присылает четыре кольца,
+     * `rails` — план дня, `fuel` и `goals` — конверт секции, а `create` и
+     * `empty` — просто `null`. Поэтому здесь `unknown`: разбирает тот, кто
+     * знает свой тип, — иначе один незнакомый виджет роняет всю Главную.
+     */
+    data: unknown;
   }[];
 };
 
