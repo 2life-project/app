@@ -1,4 +1,7 @@
-import { clearFatal, installFatalHandler } from './fatal';
+import { act, renderHook } from '@testing-library/react-native';
+
+import { clearFatal, installFatalHandler, useFatal } from './fatal';
+import { logger } from './logger';
 
 type Handler = (error: unknown, isFatal?: boolean) => void;
 
@@ -14,55 +17,98 @@ function fakeErrorUtils(system: Handler) {
   return (error: unknown, isFatal?: boolean) => current(error, isFatal);
 }
 
-describe('перехват фатальной ошибки', () => {
-  let logged: jest.SpyInstance;
+/** Смонтированный экран ошибки: без подписчика показывать падение некому. */
+function mountScreen() {
+  return renderHook(() => useFatal());
+}
 
+describe('перехват фатальной ошибки', () => {
   beforeEach(() => {
-    logged = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    jest.spyOn(console, 'debug').mockImplementation(() => undefined);
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     jest.restoreAllMocks();
-    clearFatal();
+    // Через `act`: экран ещё смонтирован, и сброс перерисовывает его.
+    await act(async () => clearFatal());
     delete (globalThis as { ErrorUtils?: unknown }).ErrorUtils;
   });
 
-  it('забирает фатальную ошибку себе, а не системе', () => {
+  it('забирает фатальную ошибку себе, а не системе', async () => {
     const system = jest.fn();
     const fire = fakeErrorUtils(system);
     installFatalHandler();
+    const screen = await mountScreen();
 
-    fire(new TypeError('нет поля date'), true);
+    await act(async () => fire(new TypeError('нет поля date'), true));
 
     expect(system).not.toHaveBeenCalled();
-    expect(logged).toHaveBeenCalledWith(
-      'Фатальная ошибка',
-      expect.objectContaining({ name: 'TypeError', message: 'нет поля date' }),
-    );
+    expect(screen.result.current?.error.message).toBe('нет поля date');
   });
 
-  // Нефатальное приложение переживает само: перехватывать его значит менять
-  // поведение там, где ничего не сломалось.
-  it('нефатальную отдаёт системе', () => {
+  it('снимает след в момент падения', async () => {
+    const fire = fakeErrorUtils(jest.fn());
+    installFatalHandler();
+    const screen = await mountScreen();
+    logger.debug('до падения');
+
+    await act(async () => fire(new Error('всё'), true));
+    logger.debug('после падения');
+
+    const trail = screen.result.current?.trail ?? [];
+    expect(trail.some((line) => line.includes('до падения'))).toBe(true);
+    expect(trail.some((line) => line.includes('после падения'))).toBe(false);
+  });
+
+  // Worklet бросает на каждом кадре: без этого повтор за полсекунды вытеснил бы
+  // из следа всё, что было до падения.
+  it('вторую ошибку подряд отдаёт системе и след не трогает', async () => {
+    const system = jest.fn();
+    const fire = fakeErrorUtils(system);
+    installFatalHandler();
+    const screen = await mountScreen();
+
+    await act(async () => fire(new Error('первая'), true));
+    await act(async () => fire(new Error('вторая'), true));
+
+    expect(screen.result.current?.error.message).toBe('первая');
+    expect(system).toHaveBeenCalledTimes(1);
+  });
+
+  // Проглотить ошибку, когда её некому показать, значит подменить падение с
+  // отчётом на сплэш навсегда.
+  it('без смонтированного экрана отдаёт ошибку системе', async () => {
     const system = jest.fn();
     const fire = fakeErrorUtils(system);
     installFatalHandler();
 
-    fire(new Error('шум'), false);
+    await act(async () => fire(new Error('до первой отрисовки'), true));
 
     expect(system).toHaveBeenCalledTimes(1);
   });
 
-  it('строку превращает в ошибку — экрану нужно имя и сообщение', () => {
+  // Нефатальное приложение переживает само: перехватывать его значит менять
+  // поведение там, где ничего не сломалось.
+  it('нефатальную отдаёт системе', async () => {
+    const system = jest.fn();
+    const fire = fakeErrorUtils(system);
+    installFatalHandler();
+    await mountScreen();
+
+    await act(async () => fire(new Error('шум'), false));
+
+    expect(system).toHaveBeenCalledTimes(1);
+  });
+
+  it('строку превращает в ошибку — экрану нужно имя и сообщение', async () => {
     const fire = fakeErrorUtils(jest.fn());
     installFatalHandler();
+    const screen = await mountScreen();
 
-    fire('всё сломалось', true);
+    await act(async () => fire('всё сломалось', true));
 
-    expect(logged).toHaveBeenCalledWith(
-      'Фатальная ошибка',
-      expect.objectContaining({ message: 'всё сломалось' }),
-    );
+    expect(screen.result.current?.error.message).toBe('всё сломалось');
   });
 
   it('без глобала React Native ничего не ставит и не падает', () => {

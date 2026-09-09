@@ -1,9 +1,9 @@
 import type { ErrorBoundaryProps } from 'expo-router';
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
-import { clearFatal, reportFatal, useFatal } from '@/core/log/fatal';
-import { logTrail } from '@/core/log/logger';
+import { clearFatal, useFatal } from '@/core/log/fatal';
+import { logger, logTrail } from '@/core/log/logger';
 import { space, theme } from '@/shared/theme';
 
 import { Button } from './button';
@@ -20,7 +20,15 @@ import { Text } from './text';
  * Провайдеров здесь нет: expo-router оборачивает в границу сам корневой layout,
  * поэтому ни безопасных зон, ни навигации на этот момент ещё не существует.
  */
-function ErrorScreen({ error, onRetry }: { error: Error; onRetry: () => void }) {
+function ErrorScreen({
+  error,
+  trail,
+  onRetry,
+}: {
+  error: Error;
+  trail: readonly string[];
+  onRetry: () => void;
+}) {
   return (
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -39,7 +47,7 @@ function ErrorScreen({ error, onRetry }: { error: Error; onRetry: () => void }) 
           {/* Строка в строку: тридцать записей должны поместиться на один
               снимок экрана, иначе начало следа до нас не доедет. */}
           <Stack gap="xs" style={styles.trail}>
-            {logTrail().map((line, index) => (
+            {trail.map((line, index) => (
               <Text key={`${index}-${line}`} variant="footnote" tone="muted" numberOfLines={1}>
                 {line}
               </Text>
@@ -55,21 +63,17 @@ function ErrorScreen({ error, onRetry }: { error: Error; onRetry: () => void }) 
 
 /** Границу с этим именем expo-router находит сам и оборачивает в неё маршруты. */
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  // Снимок следа берётся один раз при появлении экрана: пока он висит, в след
+  // продолжают падать отмены запросов от размонтированных экранов.
+  const [trail] = useState(() => [...logTrail()]);
+
   // Запись из эффекта, а не из отрисовки: React рисует компонент столько раз,
   // сколько ему нужно, и одна ошибка попадала бы в след несколько раз.
   useEffect(() => {
-    reportFatal(error);
+    logger.error('Экран не отрисовался', { name: error.name, message: error.message });
   }, [error]);
 
-  return (
-    <ErrorScreen
-      error={error}
-      onRetry={() => {
-        clearFatal();
-        void retry();
-      }}
-    />
-  );
+  return <ErrorScreen error={error} trail={trail} onRetry={() => void retry()} />;
 }
 
 /**
@@ -78,7 +82,9 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
  */
 export function FatalGuard({ children }: { children: ReactNode }) {
   const fatal = useFatal();
-  return fatal ? <ErrorScreen error={fatal} onRetry={clearFatal} /> : <>{children}</>;
+  if (!fatal) return <>{children}</>;
+
+  return <ErrorScreen error={fatal.error} trail={fatal.trail} onRetry={clearFatal} />;
 }
 
 /**

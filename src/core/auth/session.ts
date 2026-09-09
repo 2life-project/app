@@ -180,10 +180,12 @@ async function post<T>(path: string, body: Record<string, string>): Promise<T> {
   });
 
   // Код нужен экрану: 429 он показывает отсчётом, а не той же строкой, что и
-  // неверный пароль. Тело ошибки в интерфейс не идёт — только в лог.
+  // неверный пароль. Тело ответа уезжает в саму ошибку — экран берёт из неё
+  // машинный код, — но не в лог: след логов теперь показывается на экране
+  // ошибки, а текст сервера в интерфейсе запрещён.
   if (!response.ok) {
     const body: unknown = await response.text().catch(() => null);
-    logger.warn('Вход не прошёл', { path, status: response.status, body });
+    logger.warn('Вход не прошёл', { path, status: response.status });
     throw new HttpError(response.status, body);
   }
   return (response.status === 204 ? null : await response.json()) as T;

@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
-import { logger } from './logger';
+import { logger, logTrail } from './logger';
 
 /**
  * Фатальная ошибка JS перестаёт убивать приложение.
@@ -27,39 +27,30 @@ type ErrorUtilsShape = {
   setGlobalHandler: (handler: GlobalErrorHandler) => void;
 };
 
-let fatal: Error | null = null;
+/** Ошибка вместе со следом, снятым в момент падения. */
+export type FatalReport = { error: Error; trail: readonly string[] };
+
+let fatal: FatalReport | null = null;
 const listeners = new Set<() => void>();
 
-function publish(next: Error | null) {
+function publish(next: FatalReport | null) {
   fatal = next;
   for (const listener of listeners) listener();
 }
 
-/** Последняя фатальная ошибка. `null` — приложение живо и рисует себя. */
-export function useFatal(): Error | null {
-  return useSyncExternalStore(
-    (listener) => {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
-    () => fatal,
-  );
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+/** Последнее падение. `null` — приложение живо и рисует себя. */
+export function useFatal(): FatalReport | null {
+  return useSyncExternalStore(subscribe, () => fatal);
 }
 
 /** Забыть ошибку и попробовать нарисовать приложение заново. */
 export function clearFatal(): void {
   publish(null);
-}
-
-/** Ошибка, пойманная границей отрисовки: тот же экран, тот же след. */
-export function reportFatal(error: Error): void {
-  logger.error('Фатальная ошибка', { name: error.name, message: error.message });
-  publish(error);
-}
-
-function asError(value: unknown): Error {
-  if (value instanceof Error) return value;
-  return new Error(typeof value === 'string' ? value : JSON.stringify(value));
 }
 
 /**
@@ -74,15 +65,33 @@ export function installFatalHandler(): void {
 
   errorUtils.setGlobalHandler((error, isFatal) => {
     // Нефатальное приложение переживает само — это шум, а не остановка.
-    if (!isFatal) {
+    //
+    // Пустой список подписчиков означает, что экрана ошибки на дереве нет и
+    // показать её некому. Проглотить её тогда значит подменить падение с
+    // отчётом на сплэш навсегда, поэтому она уходит системе, как и раньше.
+    //
+    // Вторую и последующие тоже отдаём системе не глядя: настоящая причина —
+    // первая, а worklet бросает на каждом кадре и за полсекунды вытеснил бы
+    // из следа всё, что было до падения.
+    if (!isFatal || listeners.size === 0 || fatal !== null) {
       previous(error, isFatal);
       return;
     }
+
     try {
-      reportFatal(asError(error));
+      const report = asError(error);
+      logger.error('Фатальная ошибка', { name: report.name, message: report.message });
+      // Снимок следа: пока экран ошибки висит, в след продолжают падать отмены
+      // запросов от размонтированных экранов и вытесняют причину.
+      publish({ error: report, trail: [...logTrail()] });
     } catch {
       // Сломался сам перехват — отдаём ошибку системе, как было до нас.
       previous(error, isFatal);
     }
   });
+}
+
+function asError(value: unknown): Error {
+  if (value instanceof Error) return value;
+  return new Error(typeof value === 'string' ? value : JSON.stringify(value));
 }
