@@ -21,7 +21,10 @@ export type SavedRecording = {
   session: number;
   startedAt: Date;
   uri: string;
+  /** Длина исходного потока с устройства: из неё считается длительность. */
   bytes: number;
+  /** Размер файла на диске: он больше на служебные данные Ogg. */
+  fileBytes: number;
   seconds: number;
   /** Выгружена ли на сервер. */
   uploaded: boolean;
@@ -33,15 +36,29 @@ function folder(): Directory {
   return directory;
 }
 
-/** Выгруженные помечаются переименованием: отдельный индекс рассинхронизируется. */
-function nameOf(session: number, uploaded: boolean): string {
-  return `${session}${uploaded ? '.sent' : ''}.ogg`;
+/**
+ * Имя несёт длину исходного потока, а не только номер сессии.
+ *
+ * Длительность считается из сырых байт с устройства: ровно две тысячи в
+ * секунду. Размер файла на диске для этого не годится — упаковка в Ogg
+ * добавляет служебные страницы и по несколько десятков байт на каждую секунду
+ * звука, и посчитанная из него длительность завышена на несколько процентов.
+ * Восстановить исходную длину из файла нельзя, поэтому она в имени.
+ *
+ * Выгруженные помечаются переименованием: отдельный индекс рассинхронизируется.
+ */
+function nameOf(session: number, rawBytes: number, uploaded: boolean): string {
+  return `${session}.${rawBytes}${uploaded ? '.sent' : ''}.ogg`;
 }
 
-function parseName(name: string): { session: number; uploaded: boolean } | null {
-  const match = /^(\d+)(\.sent)?\.ogg$/.exec(name);
-  if (!match?.[1]) return null;
-  return { session: Number(match[1]), uploaded: Boolean(match[2]) };
+function parseName(name: string): { session: number; rawBytes: number; uploaded: boolean } | null {
+  const match = /^(\d+)\.(\d+)(\.sent)?\.ogg$/.exec(name);
+  if (!match?.[1] || !match[2]) return null;
+  return {
+    session: Number(match[1]),
+    rawBytes: Number(match[2]),
+    uploaded: Boolean(match[3]),
+  };
 }
 
 /**
@@ -49,7 +66,7 @@ function parseName(name: string): { session: number; uploaded: boolean } | null 
  * его в Ogg — так файл сразу играется и принимается сервисами распознавания.
  */
 export function saveRecording(session: number, raw: Uint8Array): SavedRecording {
-  const file = new File(folder(), nameOf(session, false));
+  const file = new File(folder(), nameOf(session, raw.length, false));
   if (!file.exists) file.create();
   file.write(toOgg(raw));
 
@@ -58,6 +75,7 @@ export function saveRecording(session: number, raw: Uint8Array): SavedRecording 
     startedAt: new Date(session * 1000),
     uri: file.uri,
     bytes: raw.length,
+    fileBytes: file.size ?? 0,
     seconds: durationSeconds(raw.length),
     uploaded: false,
   };
@@ -72,13 +90,13 @@ export function savedRecordings(): SavedRecording[] {
     const parsed = parseName(entry.name);
     if (!parsed) continue;
 
-    const bytes = entry.size ?? 0;
     items.push({
       session: parsed.session,
       startedAt: new Date(parsed.session * 1000),
       uri: entry.uri,
-      bytes,
-      seconds: durationSeconds(bytes),
+      bytes: parsed.rawBytes,
+      fileBytes: entry.size ?? 0,
+      seconds: durationSeconds(parsed.rawBytes),
       uploaded: parsed.uploaded,
     });
   }
@@ -95,23 +113,34 @@ export function pendingUploads(): SavedRecording[] {
   return savedRecordings().filter((item) => !item.uploaded);
 }
 
+/**
+ * Найти файл сессии. Перебором, а не сборкой имени: в имени лежит ещё и длина
+ * исходного потока, и вызывающий её не знает.
+ */
+function fileOf(session: number): File | null {
+  for (const entry of folder().list()) {
+    if (!(entry instanceof File)) continue;
+    if (parseName(entry.name)?.session === session) return entry;
+  }
+  return null;
+}
+
 /** Отметить выгруженной. Файл остаётся: его ещё можно послушать. */
 export function markUploaded(session: number): void {
-  const source = new File(folder(), nameOf(session, false));
-  if (!source.exists) return;
-  source.move(new File(folder(), nameOf(session, true)));
+  const source = fileOf(session);
+  const parsed = source ? parseName(source.name) : null;
+  if (!source || !parsed || parsed.uploaded) return;
+
+  source.move(new File(folder(), nameOf(session, parsed.rawBytes, true)));
 }
 
 export function removeSaved(session: number): void {
-  for (const uploaded of [false, true]) {
-    const file = new File(folder(), nameOf(session, uploaded));
-    if (file.exists) file.delete();
-  }
+  fileOf(session)?.delete();
 }
 
-/** Сколько места занято записями. */
+/** Сколько места записи занимают на диске. */
 export function usedBytes(): number {
-  return savedRecordings().reduce((total, item) => total + item.bytes, 0);
+  return savedRecordings().reduce((total, item) => total + item.fileBytes, 0);
 }
 
 /**
@@ -119,10 +148,8 @@ export function usedBytes(): number {
  * могли удалить между составлением очереди и отправкой.
  */
 export async function readRecording(session: number): Promise<Uint8Array | undefined> {
-  for (const uploaded of [false, true]) {
-    const file = new File(folder(), nameOf(session, uploaded));
-    if (!file.exists) continue;
-
+  const file = fileOf(session);
+  if (file) {
     try {
       return new Uint8Array(await file.arrayBuffer());
     } catch (error) {
