@@ -49,10 +49,16 @@ export function appendSample(
 
   // Готовую минуту из истории живым отчётом не трогаем: он накапливается по
   // ходу минуты и всегда занижен относительно её итога.
-  if (existing && !existing.partial && sample.partial) return [...samples];
+  if (existing?.partial === false && sample.partial) return [...samples];
+
+  // Два живых отчёта на одну минуту сливаются, а не заменяют друг друга: набор
+  // показателей растёт по ходу минуты, и поздний отчёт с одним полем стёр бы
+  // четыре, пришедшие раньше.
+  const merged =
+    existing && existing.partial && sample.partial ? { ...existing, ...sample } : sample;
 
   const kept = samples.filter((item) => Math.floor(item.at.getTime() / 60_000) !== minute);
-  kept.push(sample);
+  kept.push(merged);
   return kept.sort((a, b) => a.at.getTime() - b.at.getTime());
 }
 
