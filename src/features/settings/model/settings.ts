@@ -1,5 +1,6 @@
 import type Feather from '@expo/vector-icons/Feather';
 
+import { readingsNote, type BandReadings, type PairedBand } from '@/shared/domain';
 import type { Tone } from '@/shared/theme';
 
 type IconName = keyof typeof Feather.glyphMap;
@@ -15,7 +16,7 @@ export const PROFILE = {
   plan: '2LIFE+',
 } as const;
 
-type Row = {
+export type Row = {
   id: string;
   /** Что открывает строка: экран источника, шит выбора или другой раздел. */
   opens?: 'device' | 'choice' | 'records' | 'confirm';
@@ -29,6 +30,28 @@ type Row = {
   /** Точка справа: источник на связи. Цветом кодируется состояние, не тип. */
   connected?: boolean;
 };
+
+/**
+ * Собственный браслет в списке источников.
+ *
+ * Строка живая, а не из макета: у остальных подписи выдуманы, а здесь стоит
+ * настоящее состояние — привязан ли, когда с него последний раз читали и на
+ * связи ли он сейчас. Не привязан — строки нет вовсе: показывать источник,
+ * которого у человека не существует, значит обещать чужие данные.
+ */
+export function bandRow(paired: PairedBand | null, readings: BandReadings | null): Row | null {
+  if (!paired) return null;
+
+  return {
+    id: 'band',
+    opens: 'device',
+    icon: 'watch',
+    tone: 'success',
+    title: paired.name,
+    subtitle: readingsNote(readings) ?? 'paired, nothing read yet',
+    connected: readings?.live === true,
+  };
+}
 
 export const DEVICES: readonly Row[] = [
   {

@@ -42,6 +42,8 @@ import {
   monthDays,
 } from '../model/journal';
 
+import { BandDay } from './band-day';
+
 const VIEWS = [
   { value: 'calendar', label: 'Calendar' },
   { value: 'agenda', label: 'Agenda' },
@@ -147,6 +149,10 @@ export function JournalScreen() {
                   <Text tone="danger">The change did not save. Try again.</Text>
                 </Card>
               ) : null}
+
+              {/* Ночь и пульс человек в дневник не заносит — их меряет
+                  браслет. Без них день состоит из одних намерений. */}
+              <BandDay day={day} />
 
               {events.length === 0 ? (
                 <>
