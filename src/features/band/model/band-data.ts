@@ -7,7 +7,7 @@ import { Feature, savedRecordings, supports } from '../api';
 
 import type { BandState } from './band-state';
 import { startOfToday } from './day-metrics';
-import { loadDay, needsRead, recentDays, rememberDay } from './history-store';
+import { dayKey, loadDay, needsRead, recentDays, rememberDay } from './history-store';
 import { loadWorkouts } from './workout-store';
 
 /**
@@ -115,9 +115,14 @@ export async function loadEverything(
 ): Promise<void> {
   const now = new Date();
   const week = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  // Адрес устройства нужен архиву суток, а читается он тем же ответом, что и
+  // паспорт: держим его здесь, чтобы не спрашивать устройство второй раз.
+  let mac: string | undefined;
 
   await step('info', async () => {
-    patch({ info: await band.info(), clockSkew: band.clockSkewSeconds });
+    const info = await band.info();
+    mac = info.mac;
+    patch({ info, clockSkew: band.clockSkewSeconds });
   });
 
   // Маски возможностей устройство отдало при подключении. Без них экран
@@ -154,7 +159,13 @@ export async function loadEverything(
 
   // История последней: она забирается кадр за кадром и идёт дольше всего
   // остального вместе взятого. Впереди неё числа успели бы устареть.
-  await step('история', async () => patch({ today: await band.history(startOfToday(now), now) }));
+  await step('история', async () => {
+    const today = await band.history(startOfToday(now), now);
+    patch({ today });
+    // Сразу в архив, без повторного чтения: сутки уже в руках, а второй заход
+    // за теми же минутами — это ещё сотня кадров по радио и заряд браслета.
+    await rememberDay(dayKey(now), today, mac);
+  });
 }
 
 /** Какие возможности взведены в масках этого устройства. */
@@ -187,8 +198,12 @@ async function step(what: string, run: () => Promise<void>): Promise<void> {
  */
 export async function backfillHistory(band: Band, mac?: string): Promise<string[]> {
   const filled: string[] = [];
+  // Сегодняшние сутки уже прочитаны и уложены при обновлении раздела — здесь
+  // они дали бы второй проход по тем же минутам.
+  const today = dayKey();
 
   for (const day of recentDays()) {
+    if (day === today) continue;
     const stored = await loadDay(day);
     if (!needsRead(day, stored)) continue;
 

@@ -22,7 +22,7 @@ import { appendSample, startOfToday } from './day-metrics';
  */
 
 /** Сколько суток назад имеет смысл дочитывать: глубже устройство не хранит. */
-export const HISTORY_DAYS = 4;
+const HISTORY_DAYS = 4;
 
 const PREFIX = '2life:band-day.1:';
 
@@ -43,7 +43,7 @@ function revive(_key: string, value: unknown): unknown {
 }
 
 /** `YYYY-MM-DD` по местным часам: сервер и устройство считают сутки одинаково. */
-export function dayKey(at: Date): string {
+export function dayKey(at: Date = new Date()): string {
   const year = at.getFullYear();
   const month = String(at.getMonth() + 1).padStart(2, '0');
   const day = String(at.getDate()).padStart(2, '0');
@@ -122,20 +122,6 @@ export async function rememberDay(
     logger.warn('band: сутки истории не сохранились', { day, failure });
   }
   return record;
-}
-
-/** Какие сутки лежат на телефоне. Это и есть окно покрытия: чего здесь нет — того нет нигде. */
-export async function coveredDays(): Promise<string[]> {
-  try {
-    const keys = await AsyncStorage.getAllKeys();
-    return keys
-      .filter((key) => key.startsWith(PREFIX))
-      .map((key) => key.slice(PREFIX.length))
-      .sort();
-  } catch (failure) {
-    logger.warn('band: список суток не прочитался', { failure });
-    return [];
-  }
 }
 
 export async function clearHistory(): Promise<void> {
