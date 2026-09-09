@@ -7,7 +7,6 @@
  */
 
 export {
-  AUDIO_BYTES_PER_SECOND,
   HEART_RATE_ZONES,
   SLEEP_GAP_MINUTES,
   SLEEP_TARGET_MINUTES,
@@ -17,19 +16,26 @@ export {
 } from './analysis';
 
 export { Band } from './band';
-export type { BandEvent, BandListener } from './band';
+export type { BandEvent, BandListener } from './events';
 
 export type { Alarm } from './alarms';
 export { EVERY_DAY, WEEKDAYS, WEEKEND, Weekday } from './alarms';
 export type { DeviceSettings, DoNotDisturb, Threshold } from './settings';
 export { NotificationKind } from './notifications';
-export type { ActivityState, SportCatalog, Workout, WorkoutRef } from './workouts';
+export type { ActivityState, SportCatalog, Workout, WorkoutRef, WorkoutTick } from './workouts';
 export { SportType, sportName } from './sports';
 
 export type { ActivitySample } from './activity';
 export type { BatteryState, Capabilities, DeviceInfo, FeatureName } from './device';
 export { Feature, supports } from './device';
-export type { DaySummary, Measurement, SleepSegment, SleepStageName, StressSample } from './health';
+export type {
+  DaySummary,
+  Measurement,
+  SleepSegment,
+  SleepStageName,
+  StressDay,
+  StressSample,
+} from './health';
 export { SleepStage, sleepTotals } from './health';
 export type { SleepSession } from './sleep';
 export { groupSleep, lastSleep } from './sleep';
@@ -38,7 +44,7 @@ export { BYTES_PER_SECOND } from './recorder';
 
 export { MeasureType } from './commands';
 
-export { dropConnection } from './transport';
+export { dropConnection } from './connection';
 
 export { BAND_NAME, SCAN_TIMEOUT_MS } from './names';
 export { connectedBands, mergeFound, scanForBands, sortByProximity } from './scan';
@@ -57,4 +63,5 @@ export {
 } from './storage';
 export type { RecordingMark, SavedRecording } from './storage';
 export { marksOf, rememberMark } from './storage';
-export { startBackgroundSync, stopBackgroundSync, syncRecordings } from './sync';
+export { holdBand, startBackgroundSync, stopBackgroundSync, syncRecordings } from './sync';
+export { WearHand, type MotionGoal, type UserProfile } from './profile';

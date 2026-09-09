@@ -3,7 +3,14 @@ import { StyleSheet, View } from 'react-native';
 import { space } from '@/shared/theme';
 import { BarChart, Card, LineChart, Stack, StatTile, SummaryRow, Text } from '@/shared/ui';
 
-import { HEART_RATE_ZONES, seriesOf, summaryOf, thin, zonesOf } from '../model/day-metrics';
+import {
+  HEART_RATE_ZONES,
+  lastResting,
+  seriesOf,
+  summaryOf,
+  thin,
+  zonesOf,
+} from '../model/day-metrics';
 import { extremes, hourlyAverages } from '../model/detail';
 import type { BandState } from '../model/use-band';
 
@@ -23,12 +30,12 @@ export function HeartDetail({ state }: { state: BandState }) {
   const summary = summaryOf(points);
   const hours = hourlyAverages(points);
   const peak = extremes(hours);
-  const resting = lastResting(state);
+  const resting = lastResting(state.today);
 
   if (!summary) {
     return (
       <Card variant="sunken">
-        <Text tone="muted">No heart rate recorded today.</Text>
+        <Text tone="muted">Пульс сегодня не записан.</Text>
       </Card>
     );
   }
@@ -37,18 +44,18 @@ export function HeartDetail({ state }: { state: BandState }) {
     <Stack gap="md">
       <Card variant="sunken">
         <Stack gap="sm">
-          <Text variant="subtitle">Through the day</Text>
+          <Text variant="subtitle">За день</Text>
           <LineChart values={thin(points, 200)} tone="danger" height={140} />
           <View style={styles.tiles}>
-            <StatTile label="Min" value={String(summary.min)} unit="bpm" />
-            <StatTile label="Avg" value={String(summary.average)} unit="bpm" />
+            <StatTile label="Минимум" value={String(summary.min)} unit="уд/мин" />
+            <StatTile label="Среднее" value={String(summary.average)} unit="уд/мин" />
           </View>
           <View style={styles.tiles}>
-            <StatTile label="Max" value={String(summary.max)} unit="bpm" />
+            <StatTile label="Максимум" value={String(summary.max)} unit="уд/мин" />
             <StatTile
-              label="Resting"
+              label="Покой"
               value={resting === undefined ? '—' : String(resting)}
-              unit="bpm"
+              unit="уд/мин"
             />
           </View>
         </Stack>
@@ -56,7 +63,7 @@ export function HeartDetail({ state }: { state: BandState }) {
 
       <Card variant="sunken">
         <Stack gap="sm">
-          <Text variant="subtitle">By hour</Text>
+          <Text variant="subtitle">По часам</Text>
           <BarChart
             values={hours.map((hour) => hour.value)}
             highlightIndex={new Date().getHours()}
@@ -66,12 +73,12 @@ export function HeartDetail({ state }: { state: BandState }) {
           {peak ? (
             <>
               <SummaryRow
-                title="Calmest hour"
+                title="Самый спокойный час"
                 subtitle={`${peak.low.count} readings`}
                 value={`${clock(peak.low.hour)} · ${peak.low.value} bpm`}
               />
               <SummaryRow
-                title="Busiest hour"
+                title="Самый нагруженный час"
                 subtitle={`${peak.high.count} readings`}
                 value={`${clock(peak.high.hour)} · ${peak.high.value} bpm`}
                 divider
@@ -86,14 +93,14 @@ export function HeartDetail({ state }: { state: BandState }) {
           <Text variant="subtitle">Zones</Text>
           <ZoneBars zones={zonesOf(points, HEART_RATE_ZONES)} all />
           <Text variant="caption" tone="muted">
-            Share of today’s readings that fell into each range.
+            Доля сегодняшних замеров, попавших в каждый диапазон.
           </Text>
         </Stack>
       </Card>
 
       <Card variant="sunken">
         <Stack gap="sm">
-          <Text variant="subtitle">Latest readings</Text>
+          <Text variant="subtitle">Последние замеры</Text>
           {[...points]
             .slice(-RECENT)
             .reverse()
@@ -109,14 +116,6 @@ export function HeartDetail({ state }: { state: BandState }) {
       </Card>
     </Stack>
   );
-}
-
-function lastResting(state: BandState): number | undefined {
-  for (let index = state.today.length - 1; index >= 0; index -= 1) {
-    const value = state.today[index]?.restingHeartRate;
-    if (value) return value;
-  }
-  return undefined;
 }
 
 function clock(hour: number): string {

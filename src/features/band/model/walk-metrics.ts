@@ -1,4 +1,4 @@
-import { type ActivitySample, STRIDE_METRES, WALKING_STEPS_PER_MINUTE } from '@/core/band';
+import { type ActivitySample, STRIDE_METRES, WALKING_STEPS_PER_MINUTE } from '../api';
 
 import type { Point } from './day-metrics';
 

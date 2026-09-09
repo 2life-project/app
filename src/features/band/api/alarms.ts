@@ -1,6 +1,6 @@
 import * as cmd from './commands';
 import { type Alarm, alarms as encodeAlarms } from './outbound';
-import { parseModal, toUtf16 } from './tlv';
+import { intField, parseModal, toUtf16 } from './tlv';
 import type { BandTransport } from './transport';
 
 export type { Alarm } from './outbound';
@@ -69,6 +69,15 @@ export class BandAlarms {
 
   async list(): Promise<Alarm[]> {
     return decodeAlarms(await this.transport.request(cmd.readAlarms()));
+  }
+
+  /**
+   * Сколько будильников прошивка вообще держит. Знать это нужно до добавления:
+   * иначе свободный слот подбирается вслепую и лишний просто не сохранится.
+   */
+  async limit(): Promise<number | undefined> {
+    const body = await this.transport.request(cmd.readAlarmLimits());
+    return intField(parseModal(body), 0x0a);
   }
 
   /** Записать список целиком. Всё, чего в нём нет, на устройстве исчезнет. */

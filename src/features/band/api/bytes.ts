@@ -121,3 +121,8 @@ export function toAsciiString(data: Uint8Array): string {
   for (const byte of data) text += String.fromCharCode(byte);
   return text;
 }
+
+/** Байты в читаемый вид для лога: разбор кадров без этого не отследить. */
+export function hex(bytes: Uint8Array): string {
+  return [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join(' ');
+}

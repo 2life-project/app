@@ -15,10 +15,10 @@ import type { BandState } from '../model/use-band';
  */
 export function MeasurementsCard({ state, onOpen }: { state: BandState; onOpen: () => void }) {
   const rows = [
-    row('Blood oxygen', unit(pick(state, 'bloodOxygen'), '%')),
-    row('HRV', unit(pick(state, 'hrv'), ' ms')),
-    row('Blood pressure', pressure(state)),
-    row('Mood', unit(pick(state, 'mood'), '')),
+    row('Кислород', unit(pick(state, 'bloodOxygen'), '%')),
+    row('ВСР', unit(pick(state, 'hrv'), ' ms')),
+    row('Давление', pressure(state)),
+    row('Настроение', unit(pick(state, 'mood'), '')),
     row('Blood sugar', unit(last(seriesOf(state.today, (s) => s.bloodSugar)), ' mmol/L')),
   ];
 
@@ -26,8 +26,8 @@ export function MeasurementsCard({ state, onOpen }: { state: BandState; onOpen: 
     <Card variant="sunken">
       <Stack gap="sm">
         <View style={styles.header}>
-          <Text variant="subtitle">Measurements</Text>
-          <ActionLink label="History" chevron onPress={onOpen} />
+          <Text variant="subtitle">Замеры</Text>
+          <ActionLink label="История" chevron onPress={onOpen} />
         </View>
         {rows.map((item, index) => (
           <SummaryRow

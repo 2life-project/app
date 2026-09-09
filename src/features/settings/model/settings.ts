@@ -33,7 +33,6 @@ type Row = {
 export const DEVICES: readonly Row[] = [
   {
     id: 'whoop',
-    opens: 'device',
     icon: 'watch',
     tone: 'success',
     title: 'Whoop',
@@ -42,7 +41,6 @@ export const DEVICES: readonly Row[] = [
   },
   {
     id: 'oura',
-    opens: 'device',
     icon: 'circle',
     tone: 'accent',
     title: 'Oura',
@@ -51,7 +49,6 @@ export const DEVICES: readonly Row[] = [
   },
   {
     id: 'withings',
-    opens: 'device',
     icon: 'cloud',
     title: 'Withings',
     subtitle: 'Body composition, weight, pressure · today, 06:15',
@@ -59,7 +56,6 @@ export const DEVICES: readonly Row[] = [
   },
   {
     id: 'polar',
-    opens: 'device',
     icon: 'clock',
     tone: 'warning',
     title: 'Polar',
@@ -68,7 +64,6 @@ export const DEVICES: readonly Row[] = [
   },
   {
     id: 'health',
-    opens: 'device',
     icon: 'heart',
     title: 'Apple Health',
     subtitle: 'Connected',

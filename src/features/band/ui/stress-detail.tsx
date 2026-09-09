@@ -33,7 +33,7 @@ export function StressDetail({ state }: { state: BandState }) {
   if (!summary) {
     return (
       <Card variant="sunken">
-        <Text tone="muted">No stress readings today.</Text>
+        <Text tone="muted">Замеров стресса сегодня нет.</Text>
       </Card>
     );
   }
@@ -42,19 +42,19 @@ export function StressDetail({ state }: { state: BandState }) {
     <Stack gap="md">
       <Card variant="sunken">
         <Stack gap="sm">
-          <Text variant="subtitle">Through the day</Text>
+          <Text variant="subtitle">За день</Text>
           <LineChart values={thin(points, 200)} tone="warning" height={140} />
           <View style={styles.tiles}>
-            <StatTile label="Min" value={String(summary.min)} />
-            <StatTile label="Avg" value={String(summary.average)} />
-            <StatTile label="Max" value={String(summary.max)} />
+            <StatTile label="Минимум" value={String(summary.min)} />
+            <StatTile label="Среднее" value={String(summary.average)} />
+            <StatTile label="Максимум" value={String(summary.max)} />
           </View>
         </Stack>
       </Card>
 
       <Card variant="sunken">
         <Stack gap="sm">
-          <Text variant="subtitle">By hour</Text>
+          <Text variant="subtitle">По часам</Text>
           <BarChart
             values={hours.map((hour) => hour.value)}
             highlightIndex={new Date().getHours()}
@@ -64,12 +64,12 @@ export function StressDetail({ state }: { state: BandState }) {
           {peak ? (
             <>
               <SummaryRow
-                title="Calmest hour"
+                title="Самый спокойный час"
                 subtitle={`${peak.low.count} readings`}
                 value={`${clock(peak.low.hour)} · ${peak.low.value}`}
               />
               <SummaryRow
-                title="Tensest hour"
+                title="Самый напряжённый час"
                 subtitle={`${peak.high.count} readings`}
                 value={`${clock(peak.high.hour)} · ${peak.high.value}`}
                 divider
@@ -88,7 +88,7 @@ export function StressDetail({ state }: { state: BandState }) {
 
       <Card variant="sunken">
         <Stack gap="sm">
-          <Text variant="subtitle">Latest readings</Text>
+          <Text variant="subtitle">Последние замеры</Text>
           {[...points]
             .slice(-RECENT)
             .reverse()

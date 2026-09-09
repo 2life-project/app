@@ -1,7 +1,7 @@
-import type { FoundBand } from '@/core/band';
 import type { PairedBand } from '@/shared/domain';
 import { Banner, Button, Card, ListRow, Stack, Text } from '@/shared/ui';
 
+import type { FoundBand } from '../api';
 import type { BandState } from '../model/use-band';
 
 /**
@@ -28,8 +28,8 @@ export function BandConnect({
     return (
       <Banner
         tone="warning"
-        title="Bluetooth is off"
-        subtitle="Turn it on in system settings, then search again."
+        title="Bluetooth выключен"
+        subtitle="Включите его в настройках системы и повторите поиск."
         action={{ label: 'Search', onPress: onScan }}
       />
     );
@@ -39,8 +39,21 @@ export function BandConnect({
     return (
       <Banner
         tone="warning"
-        title="No permission to search"
-        subtitle="Allow Bluetooth access for the app to find the band."
+        title="Нет доступа к поиску"
+        subtitle="Разрешите приложению доступ к Bluetooth, чтобы найти браслет."
+        action={{ label: 'Search', onPress: onScan }}
+      />
+    );
+  }
+
+  // Радио не ответило за отведённое время. Это не отказ в правах и не
+  // выключенный Bluetooth — стек ещё поднимается, и повтор обычно срабатывает.
+  if (state.problem === 'radio-silent') {
+    return (
+      <Banner
+        tone="warning"
+        title="Bluetooth ещё не готов"
+        subtitle="Система пока не ответила. Повторите поиск через мгновение."
         action={{ label: 'Search', onPress: onScan }}
       />
     );
@@ -52,7 +65,7 @@ export function BandConnect({
         <Stack gap="xs">
           <Text variant="title">Connecting to {state.device?.name ?? 'band'}…</Text>
           <Text variant="bodySmall" tone="muted">
-            The band keeps a single connection. Close the vendor app if it holds it.
+            Браслет держит одно соединение. Закройте приложение производителя, если оно его заняло.
           </Text>
         </Stack>
       </Card>
@@ -73,8 +86,8 @@ export function BandConnect({
                 : 'Paired with this phone. Connecting happens on its own.'}
             </Text>
           </Stack>
-          <Button label="Connect" onPress={() => onConnect({ ...paired, rssi: 0 })} />
-          <Button label="Forget band" variant="plain" onPress={onForget} />
+          <Button label="Подключить" onPress={() => onConnect({ ...paired, rssi: 0 })} />
+          <Button label="Забыть браслет" variant="plain" onPress={onForget} />
         </Stack>
       </Card>
     );
@@ -87,13 +100,13 @@ export function BandConnect({
       <Card variant="sunken">
         <Stack gap="md">
           <Stack gap="xs">
-            <Text variant="title">Band is not connected</Text>
+            <Text variant="title">Браслет не подключён</Text>
             <Text variant="bodySmall" tone="muted">
               Wear the band and start the search. It advertises itself in bursts, so it may take up
               to half a minute.
             </Text>
           </Stack>
-          <Button label="Search for band" onPress={onScan} />
+          <Button label="Искать браслет" onPress={onScan} />
         </Stack>
       </Card>
     );
@@ -106,8 +119,8 @@ export function BandConnect({
       {state.problem === 'connect-failed' ? (
         <Banner
           tone="danger"
-          title="Could not connect"
-          subtitle="The band may still be paired with another phone."
+          title="Не удалось подключиться"
+          subtitle="Браслет может быть занят другим телефоном."
           action={{ label: 'Try again', onPress: onScan }}
         />
       ) : null}
@@ -118,7 +131,7 @@ export function BandConnect({
 
           {state.found.length === 0 ? (
             <Text variant="bodySmall" tone="muted">
-              Nothing yet. Keep the band close to the phone.
+              Пока пусто. Держите браслет рядом с телефоном.
             </Text>
           ) : null}
 
@@ -131,7 +144,7 @@ export function BandConnect({
             />
           ))}
 
-          {searching ? null : <Button label="Search again" variant="plain" onPress={onScan} />}
+          {searching ? null : <Button label="Искать снова" variant="plain" onPress={onScan} />}
         </Stack>
       </Card>
     </Stack>

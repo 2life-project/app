@@ -1,8 +1,6 @@
 import { be16, be32, byteAt } from './bytes';
-import * as cmd from './commands';
 import { sportName } from './sports';
-import { type Field, parseModal } from './tlv';
-import type { BandTransport } from './transport';
+import { type Field, intField, parseModal, parseTagged } from './tlv';
 
 /**
  * Тренировки.
@@ -62,11 +60,64 @@ export type ActivityState = {
   stream: 'status' | 'state';
 };
 
+/**
+ * Живой кадр идущей тренировки: `01 E8 AC 02`.
+ *
+ * Приходит раз в секунду — вдесятеро чаще обычного отчёта активности. Номера
+ * полей сняты с работающего устройства: значения проверялись по тому, как они
+ * менялись во время движения, а не по догадке.
+ */
+export type WorkoutTick = {
+  /** Секунд с начала занятия. */
+  seconds: number;
+  heartRate?: number;
+  steps?: number;
+  /** Метры. */
+  distance?: number;
+  calories?: number;
+  averageHeartRate?: number;
+  at?: Date;
+};
+
+const TICK = {
+  seconds: 0x01,
+  heartRate: 0x02,
+  steps: 0x04,
+  distance: 0x07,
+  calories: 0x08,
+  at: 0x0e,
+  averageHeartRate: 0x1a,
+} as const;
+
+export function decodeWorkoutTick(frame: Uint8Array): WorkoutTick | null {
+  if (byteAt(frame, 1) !== 0xe8 || byteAt(frame, 2) !== 0xac || byteAt(frame, 3) !== 0x02) {
+    return null;
+  }
+
+  // Пятый байт — номер кадра, дальше обычные теги «номер, длина, значение».
+  const fields = parseTagged(frame.subarray(5));
+  const pick = (tag: number) => intField(fields, tag);
+
+  const seconds = pick(TICK.seconds);
+  if (seconds === undefined) return null;
+
+  const at = pick(TICK.at);
+  return {
+    seconds,
+    heartRate: pick(TICK.heartRate),
+    steps: pick(TICK.steps),
+    distance: pick(TICK.distance),
+    calories: pick(TICK.calories),
+    averageHeartRate: pick(TICK.averageHeartRate),
+    at: at === undefined ? undefined : new Date(at * 1000),
+  };
+}
+
 const REF_SIZE = 8;
 const STATE_SIZE = 7;
 
 /** Потолок кадров одного потока: счётчик приходит одним байтом и может врать. */
-const MAX_STATE_FRAMES = 60;
+export const MAX_STATE_FRAMES = 60;
 
 export function decodeWorkoutList(body: Uint8Array): WorkoutRef[] {
   const refs: WorkoutRef[] = [];
@@ -155,65 +206,4 @@ export function decodeSportCatalog(body: Uint8Array): SportCatalog {
 function timeOf(value: Uint8Array): Date | undefined {
   const seconds = be32(value, 0) ?? 0;
   return seconds === 0 ? undefined : new Date(seconds * 1000);
-}
-
-export class BandWorkouts {
-  constructor(private readonly transport: BandTransport) {}
-
-  async list(from: Date, to: Date): Promise<WorkoutRef[]> {
-    return decodeWorkoutList(await this.transport.request(cmd.readWorkoutList(from, to)));
-  }
-
-  async summary(id: number): Promise<Workout> {
-    return decodeWorkout(await this.transport.request(cmd.readWorkoutSummary(id)));
-  }
-
-  /** Посекундный ряд тренировки: интервал пять секунд. */
-  async detail(id: number, index: number): Promise<Field[]> {
-    return parseModal(await this.transport.request(cmd.readWorkoutDetail(id, index)));
-  }
-
-  async pace(id: number, paceIndex: number): Promise<Field[]> {
-    return parseModal(await this.transport.request(cmd.readWorkoutPace(id, paceIndex)));
-  }
-
-  /** Что прошивка умеет и что из этого включено на устройстве. */
-  async catalog(): Promise<SportCatalog> {
-    return decodeSportCatalog(await this.transport.request(cmd.readSportCatalog()));
-  }
-
-  /**
-   * Распознанные устройством события движения — оба потока.
-   *
-   * Счётчик кадров спрашивается отдельно, как и у истории, и приходит одним
-   * коротким кадром без терминатора: сборщик многокадровых ответов ждал бы его
-   * до истечения времени.
-   */
-  async states(from: Date, to: Date): Promise<ActivityState[]> {
-    return [
-      ...(await this.readStream(from, to, 'status')),
-      ...(await this.readStream(from, to, 'state')),
-    ].sort((a, b) => a.at.getTime() - b.at.getTime());
-  }
-
-  private async readStream(
-    from: Date,
-    to: Date,
-    stream: 'status' | 'state',
-  ): Promise<ActivityState[]> {
-    const counter =
-      stream === 'status' ? cmd.readStatusCount(from, to) : cmd.readStateCount(from, to);
-    const count = await this.transport.requestRaw(counter, 0xc5);
-    const frames = count.length > 0 ? byteAt(count, count.length - 1) : 0;
-
-    const states: ActivityState[] = [];
-    for (let index = 0; index < Math.min(frames, MAX_STATE_FRAMES); index += 1) {
-      const frame =
-        stream === 'status'
-          ? cmd.readStatusFrame(from, to, index)
-          : cmd.readStateFrame(from, to, index);
-      states.push(...decodeActivityStates(await this.transport.request(frame), stream));
-    }
-    return states;
-  }
 }

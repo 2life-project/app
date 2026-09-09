@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as BackgroundTask from 'expo-background-task';
 import * as TaskManager from 'expo-task-manager';
 
@@ -67,25 +68,52 @@ export async function syncRecordings(deviceId: string): Promise<SyncResult> {
 }
 
 /**
- * Идентификатор устройства для фоновой задачи. Задача просыпается вне экранов,
- * своего состояния у неё нет, поэтому адрес хранится здесь.
+ * Идентификатор устройства для фоновой задачи.
+ *
+ * В памяти его держать мало: систему интересно будить как раз тогда, когда
+ * приложение убито, а при этом модуль загружается заново и переменная пуста —
+ * фоновая выгрузка тихо не работала бы ни разу до следующего открытия экрана.
  */
+const DEVICE_KEY = '2life:band-sync-device';
+
 let pairedDeviceId: string | null = null;
 
-export function setSyncDevice(deviceId: string | null): void {
+export async function setSyncDevice(deviceId: string | null): Promise<void> {
   pairedDeviceId = deviceId;
+  await (
+    deviceId ? AsyncStorage.setItem(DEVICE_KEY, deviceId) : AsyncStorage.removeItem(DEVICE_KEY)
+  ).catch((failure: unknown) => logger.warn('band: адрес для фона не сохранился', { failure }));
+}
+
+async function syncDevice(): Promise<string | null> {
+  return pairedDeviceId ?? (await AsyncStorage.getItem(DEVICE_KEY));
+}
+
+/**
+ * Держит ли связь экран. Браслет допускает одно соединение, и фоновая задача,
+ * подключившись поверх, в своём `finally` закрыла бы чужое: экран остался бы с
+ * мёртвым транспортом посреди чтения.
+ */
+let held = false;
+
+export function holdBand(on: boolean): void {
+  held = on;
 }
 
 TaskManager.defineTask(TASK, async () => {
-  if (!pairedDeviceId) return BackgroundTask.BackgroundTaskResult.Success;
+  if (held) return BackgroundTask.BackgroundTaskResult.Success;
+
+  const deviceId = await syncDevice();
+  if (!deviceId) return BackgroundTask.BackgroundTaskResult.Success;
 
   try {
-    const result = await syncRecordings(pairedDeviceId);
+    const result = await syncRecordings(deviceId);
     logger.info('band: фоновая выгрузка', { fetched: result.fetched });
   } catch (error) {
-    // Браслет мог быть вне зоны или занят телефоном — это обычное дело в фоне,
-    // а не сбой: следующее окно попробует снова.
-    logger.debug('band: фоновая выгрузка не удалась', { reason: String(error) });
+    // Браслет вне зоны — обычное дело в фоне. Но сюда же попадают испорченный
+    // кадр и отказ прошивки, а место на устройстве кончается за пятнадцать
+    // часов записи: прятать это ниже уровня видимости нельзя.
+    logger.warn('band: фоновая выгрузка не удалась', { reason: String(error) });
   }
 
   return BackgroundTask.BackgroundTaskResult.Success;
@@ -93,14 +121,14 @@ TaskManager.defineTask(TASK, async () => {
 
 /** Включить фоновую выгрузку. Система сама решит, когда будить приложение. */
 export async function startBackgroundSync(deviceId: string): Promise<void> {
-  setSyncDevice(deviceId);
+  await setSyncDevice(deviceId);
 
   if (await TaskManager.isTaskRegisteredAsync(TASK)) return;
   await BackgroundTask.registerTaskAsync(TASK, { minimumInterval: 15 });
 }
 
 export async function stopBackgroundSync(): Promise<void> {
-  setSyncDevice(null);
+  await setSyncDevice(null);
 
   if (!(await TaskManager.isTaskRegisteredAsync(TASK))) return;
   await BackgroundTask.unregisterTaskAsync(TASK);

@@ -7,16 +7,18 @@ import { MeasurementsDetail } from './measurements-detail';
 import { SleepDetail } from './sleep-detail';
 import { StressDetail } from './stress-detail';
 import { WalkDetail } from './walk-detail';
+import { WorkoutsDetail } from './workouts-detail';
 
 /** Какой блок раскрыт. `null` — панель закрыта. */
-export type DetailKind = 'heart' | 'walk' | 'sleep' | 'stress' | 'measurements' | null;
+export type DetailKind = 'heart' | 'walk' | 'sleep' | 'stress' | 'measurements' | 'workouts' | null;
 
 const TITLES: Record<Exclude<DetailKind, null>, string> = {
-  heart: 'Heart rate',
-  walk: 'Walking',
-  sleep: 'Sleep',
-  stress: 'Stress',
-  measurements: 'Measurements',
+  heart: 'Пульс',
+  walk: 'Ходьба',
+  sleep: 'Сон',
+  stress: 'Стресс',
+  measurements: 'Замеры',
+  workouts: 'Активность',
 };
 
 /**
@@ -42,6 +44,9 @@ export function BandDetails({
       {kind === 'sleep' ? <SleepDetail state={state} /> : null}
       {kind === 'stress' ? <StressDetail state={state} /> : null}
       {kind === 'measurements' ? <MeasurementsDetail state={state} /> : null}
+      {kind === 'workouts' ? (
+        <WorkoutsDetail recorded={state.recorded} states={state.states} />
+      ) : null}
     </Sheet>
   );
 }

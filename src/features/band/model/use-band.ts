@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { logger } from '@/core/log/logger';
+import { setPairedBand, usePairedBand } from '@/shared/domain';
+
 import {
   Band,
+  type ActivityState,
   type ActivitySample,
   type DaySummary,
   type FoundBand,
@@ -11,22 +15,24 @@ import {
   type ScanProblem,
   type SleepSession,
   type Storage,
-  type StressSample,
+  type StressDay,
+  type Workout,
   connectedBands,
   dropConnection,
   mergeFound,
-  rememberMark,
   scanForBands,
   sortByProximity,
   startBackgroundSync,
   stopBackgroundSync,
-} from '@/core/band';
-import { logger } from '@/core/log/logger';
-import { setPairedBand, usePairedBand } from '@/shared/domain';
+} from '../api';
 
 import { useBandActions } from './band-actions';
 import { clearSnapshot, loadEverything, loadSnapshot, saveSnapshot } from './band-data';
-import { appendSample } from './day-metrics';
+import { INITIAL } from './band-state';
+import { useBandEvents } from './use-band-events';
+import { useForeground } from './use-foreground';
+import type { WorkoutSession } from './workout-session';
+import type { RecordedWorkout } from './workout-store';
 
 /**
  * Состояние работы с браслетом: поиск, подключение и всё, что устройство отдаёт.
@@ -53,8 +59,16 @@ export type BandState = {
   sleep: SleepSession[];
   /** Поминутная история за сегодня: из неё строятся все графики дня. */
   today: ActivitySample[];
-  stress: StressSample[];
+  stress: StressDay[];
   recordings: Recording[];
+  /** Тренировки: полноценные записи с видом спорта. На ES100 их не бывает. */
+  workouts: Workout[];
+  /** Заходы активности, которые браслет распознал сам: начало и длительность. */
+  states: ActivityState[];
+  /** Идущее занятие. Живёт только здесь: устройство его не хранит. */
+  session?: WorkoutSession;
+  /** Записанные занятия с телефона. */
+  recorded: RecordedWorkout[];
   saved: SavedRecording[];
   storage?: Storage;
   /** Идёт ли запись прямо сейчас. */
@@ -62,23 +76,20 @@ export type BandState = {
   busy: boolean;
 };
 
+/**
+ * Каким видом спорта помечать занятие.
+ *
+ * Первый из включённых в каталоге устройства. Выбирать вид на экране пока
+ * незачем: ES100 не различает виды движения — тип во всех наблюдениях единица.
+ */
+const DEFAULT_SPORT = 1;
+
 /** Как часто обновлять сводку дня при открытом разделе. */
 const LIVE_POLL_MS = 30_000;
 
-const INITIAL: BandState = {
-  stage: 'idle',
-  found: [],
-  sleep: [],
-  today: [],
-  stress: [],
-  recordings: [],
-  saved: [],
-  recording: false,
-  busy: false,
-};
-
 export function useBand() {
   const paired = usePairedBand();
+  const foreground = useForeground();
   const [state, setState] = useState<BandState>(INITIAL);
   const band = useRef<Band | null>(null);
   const stopScan = useRef<(() => void) | null>(null);
@@ -148,11 +159,15 @@ export function useBand() {
     }
   }, [patch]);
 
+  const adopt = useBandEvents({ bandRef: band, latest, patch, refresh });
+
   // Пока раздел открыт, сводка дня подтягивается сама: шаги и калории живой
   // отчёт не несёт, а смотреть на цифры получасовой давности при подключённом
   // браслете незачем.
   useEffect(() => {
-    if (state.stage !== 'connected') return;
+    // В фоне опрос бессмысленен: система придерживает радио, а первый же промах
+    // уводил связь в 'idle' — приложение возвращалось уже отключённым.
+    if (state.stage !== 'connected' || !foreground) return;
 
     const timer = setInterval(() => {
       void band.current
@@ -162,14 +177,18 @@ export function useBand() {
           // Сама по себе связь не восстановится, а опрос будет ходить в неё до
           // ухода с экрана — по строке в лог каждые полминуты, пока человек
           // смотрит на «подключено», которого нет.
-          logger.warn('band: связь потеряна на опросе', { reason: String(failure) });
-          band.current = null;
+          logger.error('band: связь потеряна на опросе', { reason: String(failure) });
+          // Закрыть соединение обязательно: без этого подписки и открытый
+          // канал остаются висеть, а браслет считает себя занятым и в эфире
+          // больше не появляется.
+          void band.current?.disconnect().catch(() => undefined);
+          adopt(null);
           patch({ stage: 'idle' });
         });
     }, LIVE_POLL_MS);
 
     return () => clearInterval(timer);
-  }, [patch, state.stage]);
+  }, [adopt, foreground, patch, state.stage]);
 
   const connect = useCallback(
     async (device: FoundBand) => {
@@ -178,40 +197,7 @@ export function useBand() {
 
       try {
         const connected = await Band.connect(device.id);
-        band.current = connected;
-
-        connected.subscribe((event) => {
-          if (event.kind === 'activity') {
-            // Живой отчёт идёт и в историю: пока приложение открыто, графики
-            // дня продолжаются сами, без повторного вычитывания всей истории.
-            const sample = event.sample;
-            patch({ live: sample, today: appendSample(latest.current.today, sample) });
-          }
-          if (event.kind === 'measurement') patch({ measurement: event.measurement });
-          if (event.kind === 'wear') patch({ worn: event.worn });
-          if (event.kind === 'disconnected') {
-            // Связь оборвалась: держать живой браслет в руках больше нельзя, а
-            // данные остаются на экране как последние известные.
-            band.current = null;
-            patch({ stage: 'idle', recording: false });
-          }
-          if (event.kind === 'recorder') {
-            const recorderEvent = event.event;
-            // Метку сохраняем сразу: файл скачается позже, а до тех пор она
-            // существует только в этом отчёте.
-            if (recorderEvent.kind === 'marked') {
-              rememberMark(recorderEvent.session, {
-                index: recorderEvent.index,
-                offsetSeconds: recorderEvent.offsetSeconds,
-              });
-            }
-            if (recorderEvent.kind === 'started') patch({ recording: true });
-            if (recorderEvent.kind === 'finished') {
-              patch({ recording: false });
-              void refresh();
-            }
-          }
-        });
+        adopt(connected);
 
         // Пульс раз в минуту: это минимум, который принимает прошивка, и с ним
         // живые отчёты приходят каждые десять секунд.
@@ -229,7 +215,7 @@ export function useBand() {
         patch({ stage: 'failed', problem: 'connect-failed' });
       }
     },
-    [patch, refresh],
+    [adopt, patch, refresh],
   );
 
   const disconnect = useCallback(async () => {
@@ -272,14 +258,31 @@ export function useBand() {
   // Запомненный браслет поднимается сам: человек привязал его один раз, и
   // нажимать «искать» при каждом запуске незачем. Промах уводит в 'failed', и
   // на экране появляется кнопка повтора — молча в поиске зависать нельзя.
-  const attempted = useRef(false);
+  const attempted = useRef<string | null>(null);
+
+  // Возврат на экран — повод попробовать снова. Без сброса одна неудачная
+  // попытка при запуске оставляла браслет неподключённым до перезапуска
+  // приложения: экран уже смонтирован, а второй попытки не будет никогда.
   useEffect(() => {
-    if (!paired || attempted.current) return;
-    attempted.current = true;
+    if (foreground) attempted.current = null;
+  }, [foreground]);
+
+  useEffect(() => {
+    if (!paired || band.current) return;
+    if (attempted.current === paired.id) return;
+    attempted.current = paired.id;
     void connect({ id: paired.id, name: paired.name, rssi: 0 });
   }, [connect, paired]);
 
-  const actions = useBandActions({ bandRef: band, patch, refresh, deviceId: state.device?.id });
+  const actions = useBandActions({
+    bandRef: band,
+    adopt,
+    patch,
+    refresh,
+    deviceId: state.device?.id,
+    stateRef: latest,
+    sport: DEFAULT_SPORT,
+  });
 
   return {
     state,

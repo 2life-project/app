@@ -21,10 +21,14 @@ export type SavedRecording = {
   session: number;
   startedAt: Date;
   uri: string;
-  /** Длина исходного потока с устройства: из неё считается длительность. */
-  bytes: number;
-  /** Размер файла на диске: он больше на служебные данные Ogg. */
-  fileBytes: number;
+  /**
+   * Длина исходного потока с устройства: из неё считается длительность.
+   * Имя развёрнутое намеренно — рядом живёт второй размер, и «bytes» с
+   * «fileBytes» на приёмной стороне путают постоянно.
+   */
+  deviceBytes: number;
+  /** Размер файла Ogg, который реально уедет в хранилище: он больше на служебные данные. */
+  uploadBytes: number;
   seconds: number;
   /** Выгружена ли на сервер. */
   uploaded: boolean;
@@ -76,6 +80,12 @@ function parseName(name: string): { session: number; rawBytes: number; uploaded:
  * его в Ogg — так файл сразу играется и принимается сервисами распознавания.
  */
 export function saveRecording(session: number, raw: Uint8Array): SavedRecording {
+  // Имя несёт длину потока, поэтому докачанная заново запись легла бы вторым
+  // файлом рядом с первым: `fileOf` вернул бы любой из них, отметка об отправке
+  // легла бы на один, а второй уехал бы на сервер ещё раз.
+  const previous = fileOf(session);
+  if (previous) previous.delete();
+
   const file = new File(folder(), nameOf(session, raw.length, false));
   if (!file.exists) file.create();
   file.write(toOgg(raw));
@@ -84,8 +94,8 @@ export function saveRecording(session: number, raw: Uint8Array): SavedRecording 
     session,
     startedAt: new Date(session * 1000),
     uri: file.uri,
-    bytes: raw.length,
-    fileBytes: file.size ?? 0,
+    deviceBytes: raw.length,
+    uploadBytes: file.size ?? 0,
     seconds: durationSeconds(raw.length),
     uploaded: false,
     marks: marksOf(session),
@@ -105,8 +115,8 @@ export function savedRecordings(): SavedRecording[] {
       session: parsed.session,
       startedAt: new Date(parsed.session * 1000),
       uri: entry.uri,
-      bytes: parsed.rawBytes,
-      fileBytes: entry.size ?? 0,
+      deviceBytes: parsed.rawBytes,
+      uploadBytes: entry.size ?? 0,
       seconds: durationSeconds(parsed.rawBytes),
       uploaded: parsed.uploaded,
       marks: marksOf(parsed.session),
@@ -189,7 +199,7 @@ export function removeSaved(session: number): void {
 
 /** Сколько места записи занимают на диске. */
 export function usedBytes(): number {
-  return savedRecordings().reduce((total, item) => total + item.fileBytes, 0);
+  return savedRecordings().reduce((total, item) => total + item.uploadBytes, 0);
 }
 
 /**

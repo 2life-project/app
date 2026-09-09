@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { space } from '@/shared/theme';
@@ -16,8 +17,10 @@ import { walkOf } from '../model/walk-metrics';
  * прибавляют.
  */
 export function WalkCard({ state, onOpen }: { state: BandState; onOpen: () => void }) {
-  const walk = walkOf(state.today);
-  const hours = byHour(state.today, (sample) => sample.steps);
+  // Оба прохода идут по всем минутам дня — до 1440 записей — и без памяти
+  // повторяются на каждый живой отчёт, то есть раз в десять секунд.
+  const walk = useMemo(() => walkOf(state.today), [state.today]);
+  const hours = useMemo(() => byHour(state.today, (sample) => sample.steps), [state.today]);
 
   const steps = state.summary?.steps ?? walk?.steps ?? 0;
   const distance = state.summary?.distance ?? walk?.distance ?? 0;
@@ -27,13 +30,13 @@ export function WalkCard({ state, onOpen }: { state: BandState; onOpen: () => vo
     <Card variant="sunken">
       <Stack gap="sm">
         <View style={styles.header}>
-          <Text variant="subtitle">Walking</Text>
-          <ActionLink label="Details" chevron onPress={onOpen} disabled={!walk} />
+          <Text variant="subtitle">Ходьба</Text>
+          <ActionLink label="Подробнее" chevron onPress={onOpen} disabled={!walk} />
         </View>
 
         {walk === null ? (
           <Text variant="bodySmall" tone="muted">
-            No steps recorded today yet.
+            Шагов за сегодня пока нет.
           </Text>
         ) : (
           <>
@@ -52,13 +55,13 @@ export function WalkCard({ state, onOpen }: { state: BandState; onOpen: () => vo
 
             <View style={styles.tiles}>
               <StatTile
-                label="Cadence"
+                label="Каденс"
                 value={String(walk.cadenceAverage)}
-                unit="spm"
+                unit="шаг/мин"
                 note={`peak ${walk.cadencePeak}`}
               />
               <StatTile
-                label="Speed"
+                label="Скорость"
                 value={walk.speedAverage === null ? '—' : walk.speedAverage.toFixed(1)}
                 unit="km/h"
                 note={walk.speedPeak === null ? undefined : `peak ${walk.speedPeak.toFixed(1)}`}
@@ -66,11 +69,11 @@ export function WalkCard({ state, onOpen }: { state: BandState; onOpen: () => vo
             </View>
             <View style={styles.tiles}>
               <StatTile
-                label="Stride"
+                label="Длина шага"
                 value={walk.stride === null ? '—' : walk.stride.toFixed(2)}
                 unit="m"
               />
-              <StatTile label="Active" value={`${walk.activeMinutes} min`} />
+              <StatTile label="Активность" value={`${walk.activeMinutes} min`} />
             </View>
           </>
         )}

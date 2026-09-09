@@ -1,5 +1,7 @@
 import type { SectionSummaryRow } from '@/shared/ui';
 
+import { HEART_RATE_ZONES, SLEEP_TARGET_MINUTES } from '../api';
+
 import { seriesOf, startOfToday, stressPoints, summaryOf } from './day-metrics';
 import type { BandState } from './use-band';
 import { walkOf } from './walk-metrics';
@@ -22,9 +24,6 @@ export type Summary = {
   caption: string;
   rows: SectionSummaryRow[];
 };
-
-/** Норма сна, к которой считается доля кольца в строке. */
-const SLEEP_TARGET_MINUTES = 8 * 60;
 
 export function summaryOfBand(state: BandState): Summary {
   const heart = seriesOf(state.today, (sample) => sample.heartRate ?? sample.averageHeartRate);
@@ -87,11 +86,20 @@ function arcOf(current: number | undefined, range: ReturnType<typeof summaryOf>)
   return Math.max(0, Math.min(1, (current - range.min) / (range.max - range.min)));
 }
 
-/** Цвет кольца — по зоне пульса: он кодирует отклонение от покоя, а не саму частоту. */
+/**
+ * Цвет кольца — по зоне пульса: он кодирует отклонение от покоя, а не саму
+ * частоту. Границы берутся из общих зон, а не пишутся числами: иначе кольцо
+ * красится по одним порогам, а полоса зон под ним рисуется по другим.
+ */
+const CALM_ZONES = 1;
+const WARM_ZONES = 3;
+
 function toneOf(current: number | undefined): 'success' | 'warning' | 'danger' | undefined {
   if (current === undefined) return undefined;
-  if (current < 99) return 'success';
-  if (current < 138) return 'warning';
+
+  const zone = HEART_RATE_ZONES.findIndex((item) => current >= item.from && current <= item.to);
+  if (zone < CALM_ZONES) return 'success';
+  if (zone < WARM_ZONES) return 'warning';
   return 'danger';
 }
 
@@ -108,7 +116,8 @@ function captionOf(state: BandState): string {
 }
 
 function share(minutes: number): string {
-  return `${Math.round((minutes / SLEEP_TARGET_MINUTES) * 100)}% of 8h`;
+  const target = Math.round(SLEEP_TARGET_MINUTES / 60);
+  return `${Math.round((minutes / SLEEP_TARGET_MINUTES) * 100)}% of ${target}h`;
 }
 
 function duration(minutes: number): string {

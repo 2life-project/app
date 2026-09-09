@@ -1,15 +1,17 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { space } from '@/shared/theme';
-import { Button, Card, SectionCaption, SectionSummary, Stack, StatTile, Text } from '@/shared/ui';
+import { Button, Card, SectionCaption, SectionSummary, Stack, Text } from '@/shared/ui';
 
 import { summaryOfBand } from '../model/band-summary';
 import type { BandState } from '../model/use-band';
 
 import { BandDetails, type DetailKind } from './band-details';
 import { BandMetrics } from './band-metrics';
+import { RecordingsCard } from './recordings-card';
 import { SleepCard } from './sleep-card';
+import { WorkoutsCard } from './workouts-card';
 
 /**
  * Всё, что браслет отдаёт, и всё, чем им можно управлять.
@@ -25,6 +27,9 @@ export function BandDashboard({
   onStartRecording,
   onStopRecording,
   onPull,
+  onRemoveRecording,
+  onStartWorkout,
+  onStopWorkout,
   onRefresh,
   onDisconnect,
   onForget,
@@ -36,22 +41,29 @@ export function BandDashboard({
   onStartRecording: () => void;
   onStopRecording: () => void;
   onPull: () => void;
+  onRemoveRecording: (session: number) => void;
+  onStartWorkout: () => void;
+  onStopWorkout: () => void;
   onRefresh: () => void;
   onDisconnect: () => void;
   onForget: () => void;
 }) {
   const live = state.stage === 'connected';
-  const summary = summaryOfBand(state);
   const [detail, setDetail] = useState<DetailKind>(null);
+
+  // Шапка пересчитывает три ряда по всем минутам дня, а живой отчёт приходит
+  // каждые десять секунд. Без памяти этот пересчёт идёт на каждый такт вместе
+  // со всеми карточками под ним.
+  const summary = useMemo(() => summaryOfBand(state), [state]);
 
   return (
     <Stack gap="md">
       <SectionSummary
-        title={state.device?.name ?? 'Band'}
+        title={state.device?.name ?? 'Браслет'}
         action={
           live
-            ? { label: state.busy ? 'Reading…' : 'Refresh', onPress: onRefresh }
-            : { label: 'Connect', onPress: onScan }
+            ? { label: state.busy ? 'Читаем…' : 'Обновить', onPress: onRefresh }
+            : { label: 'Подключить', onPress: onScan }
         }
         caption={<SectionCaption>{summary.caption}</SectionCaption>}
         ring={summary.ring}
@@ -60,19 +72,30 @@ export function BandDashboard({
 
       <BandMetrics state={state} onOpen={setDetail} />
 
-      <SleepCard sleep={state.sleep} onOpen={() => setDetail('sleep')} />
+      <SleepCard sleep={state.sleep} reading={state.busy} onOpen={() => setDetail('sleep')} />
+
+      <WorkoutsCard
+        session={state.session}
+        recorded={state.recorded}
+        states={state.states}
+        reading={state.busy}
+        live={live}
+        onStart={onStartWorkout}
+        onStop={onStopWorkout}
+        onOpen={() => setDetail('workouts')}
+      />
 
       <Card variant="sunken">
         <Stack gap="sm">
-          <Text variant="subtitle">Controls</Text>
+          <Text variant="subtitle">Команды</Text>
           <View style={styles.controls}>
-            <Button label="Measure" onPress={onMeasure} disabled={!live} />
-            <Button label="Vibrate" variant="tonal" onPress={onVibrate} disabled={!live} />
+            <Button label="Замерить" onPress={onMeasure} disabled={!live} />
+            <Button label="Вибрация" variant="tonal" onPress={onVibrate} disabled={!live} />
             {state.recording ? (
-              <Button label="Stop recording" variant="tonal" onPress={onStopRecording} />
+              <Button label="Остановить запись" variant="tonal" onPress={onStopRecording} />
             ) : (
               <Button
-                label="Record voice"
+                label="Записать голос"
                 variant="tonal"
                 onPress={onStartRecording}
                 disabled={!live}
@@ -81,80 +104,34 @@ export function BandDashboard({
           </View>
           <Text variant="bodySmall" tone="muted">
             {live
-              ? 'A single measurement takes about a minute: the optical sensor turns on for it instead of running all the time.'
-              : 'Commands need a live connection to the band.'}
+              ? 'Один замер занимает около минуты: оптический датчик включается ради него, а не работает постоянно.'
+              : 'Команды работают только на живой связи с браслетом.'}
           </Text>
         </Stack>
       </Card>
 
-      <RecordingsCard state={state} onPull={onPull} live={live} />
+      <RecordingsCard
+        onDevice={state.recordings}
+        saved={state.saved}
+        freeKb={state.storage?.freeKb}
+        reading={state.busy}
+        live={live}
+        busy={state.busy}
+        onPull={onPull}
+        onRemove={onRemoveRecording}
+      />
 
       <BandDetails kind={detail} state={state} onClose={() => setDetail(null)} />
 
       <View style={styles.footer}>
-        {live ? <Button label="Disconnect" variant="plain" onPress={onDisconnect} /> : null}
-        <Button label="Forget band" variant="plain" onPress={onForget} />
+        {live ? <Button label="Отключить" variant="plain" onPress={onDisconnect} /> : null}
+        <Button label="Забыть браслет" variant="plain" onPress={onForget} />
       </View>
     </Stack>
   );
 }
 
-function RecordingsCard({
-  state,
-  onPull,
-  live,
-}: {
-  state: BandState;
-  onPull: () => void;
-  live: boolean;
-}) {
-  const onDevice = state.recordings;
-  const free = state.storage ? Math.round((state.storage.free / 1024) * 10) / 10 : null;
-
-  return (
-    <Card variant="sunken">
-      <Stack gap="sm">
-        <Text variant="subtitle">Voice recordings</Text>
-
-        <View style={styles.tiles}>
-          <StatTile label="On band" value={String(onDevice.length)} />
-          <StatTile label="On phone" value={String(state.saved.length)} />
-          {free === null ? null : <StatTile label="Free" value={String(free)} unit="MB" />}
-        </View>
-
-        {onDevice.slice(0, 3).map((item) => (
-          <Text key={item.session} variant="bodySmall" tone="muted">
-            {item.startedAt.toLocaleString()} · {Math.round(item.seconds)} s
-          </Text>
-        ))}
-
-        <Button
-          label={state.busy ? 'Downloading…' : 'Download to phone'}
-          variant="tonal"
-          onPress={onPull}
-          disabled={!live || onDevice.length === 0}
-        />
-      </Stack>
-    </Card>
-  );
-}
-
 const styles = StyleSheet.create({
-  controls: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: space.sm,
-  },
-  tiles: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: space.sm,
-  },
-  footer: {
-    flexDirection: 'row',
-    gap: space.sm,
-    // Слева: справа внизу стоит плавающая кнопка приложения, и всё, что туда
-    // прижато, уезжает под неё.
-    justifyContent: 'flex-start',
-  },
+  controls: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  footer: { flexDirection: 'row', justifyContent: 'center', gap: space.sm },
 });

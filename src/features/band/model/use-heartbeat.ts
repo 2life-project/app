@@ -1,5 +1,6 @@
 import * as Haptics from 'expo-haptics';
 import { useEffect, useState } from 'react';
+import { AppState } from 'react-native';
 
 /**
  * Пульс, который можно почувствовать: телефон отбивает ритм текущего замера.
@@ -20,8 +21,18 @@ export function useHeartbeat(bpm: number | undefined) {
   const [on, setOn] = useState(false);
   const usable = bpm !== undefined && bpm >= MIN_BPM && bpm <= MAX_BPM;
 
+  // Частота приезжает каждые десять секунд и почти всегда та же самая. Если
+  // держать её в зависимостях как есть, таймер пересобирается на каждый отчёт
+  // и лишний удар бьётся вне ритма. Округление до целого делает повтор
+  // повтором: перезаводимся, только когда пульс правда изменился.
+  const beats = usable && bpm !== undefined ? Math.round(bpm) : 0;
+
   useEffect(() => {
-    if (!on || !usable || bpm === undefined) return;
+    if (!on || beats === 0) return;
+
+    // В кармане и на локе телефон стучать не должен: человек включил это,
+    // чтобы почувствовать ритм на экране, а не чтобы носить вибрацию с собой.
+    if (AppState.currentState !== 'active') return;
 
     let second: ReturnType<typeof setTimeout> | null = null;
 
@@ -33,13 +44,13 @@ export function useHeartbeat(bpm: number | undefined) {
     };
 
     beat();
-    const timer = setInterval(beat, (60 * 1000) / bpm);
+    const timer = setInterval(beat, (60 * 1000) / beats);
 
     return () => {
       clearInterval(timer);
       if (second) clearTimeout(second);
     };
-  }, [bpm, on, usable]);
+  }, [beats, on]);
 
   return { on: on && usable, available: usable, toggle: () => setOn((value) => !value) };
 }

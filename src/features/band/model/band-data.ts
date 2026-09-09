@@ -1,11 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import type { Band } from '@/core/band';
-import { savedRecordings } from '@/core/band';
 import { logger } from '@/core/log/logger';
+
+import type { Band, Workout } from '../api';
+import { savedRecordings } from '../api';
 
 import { startOfToday } from './day-metrics';
 import type { BandState } from './use-band';
+import { loadWorkouts } from './workout-store';
 
 /**
  * Данные браслета: что читаем с устройства и что храним между запусками.
@@ -35,6 +37,8 @@ type Snapshot = Pick<
   | 'today'
   | 'stress'
   | 'recordings'
+  | 'workouts'
+  | 'states'
   | 'storage'
 >;
 
@@ -49,6 +53,8 @@ const KEEP: readonly (keyof Snapshot)[] = [
   'today',
   'stress',
   'recordings',
+  'workouts',
+  'states',
   'storage',
 ];
 
@@ -62,7 +68,15 @@ function revive(_key: string, value: unknown): unknown {
 export async function loadSnapshot(): Promise<Snapshot | null> {
   try {
     const raw = await AsyncStorage.getItem(KEY);
-    return raw === null ? null : (JSON.parse(raw, revive) as Snapshot);
+    if (raw === null) return null;
+
+    const snapshot = JSON.parse(raw, revive) as Snapshot;
+
+    // Снимок мог пролежать до следующего дня. Показывать вчерашние минуты как
+    // сегодняшние нельзя: карточки складывают их в дневные шаги и пульс, и
+    // человек в первую секунду после полуночи видит чужой день как свой.
+    const midnight = startOfToday();
+    return { ...snapshot, today: snapshot.today.filter((sample) => sample.at >= midnight) };
   } catch (failure) {
     logger.warn('band: сохранённые данные не прочитались', { failure });
     return null;
@@ -70,6 +84,9 @@ export async function loadSnapshot(): Promise<Snapshot | null> {
 }
 
 export function saveSnapshot(state: BandState): void {
+  // `Object.fromEntries` теряет связь ключа со значением и возвращает
+  // `Record<string, unknown>`. Список ключей — тот же `KEEP`, по которому
+  // объявлен `Snapshot`, поэтому набор полей здесь верен по построению.
   const snapshot = Object.fromEntries(KEEP.map((key) => [key, state[key]])) as unknown as Snapshot;
 
   void AsyncStorage.setItem(KEY, JSON.stringify(snapshot)).catch((failure: unknown) =>
@@ -93,6 +110,12 @@ export function clearSnapshot(): void {
  * История, сон и стресс идут по одному, а не пачкой: браслет отвечает на них
  * многими кадрами подряд, и одновременные запросы перемешали бы ответы.
  */
+/** Сколько последних тренировок вычитывать: у каждой своя сводка отдельным обменом. */
+const WORKOUTS_SHOWN = 3;
+
+/** Заходы активности берём за сутки: дальше их сотни, а смысл только у свежих. */
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 export async function loadEverything(
   band: Band,
   patch: (next: Partial<BandState>) => void,
@@ -112,7 +135,25 @@ export async function loadEverything(
   await step('сон', async () => patch({ sleep: await band.sleep(week, now) }));
   await step('стресс', async () => patch({ stress: await band.stress(startOfToday(now), now) }));
 
-  patch({ saved: savedRecordings() });
+  // Тренировки браслет заводит сам, без единой кнопки. Берём только последние:
+  // сводка каждой — отдельный обмен по радио, и вычитывать всю неделю значит
+  // держать человека перед пустым экраном ради записей, которых он не просил.
+  // Заходы активности браслет распознаёт сам и пишет отдельным каналом — не
+  // тем, где лежат тренировки. Полноценной тренировки на ES100 не бывает
+  // вовсе, а вот эти заходы есть каждый день, и до сих пор они никуда не шли.
+  await step('распознанная активность', async () =>
+    patch({ states: await band.workouts.states(new Date(now.getTime() - DAY_MS), now) }),
+  );
+
+  await step('тренировки', async () => {
+    const refs = await band.workouts.list(week, now);
+    const recent = refs.slice(-WORKOUTS_SHOWN);
+    const summaries: Workout[] = [];
+    for (const ref of recent) summaries.push(await band.workouts.summary(ref.id));
+    patch({ workouts: summaries.reverse() });
+  });
+
+  patch({ saved: savedRecordings(), recorded: await loadWorkouts() });
 
   // История последней: она забирается кадр за кадром и идёт дольше всего
   // остального вместе взятого. Впереди неё числа успели бы устареть.

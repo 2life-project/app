@@ -1,6 +1,6 @@
-import { type ActivitySample, type StressSample } from '@/core/band';
+import { type ActivitySample, type StressDay } from '../api';
 
-export { HEART_RATE_ZONES, STRESS_ZONES } from '@/core/band';
+export { HEART_RATE_ZONES, STRESS_ZONES } from '../api';
 
 /**
  * Показатели дня из поминутной истории браслета.
@@ -49,13 +49,13 @@ export function appendSample(
 
   // Готовую минуту из истории живым отчётом не трогаем: он накапливается по
   // ходу минуты и всегда занижен относительно её итога.
-  if (existing?.partial === false && sample.partial) return [...samples];
+  if (existing?.source === 'history' && sample.source === 'live') return [...samples];
 
   // Два живых отчёта на одну минуту сливаются, а не заменяют друг друга: набор
   // показателей растёт по ходу минуты, и поздний отчёт с одним полем стёр бы
   // четыре, пришедшие раньше.
   const merged =
-    existing && existing.partial && sample.partial ? { ...existing, ...sample } : sample;
+    existing?.source === 'live' && sample.source === 'live' ? { ...existing, ...sample } : sample;
 
   const kept = samples.filter((item) => Math.floor(item.at.getTime() / 60_000) !== minute);
   kept.push(merged);
@@ -173,9 +173,31 @@ export function zonesOf(points: readonly Point[], ranges: readonly Omit<Zone, 's
 }
 
 /** Стресс приходит своим каналом, а не в поминутных слотах. */
-export function stressPoints(samples: readonly StressSample[], from: Date): Point[] {
+export function stressPoints(days: readonly StressDay[], from: Date): Point[] {
+  const samples = days.flatMap((day) => day.samples);
   return samples
     .filter((sample) => sample.at >= from)
     .map((sample) => ({ at: sample.at, value: sample.value }))
     .sort((a, b) => a.at.getTime() - b.at.getTime());
+}
+
+/**
+ * Подпись под числом: сколько замеров легло в этот день.
+ *
+ * Одна на все карточки. Пока каждая писала свою, «нет данных» и счёт замеров
+ * звучали в разделе по-разному, а половина строк осталась непереведённой.
+ */
+export function readingsCaption(count: number): string {
+  if (count === 0) return 'нет данных';
+  if (count === 1) return '1 замер за сегодня';
+  return `${count} замеров за сегодня`;
+}
+
+/** Последний известный пульс покоя: он приходит не в каждом слоте. */
+export function lastResting(samples: readonly ActivitySample[]): number | undefined {
+  for (let index = samples.length - 1; index >= 0; index -= 1) {
+    const value = samples[index]?.restingHeartRate;
+    if (value) return value;
+  }
+  return undefined;
 }

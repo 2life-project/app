@@ -37,6 +37,3 @@ export const STRESS_ZONES = [
   { label: 'Medium', from: 60, to: 79 },
   { label: 'High', from: 80, to: 100 },
 ] as const;
-
-/** Сколько байт звука приходится на секунду записи. Проверено декодированием. */
-export const AUDIO_BYTES_PER_SECOND = 2000;

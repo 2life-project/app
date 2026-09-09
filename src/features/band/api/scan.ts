@@ -21,7 +21,7 @@ export type FoundBand = {
 };
 
 /** Почему поиск не начался. Каждый случай требует своего текста в интерфейсе. */
-export type ScanProblem = 'bluetooth-off' | 'no-permission';
+export type ScanProblem = 'bluetooth-off' | 'no-permission' | 'radio-silent';
 
 export type ScanResult = { ok: true; stop: () => void } | { ok: false; problem: ScanProblem };
 
@@ -85,7 +85,12 @@ export async function scanForBands(onFound: (band: FoundBand) => void): Promise<
   const manager = ble();
   const state = await waitForRadio();
   if (!isReady(state)) {
-    return { ok: false, problem: state === State.PoweredOff ? 'bluetooth-off' : 'no-permission' };
+    // `Unknown` — это «система не ответила за отведённое время», а не отказ в
+    // правах: показывать здесь «нет доступа» значит врать человеку, который
+    // доступ только что дал.
+    if (state === State.PoweredOff) return { ok: false, problem: 'bluetooth-off' };
+    if (state === State.Unknown) return { ok: false, problem: 'radio-silent' };
+    return { ok: false, problem: 'no-permission' };
   }
 
   // Сначала те, что уже на связи: в эфире их не будет, а подключиться к ним

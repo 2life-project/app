@@ -12,10 +12,15 @@ import { encodeTime } from './tlv';
  * настройки на чужом устройстве.
  */
 
-const Cmd = {
+export const Cmd = {
   time: 0xa3,
   info: 0xa4,
   system: 0xa5,
+  /** Что устройство пришлёт само, если настройку поменяли на нём. */
+  twoWay: 0xa6,
+  messageTypes: 0xb3,
+  /** Чем устройство занято прямо сейчас: тренировка, мониторинг. */
+  operator: 0xe5,
   notifications: 0xb1,
   daySummary: 0xc3,
   reminders: 0xc4,
@@ -41,8 +46,8 @@ export const MeasureType = {
   mood: 0x80,
 } as const;
 
-const byte = (value: number) => Uint8Array.from([value & 0xff]);
-const word = (value: number) => Uint8Array.from([(value >> 8) & 0xff, value & 0xff]);
+export const byte = (value: number) => Uint8Array.from([value & 0xff]);
+export const word = (value: number) => Uint8Array.from([(value >> 8) & 0xff, value & 0xff]);
 
 // ---------------------------------------------------------------- устройство
 
@@ -79,7 +84,22 @@ export const readLanguage = () => encode(Cmd.system, Mode.read, 0x08);
 export const readLengthUnits = () => encode(Cmd.system, Mode.read, 0x04);
 export const readScreenTimeout = () => encode(Cmd.system, Mode.read, 0x09);
 export const readScreenTimeoutOptions = () => encode(Cmd.system, Mode.read, 0x0b);
-export const readWearState = () => encode(Cmd.system, Mode.read, 0x07);
+/**
+ * Состояние поиска браслета, а не ношения.
+ *
+ * Имя вендора — `getFindWearState`. Ношение приходит только отчётом
+ * `01 E1 AC 11`; команды чтения для него в протоколе нет.
+ */
+export const readFindState = () => encode(Cmd.system, Mode.read, 0x07);
+
+/** Код языка, на котором сейчас работает прошивка. */
+export const readCurrentLanguage = () => encode(Cmd.system, Mode.read, 0x08);
+
+/** Какие языки прошивка вообще знает. На ES100 список пуст. */
+export const readSupportedLanguages = () => encode(Cmd.system, Mode.read, 0x03);
+
+/** Автоподсветка экрана. Экрана нет, но флаг прошивка держит и отдаёт. */
+export const readScreenAutoLight = () => encode(Cmd.system, Mode.read, 0x06);
 
 export const writeLanguage = (code: number) => encode(Cmd.system, Mode.write, 0x06, byte(code));
 export const writeLengthUnits = (metric: boolean) =>
@@ -176,37 +196,35 @@ export const readSportCatalog = () => encodeReadAll(Cmd.sports);
 
 export const readAlarms = () => encodeReadAll(Cmd.alarms);
 export const readDoNotDisturb = () => encode(Cmd.doNotDisturb, Mode.read, 0x01);
-export const readActivityReminder = () => encode(Cmd.reminders, Mode.read, 0x01);
 export const readNotificationLimits = () => encodeReadAll(Cmd.notifications);
 export const readWeatherSupport = () => encode(Cmd.weather, Mode.read, 0x01);
 
 /**
- * Режим «не беспокоить». Поля идут подряд: два флага, затем начало и конец
- * периода, затем что именно глушить.
+ * Сколько будильников держит прошивка. Живьём отвечает `02 0a 1f`, то есть
+ * предел известен — подбирать свободный слот вслепую не нужно.
  */
-export function writeDoNotDisturb(options: {
-  allDay: boolean;
-  scheduled: boolean;
-  fromHour: number;
-  fromMinute: number;
-  toHour: number;
-  toMinute: number;
-  muteVibration: boolean;
-  muteMessages: boolean;
-}): Uint8Array {
-  return encode(
-    Cmd.doNotDisturb,
-    Mode.write,
-    0x01,
-    Uint8Array.from([
-      options.allDay ? 1 : 0,
-      options.scheduled ? 1 : 0,
-      options.fromHour,
-      options.fromMinute,
-      options.toHour,
-      options.toMinute,
-      options.muteVibration ? 1 : 0,
-      options.muteMessages ? 1 : 0,
-    ]),
-  );
-}
+export const readAlarmLimits = () => encode(Cmd.alarms, Mode.read, 0x0a);
+
+/**
+ * Двусторонние настройки: список того, о смене чего устройство сообщит само.
+ * Без него непонятно, какие изменения прилетят отчётом, а какие надо перечитывать.
+ */
+export const readTwoWaySettings = () => encode(Cmd.twoWay, Mode.read, 0x01);
+
+/** Какие типы уведомлений различает прошивка. */
+export const readNotificationTypes = () => encodeReadAll(Cmd.messageTypes);
+
+/** Идёт ли сейчас тренировка или мониторинг. */
+export const readOperatorState = () => encodeReadAll(Cmd.operator);
+
+/**
+ * Разрешить устройству докладывать о ходе тренировки.
+ *
+ * Без этого оно ведёт занятие молча: секундный поток с пульсом и шагами
+ * начинается только после этой команды.
+ */
+export const writeOperatorReport = (on: boolean) =>
+  encode(Cmd.workout, Mode.write, 0x02, byte(on ? 1 : 0));
+
+/** Умеет ли устройство тренировки вообще. */
+export const readWorkoutSupport = () => encode(Cmd.workout, Mode.read, 0x07);

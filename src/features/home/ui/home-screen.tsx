@@ -1,6 +1,5 @@
 import Feather from '@expo/vector-icons/Feather';
 import { router } from 'expo-router';
-import type { ReactNode } from 'react';
 import { StyleSheet } from 'react-native';
 
 import { useBandConnected } from '@/shared/domain';
@@ -29,14 +28,7 @@ const HEADER_ACTIONS = [
   { icon: 'edit-2', label: 'Настроить виджеты', href: to.widgets(), band: false },
 ] as const;
 
-/**
- * Дополнительный раздел перед штатными. Через него подключается служебная
- * страница браслета: она не зависит от ответа сервера и не может лежать внутри
- * Главной — фича не имеет права знать о другой фиче.
- */
-export type LeadingSection = { value: string; label: string; page: ReactNode };
-
-export function HomeScreen({ leading }: { leading?: LeadingSection } = {}) {
+export function HomeScreen() {
   const { date, timeZone } = useToday();
   const home = useHome(date, timeZone);
   const decisions = useDecisions();
@@ -84,12 +76,8 @@ export function HomeScreen({ leading }: { leading?: LeadingSection } = {}) {
     </Stack>
   );
 
-  const sections = leading
-    ? [{ value: leading.value, label: leading.label }, ...HOME_SECTIONS]
-    : HOME_SECTIONS;
-
   const state = home.data;
-  const dataPages = state
+  const pages = state
     ? [
         <Overview key="o" state={state} decisions={decisions} />,
         <Activity key="a" home={state.home} />,
@@ -99,13 +87,9 @@ export function HomeScreen({ leading }: { leading?: LeadingSection } = {}) {
       ]
     : HOME_SECTIONS.map((section) => <StateCard key={section.value} query={home} />);
 
-  // Раздел браслета показываем всегда: он читает устройство напрямую и не ждёт
-  // ответа сервера, поэтому не должен пропадать, пока Главная грузится.
-  const pages = leading ? [leading.page, ...dataPages] : dataPages;
-
   return (
     <PagedScreen
-      sections={sections}
+      sections={HOME_SECTIONS}
       header={header}
       pages={pages}
       refreshing={home.refreshing}

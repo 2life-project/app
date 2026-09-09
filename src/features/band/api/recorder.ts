@@ -1,4 +1,5 @@
 import { byteAt, le16, le32, toLe32 } from './bytes';
+import { eventId } from './id';
 /**
  * Диктофон браслета.
  *
@@ -127,9 +128,12 @@ export function decodeRecordings(frameData: Uint8Array): Recording[] {
 }
 
 export type Storage = {
-  /** Килобайты. */
-  total: number;
-  free: number;
+  /**
+   * Килобайты. Единица стоит в имени: принимающая сторона видит только поле, а
+   * «free: 103» без единицы читается и как байты, и как мегабайты.
+   */
+  totalKb: number;
+  freeKb: number;
   /** Сколько байт занимает секунда записи по мнению прошивки. */
   bytesPerSecond: number;
 };
@@ -138,8 +142,8 @@ export function decodeStorage(frameData: Uint8Array): Storage | null {
   if (frameData.length < 15) return null;
 
   return {
-    total: readU32(frameData, 3),
-    free: readU32(frameData, 7),
+    totalKb: readU32(frameData, 3),
+    freeKb: readU32(frameData, 7),
     bytesPerSecond: readU32(frameData, 11),
   };
 }
@@ -152,7 +156,7 @@ export function decodeStorage(frameData: Uint8Array): Storage | null {
  * восстановить, когда именно человек ставил паузу, невозможно: запись на семь
  * секунд звука может растянуться на сорок минут стенных часов.
  */
-export type RecorderEvent = { at: Date } & (
+export type RecorderEvent = { at: Date; id: string } & (
   | { kind: 'started'; session: number }
   | { kind: 'paused'; session: number }
   | { kind: 'resumed'; session: number }
@@ -169,15 +173,17 @@ export function decodeRecorderEvent(data: Uint8Array): RecorderEvent | null {
 
   const session = readU32(data, 3);
   const at = new Date();
+  // Цикл «пауза → продолжение → пауза» неразличим по времени: в кадре опознавателя нет.
+  const id = eventId(at);
 
   switch (byteAt(data, 1)) {
     case Op.start:
     case Op.startAck:
-      return { kind: 'started', session, at };
+      return { kind: 'started', session, at, id };
     case Op.pause:
-      return { kind: 'paused', session, at };
+      return { kind: 'paused', session, at, id };
     case Op.resume:
-      return { kind: 'resumed', session, at };
+      return { kind: 'resumed', session, at, id };
     case Op.stop:
       if (data.length < 13) return null;
       // Байт источника остановки: единица означает «нажали кнопку на браслете».
@@ -185,6 +191,7 @@ export function decodeRecorderEvent(data: Uint8Array): RecorderEvent | null {
         kind: 'finished',
         session,
         at,
+        id,
         bytes: readU32(data, 9),
         byButton: byteAt(data, 7) === 1,
       };
@@ -194,6 +201,7 @@ export function decodeRecorderEvent(data: Uint8Array): RecorderEvent | null {
         kind: 'marked',
         session,
         at,
+        id,
         offsetSeconds: readU32(data, 7),
         index: le16(data, 11) ?? 0,
       };

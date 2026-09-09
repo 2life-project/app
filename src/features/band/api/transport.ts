@@ -1,11 +1,10 @@
 import { BleError, BleErrorCode, type Device, type Subscription } from 'react-native-ble-plx';
 
-import { ble, isReady, waitForRadio } from '@/core/ble';
 import { logger } from '@/core/log/logger';
 
-import { byteAt, fromBase64, toBase64 } from './bytes';
+import { byteAt, fromBase64, hex, toBase64 } from './bytes';
 import { FrameAssembler, decode } from './frame';
-import { BAND_CAPABILITY_SERVICE, BAND_GATT_SERVICE } from './names';
+import { BAND_GATT_SERVICE } from './names';
 
 /** Сервис и характеристики рабочего канала браслета. */
 const SERVICE = BAND_GATT_SERVICE;
@@ -13,9 +12,6 @@ const WRITE = '000034f1-0000-1000-8000-00805f9b34fb';
 const NOTIFY = '000034f2-0000-1000-8000-00805f9b34fb';
 
 /** Сервис с масками возможностей: обе характеристики только читаются. */
-const CAPABILITY_SERVICE = BAND_CAPABILITY_SERVICE;
-const CAPABILITY_LOW = '000035f1-0000-1000-8000-00805f9b34fb';
-const CAPABILITY_HIGH = '000034f1-0000-1000-8000-00805f9b34fb';
 
 /**
  * Пауза между записями. Прошивка теряет кадры, если слать их вплотную: в SDK
@@ -57,7 +53,7 @@ export class BandTransport {
   private lastWrite = 0;
   private readonly listeners = new Set<ReportListener>();
 
-  constructor(private readonly device: Device) {}
+  constructor(readonly device: Device) {}
 
   /** Подписаться на канал уведомлений. Без этого не придёт ни один ответ. */
   /** Узнать о разрыве связи. Без этого экран продолжает слать команды в никуда. */
@@ -76,8 +72,14 @@ export class BandTransport {
       NOTIFY,
       (error, characteristic) => {
         if (error) {
-          logger.warn('band: канал уведомлений закрылся', { reason: error.message });
+          // Канал закрылся — соединение не работает ни в одну сторону. Подписку
+          // снимаем: иначе `start()` считает её живой и второй раз не подпишется,
+          // а браслет остаётся «подключённым» навсегда и молча.
+          logger.error('band: канал уведомлений закрылся', { reason: error.message });
+          this.notifications?.remove();
+          this.notifications = null;
           this.failWaiter(new Error('соединение с браслетом потеряно'));
+          this.declareLost();
           return;
         }
         const value = characteristic?.value;
@@ -165,33 +167,25 @@ export class BandTransport {
     return this.enqueue(
       () =>
         new Promise<Uint8Array>((resolve, reject) => {
-          const timer = setTimeout(() => {
-            this.waiter = null;
-            reject(new Error(`браслет не ответил на ${label}`));
-          }, REPLY_TIMEOUT_MS);
+          const own: Waiter = {
+            matches,
+            assembler,
+            resolve,
+            reject,
+            timer: setTimeout(() => {
+              this.forget(own);
+              reject(new Error(`браслет не ответил на ${label}`));
+            }, REPLY_TIMEOUT_MS),
+          };
 
-          this.waiter = { matches, assembler, resolve, reject, timer };
+          this.waiter = own;
 
           this.write(frame).catch((error: unknown) => {
-            clearTimeout(timer);
-            this.waiter = null;
+            this.forget(own);
             reject(error instanceof Error ? error : new Error(String(error)));
           });
         }),
     );
-  }
-
-  /** Маски возможностей: младшие списки и старшие вместе с размером пакета. */
-  async readCapabilities(): Promise<{ low: Uint8Array; high: Uint8Array }> {
-    const [low, high] = await Promise.all([
-      this.device.readCharacteristicForService(CAPABILITY_SERVICE, CAPABILITY_LOW),
-      this.device.readCharacteristicForService(SERVICE, CAPABILITY_HIGH),
-    ]);
-
-    return {
-      low: fromBase64(low.value ?? ''),
-      high: fromBase64(high.value ?? ''),
-    };
   }
 
   private dispatch(data: Uint8Array): void {
@@ -217,13 +211,26 @@ export class BandTransport {
       // Кадр принят, ответ ещё не собран: часы дожидания заводим заново, иначе
       // длинная история не успевает доехать за отведённое на один кадр время.
       waiter.timer = setTimeout(() => {
-        this.waiter = null;
+        this.forget(waiter);
         waiter.reject(new Error('ответ браслета оборвался на середине'));
       }, REPLY_TIMEOUT_MS);
       return;
     }
 
     for (const listener of this.listeners) listener(data);
+  }
+
+  /**
+   * Забыть ожидание — своё, а не чужое.
+   *
+   * Часы снимаются по ссылке из самого ожидания: при многокадровом ответе их
+   * перезаводят, и старая ссылка из замыкания гасила уже сработавшую пустышку.
+   * Живой таймер доживал до срабатывания и обнулял `waiter`, где к тому моменту
+   * стоял следующий обмен — тот отваливался по времени без всякой причины.
+   */
+  private forget(waiter: Waiter): void {
+    clearTimeout(waiter.timer);
+    if (this.waiter === waiter) this.waiter = null;
   }
 
   private failWaiter(error: Error): void {
@@ -286,79 +293,6 @@ function isLostConnection(failure: unknown): boolean {
   );
 }
 
-function hex(bytes: Uint8Array): string {
-  return [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join(' ');
-}
-
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-/** Подключиться к устройству и договориться о размере пакета. */
-export async function connectTransport(deviceId: string): Promise<BandTransport> {
-  const manager = ble();
-
-  // Сразу после запуска приложения состояние радио — `Unknown`: система ещё не
-  // ответила. Подключаться в этот момент бессмысленно, и именно так падало
-  // автоподключение к запомненному браслету на каждом холодном старте.
-  const state = await waitForRadio();
-  if (!isReady(state)) throw new Error(`band: Bluetooth недоступен (${state})`);
-
-  // Браслет мог быть подключён и без нас: другим экраном или приложением
-  // вендора. Соединение системное и общее, но `connectToDevice` на уже
-  // открытом падает — тогда просто берём устройство из известных.
-  const device = await manager
-    .connectToDevice(deviceId, { requestMTU: 247 })
-    .catch(async (failure: unknown) => {
-      if (
-        !(failure instanceof BleError) ||
-        failure.errorCode !== BleErrorCode.DeviceAlreadyConnected
-      ) {
-        throw failure;
-      }
-      return (await manager.devices([deviceId]))[0];
-    });
-  if (!device) throw new Error(`band: устройство ${deviceId} потерялось при подключении`);
-
-  await device.discoverAllServicesAndCharacteristics();
-  await describe(device);
-
-  const transport = new BandTransport(device);
-  await transport.start();
-  return transport;
-}
-
-/**
- * Разорвать связь с браслетом, когда транспорта на руках нет.
- *
- * Нужна отдельно от `stop`: связь мог держать другой экран или прошлый запуск,
- * а отвязать устройство надо и в этом случае.
- */
-export async function dropConnection(deviceId: string): Promise<void> {
-  await ble()
-    .cancelDeviceConnection(deviceId)
-    .catch((failure: unknown) => {
-      logger.warn('band: связь не разорвалась', { deviceId, reason: String(failure) });
-    });
-}
-
-/**
- * Что у устройства на самом деле есть. Без этого молчащий канал неотличим от
- * молчащего браслета: обе картины выглядят как «команда не ответила».
- */
-async function describe(device: Device): Promise<void> {
-  const services = await device.services();
-  for (const service of services) {
-    const characteristics = await service.characteristics();
-    logger.debug('band gatt', {
-      service: service.uuid,
-      characteristics: characteristics.map((item) => ({
-        uuid: item.uuid,
-        notify: item.isNotifiable,
-        indicate: item.isIndicatable,
-        write: item.isWritableWithResponse,
-        writeNoResponse: item.isWritableWithoutResponse,
-      })),
-    });
-  }
 }

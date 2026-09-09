@@ -1,9 +1,9 @@
 import { StyleSheet, View } from 'react-native';
 
-import type { ActivitySample } from '@/core/band';
 import { space } from '@/shared/theme';
 import { Card, LineChart, Stack, StatTile, SummaryRow, Text } from '@/shared/ui';
 
+import type { ActivitySample } from '../api';
 import { seriesOf, summaryOf, thin, type Point } from '../model/day-metrics';
 import type { BandState } from '../model/use-band';
 
@@ -21,11 +21,11 @@ const METRICS: readonly {
   pick: (sample: ActivitySample) => number | undefined;
   tone: 'success' | 'warning' | 'danger' | 'highlight';
 }[] = [
-  { title: 'Blood oxygen', unit: '%', pick: (s) => s.bloodOxygen, tone: 'highlight' },
-  { title: 'HRV', unit: 'ms', pick: (s) => s.hrv, tone: 'success' },
+  { title: 'Кислород', unit: '%', pick: (s) => s.bloodOxygen, tone: 'highlight' },
+  { title: 'ВСР', unit: 'ms', pick: (s) => s.hrv, tone: 'success' },
   { title: 'Systolic', unit: 'mmHg', pick: (s) => s.systolic, tone: 'danger' },
   { title: 'Diastolic', unit: 'mmHg', pick: (s) => s.diastolic, tone: 'danger' },
-  { title: 'Mood', unit: '', pick: (s) => s.mood, tone: 'highlight' },
+  { title: 'Настроение', unit: '', pick: (s) => s.mood, tone: 'highlight' },
   { title: 'Blood sugar', unit: 'mmol/L', pick: (s) => s.bloodSugar, tone: 'warning' },
 ];
 
@@ -74,7 +74,7 @@ export function MeasurementsDetail({ state }: { state: BandState }) {
       {silent.length === 0 ? null : (
         <Card variant="sunken">
           <Stack gap="xs">
-            <Text variant="subtitle">Not measured today</Text>
+            <Text variant="subtitle">Сегодня не измерялось</Text>
             <Text variant="bodySmall" tone="muted">
               {silent.map((item) => item.title).join(', ')}. These sensors run on a schedule or on
               demand — press Measure on the main screen to take a reading now.
@@ -93,9 +93,9 @@ function Range({ points, unit }: { points: readonly Point[]; unit: string }) {
 
   return (
     <View style={styles.tiles}>
-      <StatTile label="Min" value={String(summary.min)} unit={unit || undefined} />
-      <StatTile label="Avg" value={String(summary.average)} unit={unit || undefined} />
-      <StatTile label="Max" value={String(summary.max)} unit={unit || undefined} />
+      <StatTile label="Минимум" value={String(summary.min)} unit={unit || undefined} />
+      <StatTile label="Среднее" value={String(summary.average)} unit={unit || undefined} />
+      <StatTile label="Максимум" value={String(summary.max)} unit={unit || undefined} />
     </View>
   );
 }

@@ -24,7 +24,7 @@ export function WalkDetail({ state }: { state: BandState }) {
   if (!walk) {
     return (
       <Card variant="sunken">
-        <Text tone="muted">No steps recorded today.</Text>
+        <Text tone="muted">Шагов за сегодня нет.</Text>
       </Card>
     );
   }
@@ -40,20 +40,20 @@ export function WalkDetail({ state }: { state: BandState }) {
             axis={['00:00', '24:00']}
           />
           <View style={styles.tiles}>
-            <StatTile label="Steps" value={String(state.summary?.steps ?? walk.steps)} />
+            <StatTile label="Шаги" value={String(state.summary?.steps ?? walk.steps)} />
             <StatTile
-              label="Distance"
+              label="Дистанция"
               value={kilometres(state.summary?.distance ?? walk.distance)}
               unit="km"
             />
           </View>
           <View style={styles.tiles}>
             <StatTile
-              label="Calories"
+              label="Калории"
               value={String(state.summary?.calories ?? walk.calories)}
-              unit="kcal"
+              unit="ккал"
             />
-            <StatTile label="Active" value={`${walk.activeMinutes} min`} />
+            <StatTile label="Активность" value={`${walk.activeMinutes} min`} />
           </View>
         </Stack>
       </Card>
@@ -65,13 +65,13 @@ export function WalkDetail({ state }: { state: BandState }) {
             <LineChart values={thin(cadence, 160)} tone="success" height={120} />
             <View style={styles.tiles}>
               <StatTile
-                label="Average"
+                label="Среднее"
                 value={String(walk.cadenceAverage)}
-                unit="spm"
+                unit="шаг/мин"
                 note={`peak ${walk.cadencePeak}`}
               />
               <StatTile
-                label="Stride"
+                label="Длина шага"
                 value={walk.stride === null ? '—' : walk.stride.toFixed(2)}
                 unit="m"
               />
@@ -89,7 +89,7 @@ export function WalkDetail({ state }: { state: BandState }) {
           <Text variant="subtitle">Walks · {bouts.length}</Text>
           {bouts.length === 0 ? (
             <Text variant="bodySmall" tone="muted">
-              No continuous walk long enough to stand out.
+              Непрерывной ходьбы, достаточно длинной чтобы выделить, не нашлось.
             </Text>
           ) : (
             bouts

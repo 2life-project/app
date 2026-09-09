@@ -29,16 +29,35 @@ export type ActivitySample = {
   hrv?: number;
   /** Ммоль/л. */
   bloodSugar?: number;
+  /** Набор высоты за минуту, метры. */
+  elevation?: number;
   /**
-   * Слот ещё набирается: это живой отчёт по текущей минуте, а не её итог.
-   * Устройство сбрасывает счётчики на границе минуты, поэтому такой слот
-   * занижен и перезаписывать им готовую историю нельзя.
+   * PAI — оценка нагрузки самим устройством: сколько баллов набрано за минуту
+   * в лёгкой, средней и высокой интенсивности и сколько минут в каждой из них.
+   * Считает браслет по своей модели, пересчитать это на клиенте нельзя.
    */
-  partial?: boolean;
+  paiLow?: number;
+  paiMedium?: number;
+  paiHigh?: number;
+  paiLowMinutes?: number;
+  paiMediumMinutes?: number;
+  paiHighMinutes?: number;
+  /**
+   * Откуда слот приехал.
+   *
+   * `history` — законченная минута из выгрузки, её значения окончательны.
+   * `live` — отчёт по текущей минуте: устройство сбрасывает счётчики на её
+   * границе, поэтому слот занижен и перезаписывать им историю нельзя.
+   *
+   * Признаком «недобрано» это быть не может: принимающей стороне нужно знать не
+   * то, что слот неполон, а какой из двух потоков его прислал — правило замены
+   * строки строится именно на этом.
+   */
+  source: 'history' | 'live';
 };
 
-// `partial` — признак кадра, а не показатель: в слоты по маске он не пишется.
-type Slot = keyof Omit<ActivitySample, 'at' | 'partial'>;
+// `source` — признак кадра, а не показатель: в слоты по маске он не пишется.
+type Slot = keyof Omit<ActivitySample, 'at' | 'source'>;
 
 /** Однобайтовые показатели: номер бита → поле. */
 const SINGLE: Record<number, Slot> = {
@@ -54,10 +73,21 @@ const SINGLE: Record<number, Slot> = {
   13: 'restingHeartRate',
 };
 
-/** Двухбайтовые показатели. Остальные двухбайтовые читаются и отбрасываются. */
+/**
+ * Двухбайтовые показатели. Номера битов сверены с разбором вендора
+ * (`MotionFrame`): пропуск любого из них не ломает кадр, но молча теряет
+ * значение — именно так у нас пропадали PAI и высота.
+ */
 const DOUBLE: Record<number, Slot> = {
   3: 'distance',
+  11: 'elevation',
   18: 'mood',
+  19: 'paiLow',
+  20: 'paiMedium',
+  21: 'paiHigh',
+  22: 'paiLowMinutes',
+  23: 'paiMediumMinutes',
+  25: 'paiHighMinutes',
   26: 'hrv',
 };
 
@@ -86,8 +116,9 @@ function readSlot(
   start: number,
   mask: number,
   at: Date,
+  source: ActivitySample['source'],
 ): { sample: ActivitySample; end: number } {
-  const sample: ActivitySample = { at };
+  const sample: ActivitySample = { at, source };
   let offset = start;
 
   for (let bit = 1; bit <= 32; bit += 1) {
@@ -125,7 +156,8 @@ function readSlot(
 
 /** Есть ли в слоте хоть одно значение: пустые маски устройство тоже присылает. */
 function hasValues(sample: ActivitySample): boolean {
-  return Object.keys(sample).length > 1;
+  // `at` и `source` есть всегда: значением считается всё сверх них.
+  return Object.keys(sample).length > 2;
 }
 
 /**
@@ -149,7 +181,7 @@ export function decodeActivityFrame(body: Uint8Array): {
     if (size === 0) break;
 
     const at = new Date((base + minutes * 60) * 1000);
-    const { sample, end } = readSlot(body, offset + 2 + size, mask, at);
+    const { sample, end } = readSlot(body, offset + 2 + size, mask, at, 'history');
     if (hasValues(sample)) samples.push(sample);
 
     if (end <= offset) break;
@@ -174,6 +206,6 @@ export function decodeLiveSample(frame: Uint8Array): ActivitySample | null {
   // текущей минуте целиком, и без округления один и тот же слот приезжает
   // несколько раз с разными секундами.
   const at = new Date(Math.floor(base / 60) * 60 * 1000);
-  const { sample } = readSlot(frame, 10 + size, mask, at);
-  return hasValues(sample) ? { ...sample, partial: true } : null;
+  const { sample } = readSlot(frame, 10 + size, mask, at, 'live');
+  return hasValues(sample) ? sample : null;
 }

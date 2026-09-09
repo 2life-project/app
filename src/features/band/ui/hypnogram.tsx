@@ -1,8 +1,10 @@
+import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import type { SleepSegment, SleepStageName } from '@/core/band';
 import { radius, space, theme } from '@/shared/theme';
 import { Text } from '@/shared/ui';
+
+import type { SleepSegment, SleepStageName } from '../api';
 
 /**
  * Ход ночи по стадиям — дорожками, а не одной полосой.
@@ -14,10 +16,10 @@ import { Text } from '@/shared/ui';
 
 /** Порядок дорожек сверху вниз: от бодрствования к самому глубокому сну. */
 const LANES: readonly { label: string; stage: SleepStageName }[] = [
-  { label: 'Awake', stage: 'awake' },
+  { label: 'Пробуждения', stage: 'awake' },
   { label: 'REM', stage: 'rem' },
-  { label: 'Light', stage: 'light' },
-  { label: 'Deep', stage: 'deep' },
+  { label: 'Лёгкий', stage: 'light' },
+  { label: 'Глубокий', stage: 'deep' },
 ];
 
 /** Цвет углубляется вместе со стадией: глубокий сон — самый плотный тон. */
@@ -43,7 +45,12 @@ export function Hypnogram({
   /** Сколько минут в каждой стадии: число стоит у своей дорожки, а не отдельным блоком. */
   totals: Record<SleepStageName, number>;
 }) {
-  const sorted = [...segments].sort((a, b) => a.at.getTime() - b.at.getTime());
+  // Сортировка и разбор по дорожкам — четыре прохода по всем отрезкам ночи.
+  // В теле рендера они повторялись на каждую перерисовку панели.
+  const sorted = useMemo(
+    () => [...segments].sort((a, b) => a.at.getTime() - b.at.getTime()),
+    [segments],
+  );
   const first = sorted[0];
   const last = sorted[sorted.length - 1];
   if (!first || !last) return null;

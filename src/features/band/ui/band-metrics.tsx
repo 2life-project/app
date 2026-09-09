@@ -1,7 +1,10 @@
+import { useMemo } from 'react';
+
 import { Stack } from '@/shared/ui';
 
 import {
   STRESS_ZONES,
+  readingsCaption,
   startOfToday,
   stressPoints,
   summaryOf,
@@ -32,8 +35,12 @@ export function BandMetrics({
   state: BandState;
   onOpen: (kind: DetailKind) => void;
 }) {
-  const stress = stressPoints(state.stress, startOfToday());
-  const stressSummary = summaryOf(stress);
+  // `startOfToday()` в теле рендера возвращает новую дату на каждый вызов и
+  // сбрасывал бы любую память ниже по дереву.
+  const stress = useMemo(() => stressPoints(state.stress, startOfToday()), [state.stress]);
+  const stressSummary = useMemo(() => summaryOf(stress), [stress]);
+  const stressSeries = useMemo(() => thin(stress), [stress]);
+  const stressZones = useMemo(() => zonesOf(stress, STRESS_ZONES), [stress]);
 
   return (
     <Stack gap="md">
@@ -42,24 +49,19 @@ export function BandMetrics({
       <WalkCard state={state} onOpen={() => onOpen('walk')} />
 
       <MetricCard
-        title="Stress"
+        title="Стресс"
         value={String(state.measurement?.stress ?? stress[stress.length - 1]?.value ?? '\u2014')}
-        caption={readings(stress.length)}
+        caption={readingsCaption(stress.length)}
         tone="warning"
-        series={thin(stress)}
+        series={stressSeries}
         summary={stressSummary}
         axis={timeAxis(stress)}>
-        {stress.length > 0 ? <ZoneBars zones={zonesOf(stress, STRESS_ZONES)} /> : null}
+        {stress.length > 0 ? <ZoneBars zones={stressZones} /> : null}
       </MetricCard>
 
       <MeasurementsCard state={state} onOpen={() => onOpen('measurements')} />
     </Stack>
   );
-}
-
-function readings(count: number): string {
-  if (count === 0) return 'no data';
-  return count === 1 ? '1 reading today' : `${count} readings today`;
 }
 
 function timeAxis(samples: readonly { at: Date }[]): [string, string] | undefined {

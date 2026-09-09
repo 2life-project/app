@@ -22,7 +22,7 @@ export function SleepDetail({ state }: { state: BandState }) {
   if (!night) {
     return (
       <Card variant="sunken">
-        <Text tone="muted">No night recorded yet.</Text>
+        <Text tone="muted">Ни одной ночи пока не записано.</Text>
       </Card>
     );
   }
@@ -53,14 +53,14 @@ export function SleepDetail({ state }: { state: BandState }) {
 
       <Card variant="sunken">
         <Stack gap="sm">
-          <Text variant="subtitle">Quality</Text>
+          <Text variant="subtitle">Качество</Text>
           <View style={styles.tiles}>
-            <StatTile label="Efficiency" value={`${quality.efficiency}`} unit="%" />
-            <StatTile label="Cycles" value={String(quality.cycles)} />
+            <StatTile label="Эффективность" value={`${quality.efficiency}`} unit="%" />
+            <StatTile label="Циклы" value={String(quality.cycles)} />
           </View>
           <View style={styles.tiles}>
-            <StatTile label="Awakenings" value={String(quality.awakenings)} />
-            <StatTile label="Longest block" value={duration(quality.longestBlock)} />
+            <StatTile label="Пробуждения" value={String(quality.awakenings)} />
+            <StatTile label="Самый длинный отрезок" value={duration(quality.longestBlock)} />
           </View>
           <Text variant="caption" tone="muted">
             Efficiency is time asleep divided by time in bed. Cycles are counted by returns to REM —
@@ -71,14 +71,14 @@ export function SleepDetail({ state }: { state: BandState }) {
 
       <Card variant="sunken">
         <Stack gap="sm">
-          <Text variant="subtitle">Stages</Text>
+          <Text variant="subtitle">Стадии</Text>
           <SummaryRow
-            title="Deep"
+            title="Глубокий"
             subtitle={`${quality.shares.deep}%`}
             value={duration(totals.deep)}
           />
           <SummaryRow
-            title="Light"
+            title="Лёгкий"
             subtitle={`${quality.shares.light}%`}
             value={duration(totals.light)}
             divider
@@ -90,7 +90,7 @@ export function SleepDetail({ state }: { state: BandState }) {
             divider
           />
           <SummaryRow
-            title="Awake"
+            title="Пробуждения"
             subtitle={`${quality.shares.awake}%`}
             value={duration(totals.awake)}
             divider
@@ -100,7 +100,7 @@ export function SleepDetail({ state }: { state: BandState }) {
 
       <Card variant="sunken">
         <Stack gap="sm">
-          <Text variant="subtitle">Timeline</Text>
+          <Text variant="subtitle">Ход ночи</Text>
           {night.segments.map((segment, index) => (
             <SummaryRow
               key={`${segment.at.getTime()}-${index}`}

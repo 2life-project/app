@@ -1,13 +1,12 @@
 import { StyleSheet, View } from 'react-native';
 
-import type { SleepSession } from '@/core/band';
 import { space } from '@/shared/theme';
-import { ActionLink, Card, ProgressBar, Stack, Text } from '@/shared/ui';
+import { ActionLink, Card, ProgressBar, Stack, Text, WidgetCard } from '@/shared/ui';
 
+import { SLEEP_TARGET_MINUTES, type SleepSession } from '../api';
+
+import { BandEmpty } from './band-empty';
 import { Hypnogram } from './hypnogram';
-
-/** Норма сна, к которой считается полоса. Восемь часов — общая рекомендация. */
-const TARGET_MINUTES = 8 * 60;
 
 /**
  * Последняя ночь: ход по стадиям и итоги.
@@ -17,9 +16,11 @@ const TARGET_MINUTES = 8 * 60;
  */
 export function SleepCard({
   sleep,
+  reading,
   onOpen,
 }: {
   sleep: readonly SleepSession[];
+  reading: boolean;
   onOpen: () => void;
 }) {
   // Сессии приходят по возрастанию времени: последняя — самая свежая.
@@ -27,14 +28,9 @@ export function SleepCard({
 
   if (!night) {
     return (
-      <Card variant="sunken">
-        <Stack gap="xs">
-          <Text variant="subtitle">Sleep</Text>
-          <Text variant="bodySmall" tone="muted">
-            No night recorded yet.
-          </Text>
-        </Stack>
-      </Card>
+      <WidgetCard variant="sunken" title="Сон">
+        <BandEmpty reading={reading} text="Ни одной ночи пока не записано" />
+      </WidgetCard>
     );
   }
 
@@ -46,8 +42,8 @@ export function SleepCard({
     <Card variant="sunken">
       <Stack gap="md">
         <View style={styles.header}>
-          <Text variant="subtitle">Sleep</Text>
-          <ActionLink label="Details" chevron onPress={onOpen} />
+          <Text variant="subtitle">Сон</Text>
+          <ActionLink label="Подробнее" chevron onPress={onOpen} />
         </View>
 
         <Text variant="caption" tone="muted">
@@ -57,11 +53,11 @@ export function SleepCard({
         <View style={styles.value}>
           <Text variant="metric">{duration(asleep)}</Text>
           <Text variant="bodySmall" tone="muted">
-            asleep · {share(asleep, TARGET_MINUTES)}% of 8h
+            asleep · {share(asleep, SLEEP_TARGET_MINUTES)}% of 8h
           </Text>
         </View>
 
-        <ProgressBar value={Math.min(1, asleep / TARGET_MINUTES)} tone={toneOf(asleep)} />
+        <ProgressBar value={Math.min(1, asleep / SLEEP_TARGET_MINUTES)} tone={toneOf(asleep)} />
 
         <Hypnogram segments={night.segments} totals={night.totals} />
       </Stack>
@@ -74,7 +70,7 @@ export function SleepCard({
  * не значит провалить ночь, и красить такую ночь тревожным цветом — врать.
  */
 function toneOf(asleep: number): 'success' | 'warning' | 'danger' {
-  const share = asleep / TARGET_MINUTES;
+  const share = asleep / SLEEP_TARGET_MINUTES;
   if (share >= 0.85) return 'success';
   if (share >= 0.6) return 'warning';
   return 'danger';

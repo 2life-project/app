@@ -58,7 +58,7 @@ export function MetricCard({
         <View style={styles.header}>
           <Text variant="subtitle">{title}</Text>
           {onOpen ? (
-            <ActionLink label="Details" chevron onPress={onOpen} disabled={value === EMPTY} />
+            <ActionLink label="Подробнее" chevron onPress={onOpen} disabled={value === EMPTY} />
           ) : caption ? (
             <Text variant="bodySmall" tone="muted">
               {caption}
@@ -96,9 +96,9 @@ export function MetricCard({
 
         {summary && summary.count > 1 ? (
           <View style={styles.tiles}>
-            <StatTile label="Min" value={String(summary.min)} />
-            <StatTile label="Avg" value={String(summary.average)} />
-            <StatTile label="Max" value={String(summary.max)} />
+            <StatTile label="Минимум" value={String(summary.min)} />
+            <StatTile label="Среднее" value={String(summary.average)} />
+            <StatTile label="Максимум" value={String(summary.max)} />
           </View>
         ) : null}
 
@@ -106,7 +106,7 @@ export function MetricCard({
 
         {value === EMPTY ? (
           <Text variant="bodySmall" tone="muted">
-            Not measured today. Press Measure to take a reading.
+            Сегодня не измерялось. Нажмите «Замерить», чтобы снять показание.
           </Text>
         ) : null}
       </Stack>

@@ -5,19 +5,21 @@ import { BandAdmin } from './admin';
 import { BandAlarms } from './alarms';
 import { byteAt } from './bytes';
 import * as cmd from './commands';
+import { connectTransport } from './connection';
 import {
-  type Capabilities,
-  type DeviceInfo,
   decodeBattery,
   decodeCapabilities,
   decodeDeviceInfo,
   decodeTime,
+  readCapabilityMasks,
+  type Capabilities,
+  type DeviceInfo,
 } from './device';
+import type { BandEvent, BandListener } from './events';
 import { Mode } from './frame';
 import {
   type DaySummary,
-  type Measurement,
-  type StressSample,
+  type StressDay,
   decodeDaySummary,
   decodeMeasurement,
   decodeSleep,
@@ -29,8 +31,9 @@ import * as recorder from './recorder';
 import { BandRecorder } from './recorder-api';
 import { BandSettings } from './settings';
 import { type SleepSession, groupSleep } from './sleep';
-import { type BandTransport, connectTransport } from './transport';
-import { BandWorkouts } from './workouts';
+import { type BandTransport } from './transport';
+import { decodeWorkoutTick } from './workouts';
+import { BandWorkouts } from './workouts-api';
 
 /**
  * Потолок кадров истории за один запрос. Сутки по минутам не дают больше сотни
@@ -39,15 +42,6 @@ import { BandWorkouts } from './workouts';
 const MAX_HISTORY_FRAMES = 120;
 
 /** Отчёты, которые устройство присылает само. */
-export type BandEvent =
-  | { kind: 'activity'; sample: ActivitySample }
-  | { kind: 'measurement'; measurement: Measurement }
-  | { kind: 'wear'; worn: boolean; at: Date }
-  | { kind: 'recorder'; event: recorder.RecorderEvent }
-  | { kind: 'disconnected' };
-
-export type BandListener = (event: BandEvent) => void;
-
 /**
  * Браслет целиком: соединение, команды и подписка на его собственные отчёты.
  *
@@ -57,6 +51,8 @@ export type BandListener = (event: BandEvent) => void;
 export class Band {
   private readonly listeners = new Set<BandListener>();
   private capabilities: Capabilities | null = null;
+  /** Последнее известное состояние ношения: приходит только отчётом. */
+  private wornState: boolean | undefined;
   private skew: number | null = null;
   private readonly openedAt = new Date();
 
@@ -158,7 +154,7 @@ export class Band {
 
   /** Что устройство умеет. Читается один раз при подключении. */
   async loadCapabilities(): Promise<Capabilities> {
-    const { low, high } = await this.transport.readCapabilities();
+    const { low, high } = await readCapabilityMasks(this.transport.device);
     this.capabilities = decodeCapabilities(low, high);
     return this.capabilities;
   }
@@ -168,8 +164,17 @@ export class Band {
   }
 
   /** Надет ли браслет прямо сейчас. Тем же полем приходит и самостоятельный отчёт. */
-  async worn(): Promise<boolean | undefined> {
-    return decodeWearState(await this.transport.request(cmd.readWearState()))?.worn;
+  /**
+   * Надет ли браслет — только из отчёта, опросом это не берётся.
+   *
+   * Раньше здесь читалось `01 A5 AA 07`, но у вендора это `getFindWearState` —
+   * состояние поиска браслета, а не ношения, и отвечает оно шестью байтами
+   * вместо одиннадцати. Разбор всегда возвращал `undefined`, и опрос ношения не
+   * работал никогда. Команды чтения для него в протоколе нет: устройство
+   * присылает `01 E1 AC 11` само, когда браслет снимают или надевают.
+   */
+  get worn(): boolean | undefined {
+    return this.wornState;
   }
 
   /** Вибрация: единственный способ позвать браслет без экрана. */
@@ -210,7 +215,7 @@ export class Band {
     return groupSleep(decodeSleep(await this.transport.request(cmd.readSleep(from, to))));
   }
 
-  async stress(from: Date, to: Date): Promise<StressSample[]> {
+  async stress(from: Date, to: Date): Promise<StressDay[]> {
     return decodeStress(await this.transport.request(cmd.readStress(from, to)));
   }
 
@@ -270,9 +275,18 @@ export class Band {
       return;
     }
 
+    const tick = decodeWorkoutTick(data);
+    if (tick) {
+      this.emit({ kind: 'workout', tick });
+      return;
+    }
+
     if (byteAt(data, 1) === 0xe1 && byteAt(data, 3) === 0x11) {
       const wear = decodeWearState(data);
-      if (wear) this.emit({ kind: 'wear', worn: wear.worn, at: wear.at });
+      if (wear) {
+        this.wornState = wear.worn;
+        this.emit({ kind: 'wear', worn: wear.worn, at: wear.at });
+      }
     }
   }
 
