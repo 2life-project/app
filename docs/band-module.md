@@ -1,10 +1,19 @@
-# Модуль браслета: что он умеет и что отдаёт
+# Модуль браслета: API и модель данных
 
-Документ для бэкенда. Описывает **наш модуль** — что мобильное приложение
-снимает с браслета, в каком виде оно это отдаёт и что ждёт обратно.
+Документ для бэкенда и для всякого, кто подключает браслет из приложения.
+Описывает **наш модуль**: какие у него входы и методы, какими типами он говорит,
+что снимает с устройства и в каком виде отдаёт наружу.
 
-Как устроить хранение и какими сделать адреса — решаете вы. Здесь только формы
-данных, их ключи и требования, из которых эти решения вытекают.
+Как устроить хранение и какими сделать адреса — решаете вы. Здесь формы данных,
+их ключи и требования, из которых эти решения вытекают.
+
+Три документа про браслет разделены так:
+
+| Документ                             | О чём                                            |
+| ------------------------------------ | ------------------------------------------------ |
+| [band-hardware.md](band-hardware.md) | что физически внутри: датчики, память, кристалл  |
+| [band-protocol.md](band-protocol.md) | как с устройством говорить: биты, байты, команды |
+| **этот**                             | что из этого отдаёт модуль: API, типы, данные    |
 
 Устройство: ES100, платформа `NAL-WB00`, протокол вендора UTE (диалект JX).
 Связь — Bluetooth LE напрямую с телефона, без облака производителя. Всё
@@ -16,18 +25,19 @@
 
 Семь входов. Всё перечисленное уже работает.
 
-| Вход                 | Возможности                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `band`               | подключение и переподключение к запомненному устройству, измерение расхождения часов и их синхронизация, паспорт устройства, заряд, маски возможностей, состояние ношения, вибрация «найти», сводка дня с разбивкой по типам активности, разовый замер по кнопке, живой пульс, сон сессиями, стресс сутками с сеткой, поминутная история с PAI и набором высоты, тренировки, которые браслет зарегистрировал сам                                      |
-| `band.settings`      | чтение всех настроек разом; запись языка, единиц длины и веса, таймаута экрана, автозамера пульса, непрерывного пульса, интервалов пульса и SpO₂, верхнего и нижнего порогов пульса с тревогой, порога тревоги по низкому SpO₂, непрерывного SpO₂, автозамеров стресса, настроения и давления с их интервалами, единицы давления, режима «не беспокоить», профиля пользователя, дневной цели и зон пульса на устройстве; чтение двусторонних настроек |
-| `band.alarms`        | список, предел числа ячеек, запись целиком, добавление в свободную ячейку, правка, включение и выключение, удаление, полная очистка                                                                                                                                                                                                                                                                                                                   |
-| `band.notifications` | разрешение на звонки и сообщения, отправка уведомления с типом сигнала                                                                                                                                                                                                                                                                                                                                                                                |
-| `band.recorder`      | занятость памяти, список записей, только последняя, старт, стоп, пауза, продолжение, удаление, метки, выгрузка файла с докачкой                                                                                                                                                                                                                                                                                                                       |
-| `band.workouts`      | старт, пауза, продолжение и финиш занятия; секундный поток с пульсом; заходы движения, размеченные устройством; каталог видов спорта; список и сводка тренировок (на ES100 всегда пусты)                                                                                                                                                                                                                                                              |
-| `band.admin`         | отвязка от аккаунта, повторное сопряжение, отвязка диктофона, пароль, заводской сброс, стирание всех записей                                                                                                                                                                                                                                                                                                                                          |
+| Вход                 | Возможности                                                                                                                                                                                                                                                                                                                         |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Band`               | подключение и переподключение к запомненному устройству, измерение расхождения часов и их синхронизация, паспорт, заряд, маски возможностей, состояние ношения, вибрация «найти», сводка дня с разбивкой по типам активности, разовый замер, живой пульс, сон сессиями, стресс сутками с сеткой, поминутная история с PAI и высотой |
+| `band.settings`      | чтение всех настроек разом; запись языка, единиц длины и веса, таймаута экрана, автозамера и непрерывного пульса, интервалов пульса и SpO₂, порогов пульса и SpO₂ с тревогой, автозамеров стресса, настроения и давления с интервалами, единицы давления, «не беспокоить», профиля, дневной цели и зон пульса на устройстве         |
+| `band.alarms`        | список, предел числа ячеек, запись целиком, добавление в свободную ячейку, правка, включение и выключение, удаление, полная очистка                                                                                                                                                                                                 |
+| `band.notifications` | разрешение на звонки и сообщения, отправка уведомления с типом сигнала                                                                                                                                                                                                                                                              |
+| `band.recorder`      | занятость памяти, список записей, только последняя, старт, стоп, пауза, продолжение, удаление, метки, выгрузка файла с докачкой                                                                                                                                                                                                     |
+| `band.workouts`      | старт, пауза, продолжение и финиш занятия; секундный поток; заходы движения, размеченные устройством; каталог видов спорта; список и сводка тренировок (на ES100 всегда пусты)                                                                                                                                                      |
+| `band.admin`         | отвязка от аккаунта, повторное сопряжение, отвязка диктофона, пароль, заводской сброс, стирание всех записей                                                                                                                                                                                                                        |
 
 Плюс подписка на отчёты, которые устройство присылает само: живая активность,
-результат разового замера, надевание и снятие, события диктофона, потеря связи.
+результат разового замера, надевание и снятие, секунда тренировки, события
+диктофона, потеря связи.
 
 **Отправлять всё это некуда — серверных ручек нет ни одной.** Разбор протокола,
 локальное хранилище и фоновая выгрузка уже на месте; как только появятся адреса,
@@ -35,47 +45,666 @@
 
 ---
 
-## 2. Голосовые записи
+## 2. Карта модуля
+
+```
+src/features/band
+├── api/     драйвер устройства: кадры, команды, разбор, хранилище файлов
+├── model/   состояние экрана, производные показатели, накопление тренировки
+└── ui/      экран и карточки
+```
+
+Наружу из фичи выходят только экран и панель (`BandPanel`, `BandScreen`). Всё
+остальное — внутреннее устройство модуля; драйвер доступен внутри фичи как
+`../api`.
+
+Ключевые файлы драйвера:
+
+| Файл                               | Ответственность                                       |
+| ---------------------------------- | ----------------------------------------------------- |
+| `api/band.ts`                      | корень: подключение, чтение, подписка на отчёты       |
+| `api/transport.ts`                 | одно соединение, очередь команд, сборка ответов       |
+| `api/frame.ts`, `api/tlv.ts`       | кадры и полезная нагрузка                             |
+| `api/commands*.ts`                 | сборка кадров команд                                  |
+| `api/activity.ts`                  | поминутные слоты: история и живой отчёт одним кодеком |
+| `api/health.ts`                    | сводка дня, стресс, разовый замер, ношение            |
+| `api/sleep*.ts`                    | стадии сна и группировка в сессии                     |
+| `api/workouts*.ts`                 | тренировки и распознанная активность                  |
+| `api/recorder*.ts`, `api/audio.ts` | диктофон и упаковка звука в Ogg                       |
+| `api/storage.ts`                   | файлы записей на телефоне                             |
+| `api/sync.ts`                      | фоновая выгрузка                                      |
+
+Ключевые файлы модели:
+
+| Файл                       | Ответственность                                     |
+| -------------------------- | --------------------------------------------------- |
+| `model/use-band.ts`        | единственное состояние раздела                      |
+| `model/band-state.ts`      | форма этого состояния                               |
+| `model/band-data.ts`       | что читаем с устройства и что переживает перезапуск |
+| `model/band-actions.ts`    | команды, которые нажимает человек                   |
+| `model/workout-session.ts` | накопление идущей тренировки                        |
+| `model/workout-store.ts`   | тренировки на диске телефона                        |
+| `model/day-metrics.ts`     | ряды, суммы, зоны и прореживание для графиков       |
+| `model/analysis.ts`        | пороги вычислений — договорённость, не деталь       |
+
+---
+
+## 3. Публичный API
+
+Сигнатуры даны в TypeScript. Всё асинхронное — по одной команде за раз: у
+устройства нет опознавателя запроса, параллельные обмены перепутались бы
+ответами.
+
+### 3.1. Поиск и подключение
+
+```ts
+function scanForBands(onFound: (band: FoundBand) => void): Promise<ScanResult>;
+function connectedBands(): Promise<FoundBand[]>;
+function mergeFound(list: readonly FoundBand[], band: FoundBand): FoundBand[];
+function sortByProximity(bands: readonly FoundBand[]): FoundBand[];
+function dropConnection(deviceId: string): Promise<void>;
+
+const BAND_NAME = 'ES100';
+const SCAN_TIMEOUT_MS = 30_000;
+```
+
+`scanForBands` **не останавливается сам** — останавливает экран, когда человек
+выбрал устройство или ушёл. Отказ приходит не исключением, а разобранной
+причиной: `bluetooth-off`, `no-permission`, `radio-silent`. Три разных текста в
+интерфейсе, а не один «не получилось».
+
+`connectedBands` обязателен рядом со сканированием: браслет, уже подключённый к
+телефону, рекламу прекращает, и поиск его не найдёт никогда.
+
+### 3.2. `Band` — корень
+
+```ts
+class Band {
+  static connect(deviceId: string): Promise<Band>;
+  disconnect(): Promise<void>;
+  subscribe(listener: (event: BandEvent) => void): () => void;
+
+  info(): Promise<DeviceInfo>;
+  battery(): Promise<number>;
+  deviceTime(): Promise<Date | undefined>;
+  syncTime(): Promise<void>;
+  loadCapabilities(): Promise<Capabilities>;
+  find(on: boolean): Promise<void>;
+
+  daySummary(): Promise<DaySummary>;
+  measure(): Promise<void>;
+  watchHeartRate(intervalMinutes?: number): Promise<void>;
+  history(from: Date, to: Date): Promise<ActivitySample[]>;
+  sleep(from: Date, to: Date): Promise<SleepSession[]>;
+  stress(from: Date, to: Date): Promise<StressDay[]>;
+
+  get features(): Capabilities | null;
+  get worn(): boolean | undefined;
+  get clockSkewSeconds(): number | null;
+  get connectedAt(): Date;
+
+  readonly settings: BandSettings;
+  readonly alarms: BandAlarms;
+  readonly notifications: BandNotifications;
+  readonly recorder: BandRecorder;
+  readonly workouts: BandWorkouts;
+  readonly admin: BandAdmin;
+}
+```
+
+`connect` делает три вещи сверх открытия канала: читает часы устройства **до**
+синхронизации (иначе расхождение исчезает и объяснить сдвинутые даты нечем),
+выставляет своё время и читает маски возможностей.
+
+`measure` только запускает замер — результат придёт отчётом примерно через
+минуту.
+
+`worn` берётся из отчёта, а не опросом: команды чтения для ношения в протоколе
+нет.
+
+### 3.3. `band.settings`
+
+```ts
+class BandSettings {
+  read(): Promise<DeviceSettings>;
+  doNotDisturb(): Promise<DoNotDisturb | null>;
+  twoWaySettings(): Promise<Uint8Array>;
+
+  setLanguage(code: number): Promise<void>;
+  setLengthUnits(metric: boolean): Promise<void>;
+  setWeightUnits(metric: boolean): Promise<void>;
+  setScreenTimeout(seconds: number): Promise<void>;
+
+  setAutoHeartRate(on: boolean): Promise<void>;
+  setContinuousHeartRate(on: boolean): Promise<void>;
+  setHeartRateInterval(minutes: number): Promise<void>;
+  setHeartRateHighLimit(enabled: boolean, bpm: number): Promise<void>;
+  setHeartRateLowLimit(enabled: boolean, bpm: number): Promise<void>;
+  setHeartRateZones(zones: HeartRateZones): Promise<void>;
+
+  setContinuousOxygen(on: boolean): Promise<void>;
+  setOxygenInterval(minutes: number): Promise<void>;
+  setOxygenLowLimit(enabled: boolean, percent: number): Promise<void>;
+
+  setAutoStress(enabled: boolean, intervalMinutes: number): Promise<void>;
+  setAutoMood(on: boolean): Promise<void>;
+  setMoodInterval(minutes: number): Promise<void>;
+  setAutoBloodPressure(on: boolean): Promise<void>;
+  setBloodPressureInterval(minutes: number): Promise<void>;
+  setBloodPressureUnit(unit: number): Promise<void>;
+
+  setDoNotDisturb(options: DoNotDisturbInput): Promise<void>;
+  setProfile(profile: UserProfile): Promise<void>;
+  setGoal(goal: MotionGoal): Promise<void>;
+}
+```
+
+`read()` спрашивает устройство по одной настройке — двадцать обменов подряд.
+Читать перед показом обязательно: приложение не знает, что человек менял с
+другого телефона или в программе вендора.
+
+**Часть настроек односторонняя.** Единицы веса и автозамер пульса только
+пишутся; напоминание о малоподвижности, лимиты уведомлений и поддержка погоды —
+только читаются. Хранить можно все, применить обратно на устройство — не все.
+
+### 3.4. `band.alarms`
+
+```ts
+class BandAlarms {
+  list(): Promise<Alarm[]>;
+  limit(): Promise<number | undefined>;
+  save(list: readonly Alarm[]): Promise<void>;
+  add(alarm: Omit<Alarm, 'slot'>): Promise<Alarm[]>;
+  update(slot: number, patch: Partial<Omit<Alarm, 'slot'>>): Promise<Alarm[]>;
+  setEnabled(slot: number, enabled: boolean): Promise<Alarm[]>;
+  remove(slot: number): Promise<Alarm[]>;
+  clear(): Promise<void>;
+}
+```
+
+**Устройство принимает будильники только целиком:** слоты, которых нет в записи,
+обнуляются. Поэтому каждое изменение — это чтение, правка и запись всего списка,
+и каждый метод возвращает **весь список**, а не изменённый элемент.
+
+`add` спрашивает у прошивки предел числа ячеек (на нашем экземпляре — 10) и
+бросает, когда свободных нет: сверх предела будильник молча не сохранился бы, а
+человек просто не проснулся.
+
+### 3.5. `band.notifications`
+
+```ts
+class BandNotifications {
+  configure(calls: boolean, messages: boolean): Promise<void>;
+  push(options: {
+    kind: 1 | 2 | 7; // call | message | application
+    title: string; // до 32 символов
+    body: string; // до 60 символов
+    application?: string; // до 32 символов
+  }): Promise<void>;
+}
+```
+
+Экрана нет — до человека дойдёт вибрация и светодиод. Текст всё равно
+передаётся: по типу уведомления прошивка выбирает рисунок вибрации, и без него
+звонок неотличим от сообщения.
+
+### 3.6. `band.recorder`
+
+```ts
+class BandRecorder {
+  storage(): Promise<Storage | null>;
+  list(): Promise<Recording[]>;
+  latest(): Promise<Recording[]>;
+  start(): Promise<void>;
+  stop(): Promise<void>;
+  pause(session: number): Promise<void>;
+  resume(session: number): Promise<void>;
+  remove(session: number): Promise<void>;
+  marks(): Promise<Uint8Array>;
+  download(
+    session: number,
+    size: number,
+    options?: { from?: number; onProgress?: (received: number) => void },
+  ): Promise<Uint8Array>;
+}
+```
+
+`download` умеет продолжать с места обрыва — устройство отдаёт диапазон байт.
+`remove` вызывать только после того, как файл сохранён: он освобождает память
+браслета.
+
+`marks()` отдаёт сырой пакет: раскладку списка меток на устройстве проверить
+нечем (см. §9).
+
+### 3.7. `band.workouts`
+
+```ts
+class BandWorkouts {
+  start(sport: number): Promise<void>;
+  pause(sport: number): Promise<void>;
+  resume(sport: number): Promise<void>;
+  finish(
+    sport: number,
+    total: { seconds: number; distance: number; calories: number },
+  ): Promise<void>;
+  operator(): Promise<number | undefined>;
+
+  catalog(): Promise<SportCatalog>;
+  states(from: Date, to: Date): Promise<ActivityState[]>;
+  list(from: Date, to: Date): Promise<WorkoutRef[]>;
+  summary(id: number): Promise<Workout>;
+  detail(id: number, index: number): Promise<Field[]>;
+  pace(id: number, paceIndex: number): Promise<Field[]>;
+}
+```
+
+`start` сначала разрешает устройству докладывать о ходе занятия, потом запускает
+его: без первой команды браслет ведёт тренировку молча.
+
+`list` и `summary` на ES100 **всегда пусты** — см. §5.9.
+
+### 3.8. `band.admin`
+
+```ts
+class BandAdmin {
+  unbind(): Promise<void>;
+  requestPairing(): Promise<void>;
+  unbindRecorder(): Promise<void>;
+  setPassword(digits: readonly number[]): Promise<void>; // шесть цифр, пустой массив снимает
+  factoryReset(): Promise<void>;
+  eraseRecordings(): Promise<void>;
+}
+```
+
+Отдельным входом намеренно: перепутать «синхронизировать» и «стереть всё» не
+должно быть возможно по опечатке в имени метода. Ни одна из этих команд не
+спрашивает подтверждения на устройстве.
+
+### 3.9. События
+
+```ts
+type BandEvent =
+  | { kind: 'activity'; sample: ActivitySample }
+  | { kind: 'measurement'; measurement: Measurement }
+  | { kind: 'wear'; worn: boolean; at: Date }
+  | { kind: 'workout'; tick: WorkoutTick }
+  | { kind: 'recorder'; event: RecorderEvent }
+  | { kind: 'disconnected' };
+```
+
+`band.subscribe(listener)` возвращает функцию отписки. Событий вне открытого
+соединения не бывает — это ограничение устройства, а не модуля.
+
+### 3.10. Файлы записей на телефоне
+
+```ts
+function saveRecording(session: number, raw: Uint8Array): SavedRecording;
+function savedRecordings(): SavedRecording[];
+function savedSessions(): Set<number>;
+function pendingUploads(): SavedRecording[];
+function readRecording(session: number): Promise<Uint8Array | undefined>;
+function markUploaded(session: number): void;
+function removeSaved(session: number): void;
+function usedBytes(): number;
+
+function rememberMark(session: number, mark: RecordingMark): void;
+function marksOf(session: number): RecordingMark[];
+
+function toOgg(raw: Uint8Array): Uint8Array;
+function durationSeconds(bytes: number): number;
+```
+
+Файл лежит в файловой системе телефона под именем `<сессия>.<байт>.ogg`;
+выгруженные помечаются переименованием в `.sent.ogg`. Имя несёт длину **исходного
+потока**: из неё считается длительность, а по размеру файла Ogg она была бы
+завышена на несколько процентов.
+
+Метки хранятся рядом отдельным файлом: они приходят отчётами задолго до того,
+как файл скачан, и держать их в памяти нельзя.
+
+### 3.11. Фоновая выгрузка
+
+```ts
+function startBackgroundSync(deviceId: string): Promise<void>;
+function stopBackgroundSync(): Promise<void>;
+function syncRecordings(deviceId: string): Promise<{ fetched: number; freed: number }>;
+function holdBand(on: boolean): void;
+```
+
+Задача забирает **одну запись за окно** и удаляет её с устройства только когда
+файл скачан целиком. Система выдаёт окна сама и редко; `syncRecordings` вызывается
+ещё и с экрана, потому что при открытии приложения окон не выдают вовсе.
+
+`holdBand` защищает от того, чтобы фоновая задача подключилась поверх живого
+соединения экрана: браслет допускает одно.
+
+### 3.12. Экранный слой
+
+```ts
+function useBand(): {
+  state: BandState;
+  paired: PairedBand | null;
+  scan(): Promise<void>;
+  connect(device: FoundBand): Promise<void>;
+  disconnect(): Promise<void>;
+  forget(): Promise<void>;
+  refresh(): Promise<void>;
+  vibrate(): Promise<void>;
+  measure(): Promise<void>;
+  startRecording(): Promise<void>;
+  stopRecording(): Promise<void>;
+  pullRecordings(): Promise<void>;
+  removeRecording(session: number): void;
+  startWorkout(): Promise<void>;
+  stopWorkout(): Promise<void>;
+};
+```
+
+Один хук на всё намеренно: у браслета одно соединение, и разнести его по
+нескольким состояниям — значит получить два экрана, спорящих за радио.
+
+`BandState` — форма того, что видит экран:
+
+```ts
+type BandState = {
+  stage: 'idle' | 'scanning' | 'connecting' | 'connected' | 'failed';
+  problem?:
+    ScanProblem | 'connect-failed' | 'workout-failed' | 'workout-save-failed' | 'workout-open';
+  found: FoundBand[];
+  device?: { id: string; name: string };
+  battery?: number;
+  firmware?: string;
+  live?: ActivitySample; // последний живой отчёт
+  today: ActivitySample[]; // поминутная история за сегодня
+  summary?: DaySummary;
+  measurement?: Measurement;
+  worn?: boolean;
+  sleep: SleepSession[];
+  stress: StressDay[];
+  states: ActivityState[]; // заходы движения от устройства
+  workouts: Workout[]; // на ES100 всегда пусто
+  session?: WorkoutSession; // идущее занятие
+  recorded: RecordedWorkout[]; // записанные занятия с телефона
+  recordings: Recording[]; // что лежит на браслете
+  saved: SavedRecording[]; // что скачано на телефон
+  storage?: Storage;
+  recording: boolean;
+  busy: boolean;
+};
+```
+
+**Показания принадлежат телефону и браслету, а не аккаунту.** Снимок состояния
+переживает перезапуск приложения и не трогается выходом из аккаунта: иначе раздел
+каждый раз начинался бы с пустых графиков, хотя браслет всё это время писал.
+Минуты вчерашнего дня из снимка отбрасываются при загрузке.
+
+---
+
+## 4. Типы данных
+
+То, чем модуль говорит наружу. Именно эти формы имеет смысл повторять на сервере.
+
+```ts
+/** Поминутный слот: и история, и живой отчёт. */
+type ActivitySample = {
+  at: Date; // начало минуты
+  source: 'history' | 'live'; // откуда приехал слот — правило слияния строится на этом
+  steps?: number;
+  calories?: number;
+  distance?: number; // МЕТРЫ
+  heartRate?: number;
+  averageHeartRate?: number;
+  restingHeartRate?: number;
+  minHeartRate?: number;
+  maxHeartRate?: number;
+  bloodOxygen?: number; // %
+  systolic?: number;
+  diastolic?: number; // мм рт. ст., только парой
+  hrv?: number; // мс
+  mood?: number; // 1–5, шкала устройства
+  bloodSugar?: number; // ммоль/л, у ES100 всегда пусто
+  elevation?: number; // метры за минуту
+  paiLow?: number;
+  paiMedium?: number;
+  paiHigh?: number;
+  paiLowMinutes?: number;
+  paiMediumMinutes?: number;
+  paiHighMinutes?: number;
+};
+
+/** Дневная сводка от самого устройства. */
+type DaySummary = {
+  date: string; // YYYY-MM-DD по часам телефона
+  totals: { steps: number; distance: number; calories: number };
+  heartRate?: number; // на момент выборки, не среднее за день
+  measuredAt?: Date;
+  byActivity: ActivityBlock[];
+};
+
+type ActivityBlock = {
+  kind:
+    | 'unknown'
+    | 'walk'
+    | 'run'
+    | 'climb'
+    | 'ride'
+    | 'stand'
+    | 'lightSleep'
+    | 'deepSleep'
+    | 'awake'
+    | 'swim';
+  steps: number;
+  distance: number; // метры
+  calories: number;
+  elevation: number; // метры
+  sleepMinutes: number;
+};
+
+/** Сон: сессия, а не плоский список отрезков. */
+type SleepSession = {
+  from: Date;
+  to: Date;
+  inBed: number; // минуты, включая пробуждения
+  asleep: number; // минуты сна
+  efficiency: number; // проценты
+  awakenings: number;
+  cycles: number; // по возвратам в rem
+  longestBlock: number; // минуты
+  totals: Record<'deep' | 'light' | 'awake' | 'rem' | 'nap' | 'snore', number>;
+  shares: Record<'deep' | 'light' | 'rem' | 'awake', number>; // проценты
+  segments: SleepSegment[];
+};
+
+type SleepSegment = {
+  at: Date;
+  minutes: number;
+  stage: 'deep' | 'light' | 'awake' | 'rem' | 'nap' | 'snore';
+};
+
+/** Стресс: сутки с сеткой, а не голый список точек. */
+type StressDay = {
+  midnight: Date;
+  stepMinutes: number; // шаг сетки: без него редкий замер неотличим от потери
+  samples: { at: Date; value: number }[]; // value 1–100
+};
+
+/** Результат разового замера. */
+type Measurement = {
+  id: string; // ставит клиент: в кадре опознавателя нет
+  at: Date;
+  heartRate?: number;
+  bloodOxygen?: number;
+  stress?: number;
+  hrv?: number;
+  systolic?: number;
+  diastolic?: number;
+  mood?: number;
+};
+
+/** Заход движения, размеченный устройством. */
+type ActivityState = {
+  at: Date;
+  minutes: number;
+  type: number; // во всех наблюдениях 1
+  stream: 'status' | 'state'; // два независимых потока, различие не установлено
+};
+
+/** Секунда идущей тренировки. */
+type WorkoutTick = {
+  seconds: number;
+  heartRate?: number;
+  steps?: number;
+  distance?: number; // метры
+  calories?: number;
+  averageHeartRate?: number;
+  at?: Date;
+};
+
+/** Тренировка, накопленная клиентом: единственный её экземпляр. */
+type RecordedWorkout = {
+  sport: number;
+  startedAt: string; // ISO со смещением
+  seconds: number;
+  distance: number; // метры
+  calories: number;
+  steps: number;
+  averageHeartRate?: number;
+  peakHeartRate?: number;
+  heartRates: number[]; // посекундный ряд
+};
+
+/** Запись на устройстве. */
+type Recording = {
+  session: number; // время начала, оно же идентификатор
+  startedAt: Date;
+  bytes: number;
+  seconds: number;
+  type: number;
+};
+
+/** Запись, скачанная на телефон. */
+type SavedRecording = {
+  session: number;
+  startedAt: Date;
+  uri: string;
+  deviceBytes: number; // длина потока с устройства — из неё длительность
+  uploadBytes: number; // размер файла Ogg — он и уедет в хранилище
+  seconds: number;
+  uploaded: boolean;
+  marks: { index: number; offsetSeconds: number }[];
+};
+
+/** Событие диктофона. */
+type RecorderEvent = { at: Date; id: string } & (
+  | { kind: 'started'; session: number }
+  | { kind: 'paused'; session: number }
+  | { kind: 'resumed'; session: number }
+  | { kind: 'finished'; session: number; bytes: number; byButton: boolean }
+  | { kind: 'marked'; session: number; offsetSeconds: number; index: number }
+);
+
+/** Память диктофона. */
+type Storage = { totalKb: number; freeKb: number; bytesPerSecond: number };
+
+/** Паспорт и заряд. */
+type DeviceInfo = {
+  mac?: string;
+  platform?: string;
+  hardware?: string;
+  firmware?: string;
+  protocol?: string;
+  system?: string;
+  serial?: string;
+  battery?: { level: number; charging: boolean; lowBatteryAlert: boolean };
+};
+
+/** Возможности: сырые списки и производные флаги. */
+type Capabilities = {
+  lists: Record<number, number>; // объект, а не массив: списки нумеруются с единицы
+  maxPacket: number;
+  has(list: number, bit: number): boolean;
+};
+
+/** Настройки устройства. */
+type DeviceSettings = {
+  language?: number;
+  screenAutoLight?: boolean;
+  metricLength?: boolean;
+  screenTimeout?: number;
+  heartRateInterval?: number;
+  oxygenInterval?: number;
+  continuousHeartRate?: boolean;
+  continuousOxygen?: boolean;
+  heartRateHighLimit?: { enabled: boolean; bpm: number };
+  heartRateLowLimit?: { enabled: boolean; bpm: number };
+  oxygenLowLimit?: { enabled: boolean; percent: number };
+  autoStress?: boolean;
+  autoMood?: boolean;
+  autoBloodPressure?: boolean;
+  stressInterval?: number;
+  moodInterval?: number;
+  bloodPressureInterval?: number;
+};
+
+type Alarm = {
+  slot: number; // позиция, а не личность
+  enabled: boolean;
+  hour: number;
+  minute: number;
+  days: number; // маска: бит 0 — воскресенье, бит 6 — суббота
+  label?: string; // до 20 символов
+};
+
+/** Профиль на устройство. */
+type UserProfile = {
+  age: number;
+  birth: { year: number; month: number; day: number };
+  gender: number; // 0 женский, 1 мужской — шкала прошивки
+  height: number; // см
+  weight: number; // кг
+  walkStepLength: number; // см
+  runStepLength: number; // см
+  maxOxygenUptake?: number;
+  maxOxygenUptakeAt?: number;
+  wearHand?: 0 | 1; // левая | правая
+};
+
+/** Найденное устройство. */
+type FoundBand = {
+  id: string; // платформенный: на iOS это UUID, не MAC
+  name: string;
+  rssi: number;
+  mac?: string; // из рекламного пакета
+  connected?: boolean; // уже на связи с телефоном
+};
+```
+
+---
+
+## 5. Данные: что мы отдаём
+
+### 5.1. Голосовые записи
 
 Самая объёмная и самая требовательная часть. Всё остальное — числа, здесь файлы.
 
-### 2.1. Что это такое
-
 Браслет — диктофон с одной кнопкой. Двойное нажатие начинает запись, повторное
 останавливает. Экрана нет, поэтому человек не видит ни длительности, ни того,
-идёт ли запись, — только вибрацию.
+идёт ли запись, — только вибрацию. Внутри записи он может **ставить метки**:
+нажатие во время записи отмечает момент.
 
-Внутри записи он может **ставить метки**: нажатие во время записи отмечает
-момент. Метка — это «здесь было важное».
+| Свойство  | Значение                      |
+| --------- | ----------------------------- |
+| Кодек     | Opus                          |
+| Частота   | 16 000 Гц                     |
+| Каналы    | 1                             |
+| Битрейт   | 16 кбит/с, жёсткий CBR        |
+| Поток     | ровно **2000 байт в секунду** |
+| Контейнер | Ogg — **упаковывает клиент**  |
 
-### 2.2. Формат: что именно мы отдаём
-
-| Свойство        | Значение                      |
-| --------------- | ----------------------------- |
-| Кодек           | **Opus**                      |
-| Частота         | 16 000 Гц                     |
-| Каналы          | 1 (моно)                      |
-| Битрейт         | **16 кбит/с, жёсткий CBR**    |
-| Кадр            | 20 мс                         |
-| Пакет           | 40 байт                       |
-| Скорость потока | ровно **2000 байт в секунду** |
-| Контейнер       | **Ogg** — упаковывает клиент  |
-
-**Устройство отдаёт сырой поток Opus без контейнера.** Такой файл не откроет ни
-один плеер и не примет ни один распознаватель: у него нет заголовков, нет
-частоты дискретизации, нет разбивки на страницы.
-
-Клиент упаковывает поток в Ogg сам: собирает `OpusHead`, `OpusTags`, режет на
-страницы, считает CRC32 по спецификации Ogg. **На сервер уезжает нормальный
-`.ogg`** — играется чем угодно, принимается любым сервисом распознавания.
-
-Проверено декодированием: три файла разобрались без единой ошибки, число кадров
-сошлось с длительностью до сотых.
-
-Первые байты потока — `4B 41` — **не магическое число формата**, а TOC-байт
-Opus плюс счётчик кадров. Определять по ним тип файла бессмысленно.
-
-### 2.3. Размеры и объёмы
+Устройство отдаёт голый поток пакетов Opus без контейнера: такой файл не откроет
+плеер и не примет часть распознавателей. Клиент собирает `OpusHead`, `OpusTags`,
+режет на страницы и считает CRC32 — **на сервер уезжает нормальный `.ogg`**.
+Подробности упаковки — в [band-protocol.md](band-protocol.md), §10.
 
 | Объём                  | Размер               |
 | ---------------------- | -------------------- |
@@ -83,27 +712,11 @@ Opus плюс счётчик кадров. Определять по ним ти
 | 1 час                  | ≈ 7,2 МБ             |
 | полная память браслета | ≈ 103 МиБ ≈ 15 часов |
 
-Память диктофона — 105 519 КиБ по данным устройства. Единица выведена
-эмпирически: 86 440 байт заняли 84 единицы.
-
-**Что происходит при заполнении памяти — перезапись по кругу или отказ записи —
-не проверено.** Пока считаем, что выгружать надо регулярно.
-
-### 2.4. Два разных размера, и путать их нельзя
-
-| Поле          | Что это                                                         |
-| ------------- | --------------------------------------------------------------- |
-| `deviceBytes` | длина сырого потока с устройства; из неё считается длительность |
-| `uploadBytes` | размер файла Ogg, который реально уедет в хранилище             |
-
-Упаковка добавляет примерно **4 %**: служебные страницы плюс заголовок и таблица
-сегментов на каждую секунду звука.
-
-**Сервер, который сверит `Content-Length` загрузки с `deviceBytes`, отвергнет
-каждую загрузку.** Длительность считается только из `deviceBytes`:
-`seconds = deviceBytes / 2000`, точно, без разбора потока.
-
-### 2.5. Что мы отдаём по каждой записи
+**Два разных размера, и путать их нельзя.** `deviceBytes` — длина сырого потока,
+из неё считается длительность (`seconds = deviceBytes / 2000`). `uploadBytes` —
+размер файла Ogg, который реально уедет в хранилище; упаковка добавляет около
+4 %. Сервер, который сверит `Content-Length` загрузки с `deviceBytes`, отвергнет
+каждую загрузку.
 
 ```json
 {
@@ -117,111 +730,48 @@ Opus плюс счётчик кадров. Определять по ним ти
 ```
 
 `session` — время начала записи в секундах Unix. **Это единственный
-идентификатор записи на устройстве**, другого у неё нет. Ключ — пара
-`(deviceMac, session)`: она же защищает от дубликатов при повторной отправке
-после обрыва.
+идентификатор записи на устройстве.** Ключ — пара `(deviceMac, session)`: она же
+защищает от дубликатов при повторной отправке после обрыва.
 
 **Метки лежат внутри записи.** `offsetSeconds` — смещение от начала файла,
-`index` — номер метки. Вне своей записи метка не значит ничего.
+`index` — номер метки. Вне своей записи метка не значит ничего. Метки приходят
+отчётами по ходу записи и накапливаются клиентом; если запись уже отправлена, а
+метка доехала позже, она дописывается тем же ключом.
 
-Метки приходят отчётами по ходу записи и накапливаются клиентом до отправки.
-Если запись уже отправлена, а метка доехала позже, она дописывается тем же
-ключом.
-
-**Ограничение честно:** список меток, сохранённый на самом устройстве, модуль не
-разбирает — раскладку ответа проверить нечем. Поэтому метки, поставленные до
-переустановки приложения, теряются. Живые метки текущей сессии — не теряются.
-
-### 2.6. События вокруг записи
-
-Устройство присылает их само:
+События вокруг записи устройство присылает само:
 
 ```json
 { "kind": "paused", "session": 1788248934, "at": "2026-09-07T16:43:09+03:00" }
 ```
 
-`kind`: `started` · `paused` · `resumed` · `finished` · `marked`.
-У `finished` дополнительно `bytes` и **`byButton`** — различает «человек нажал
-кнопку на браслете» и «остановило приложение». Для продукта это разные события:
-первое осознанное.
+`kind`: `started` · `paused` · `resumed` · `finished` · `marked`. У `finished`
+дополнительно `bytes` и **`byButton`** — различает «человек нажал кнопку на
+браслете» и «остановило приложение». Для продукта это разные события: первое
+осознанное.
 
-**Время события ставит телефон, а не устройство.** `session` — это момент начала
-записи, а не момент паузы: запись на семь секунд звука может растянуться на
-сорок минут стенных часов, и без отдельной отметки таймлайн не восстановить.
+**Время события ставит телефон, а не устройство.** `session` — момент начала
+записи, а не момент паузы: запись на семь секунд звука может растянуться на сорок
+минут стенных часов. Ключом по `(session, kind)` обойтись нельзя: цикл «пауза →
+продолжение → пауза → продолжение» схлопнется в одну строку каждого вида.
+Идентификатор события ставит клиент.
 
-Ключом по `(session, kind)` обойтись нельзя: цикл «пауза → продолжение → пауза →
-продолжение» схлопнется в одну строку каждого вида. Идентификатор события ставит
-клиент.
-
-### 2.7. Что нам нужно обратно
-
-Это главное в разделе.
-
-**Хранение файла.** Записи должны жить на сервере, а не на телефоне. Телефон —
-транзитный буфер: приложение переустановят, память кончится, человек сменит
-устройство. Сейчас файлы лежат в файловой системе телефона и больше нигде.
-
-**Адрес для загрузки, а не multipart через основной API.** Час звука — 7 МБ, а
-память браслета держит пятнадцать часов. Выгрузка идёт с телефона в фоне, ей
-нужен докачиваемый адрес и своя таймаутная политика. Через JSON-клиент файл
-отправить нельзя вовсе: там только тела `application/json`. Если presigned-адресов
-у вас нет — скажите, клиент будет слать multipart на отдельный хост.
-
-**Распознавание на вашей стороне.** У ES100 признаки `speechToText` и `chatGpt`
-в масках возможностей **выключены** — устройство ничего не расшифровывает и не
-умеет. Всё, что можно, — снять звук и отдать.
-
-**Транскрипт с таймингами**, а не сплошной текст:
-
-```json
-{
-  "status": "transcribed",
-  "language": "ru",
-  "text": "…",
-  "segments": [{ "from": 0.0, "to": 2.4, "text": "…" }]
-}
-```
-
-Без таймингов метки бесполезны: человек отметил сорок вторую секунду, а
-показать ему нечего.
-
-**Статус, по которому клиент понимает, что происходит:**
-`awaiting_upload` · `uploaded` · `transcribing` · `transcribed` · `failed`.
-У `failed` нужна причина отдельным полем — иначе нечего показать и не по чему
-решать, повторять ли.
-
-**Список записей с курсором.** Архив на сервере растёт без предела, а после
-переустановки на телефоне не остаётся ничего. Нужен список с пагинацией и
-фильтром по статусу.
-
-**Отдавать текст без сегментов по умолчанию.** У часовой записи их тысячи;
-одним ответом это не грузится.
-
-**Идемпотентность по `(deviceMac, session)`.** Повторная заявка той же записи —
-не ошибка, а нормальный случай после обрыва: верните ту же запись с её текущим
-статусом.
-
-### 2.8. Порядок, в котором это работает у нас
+Порядок работы у нас:
 
 1. Человек нажимает кнопку — устройство пишет во внутреннюю память, не в ОЗУ.
 2. Приложение получает отчёт `finished` с готовым размером файла.
 3. Отдельным проходом, по одной записи за раз, файл качается на телефон.
    Выгрузка идёт диапазоном байт, поэтому дозагрузка после обрыва штатная.
 4. Клиент упаковывает поток в Ogg и кладёт в файловую систему телефона.
-5. Запись помечается выгруженной переименованием файла; на браслете её можно
-   удалить и освободить память.
+5. Запись помечается выгруженной переименованием; на браслете её можно удалить и
+   освободить память.
 
 Фоновая задача делает то же самое без участия человека, но iOS выдаёт ей окна
 сама и редко.
 
----
+### 5.2. Поминутный слот
 
-## 3. Данные с датчиков
-
-### 3.1. Поминутный слот
-
-Основной поток. Устройство копит слоты по минутам и отдаёт кадрами за период.
-За сутки — до 1440 слотов, реально меньше: пустые минуты оно не пишет.
+Основной поток. Устройство копит слоты по минутам и отдаёт кадрами за период. За
+сутки — до 1440 слотов, реально меньше: пустые минуты оно не пишет.
 
 ```json
 {
@@ -253,7 +803,7 @@ Opus плюс счётчик кадров. Определять по ним ти
 | Поле                 | Единица    | Замечание                                                 |
 | -------------------- | ---------- | --------------------------------------------------------- |
 | `at`                 | —          | начало минуты, всегда выровнено                           |
-| `source`             | —          | `history` или `live`, см. 3.7                             |
+| `source`             | —          | `history` или `live`, см. 5.3                             |
 | `distance`           | **метры**  | не километры                                              |
 | `heartRate`          | уд/мин     | значение на момент слота                                  |
 | `averageHeartRate`   | уд/мин     | среднее за слот                                           |
@@ -267,19 +817,78 @@ Opus плюс счётчик кадров. Определять по ним ти
 | `pai*`               | баллы      | оценка нагрузки самим устройством, три уровня             |
 | `pai*Minutes`        | минуты     | сколько минут в каждом уровне                             |
 
-**PAI считает браслет по своей модели.** Пересчитать эти баллы на клиенте или на
-сервере нельзя — формулу вендор не публикует. Если они нужны, хранить надо то,
+**PAI считает браслет по своей модели.** Пересчитать эти баллы ни на клиенте, ни
+на сервере нельзя — формулу вендор не публикует. Если они нужны, хранить надо то,
 что пришло.
 
-**Все поля кроме `at` и `source` — необязательные.** В одном слоте обычно
-два-три поля: устройство пишет только то, что в эту минуту измеряло. Слот, где
-есть только пульс, — норма, а не битые данные.
+**Все поля кроме `at` и `source` — необязательные.** В одном слоте обычно два-три
+поля: устройство пишет только то, что в эту минуту измеряло. Слот, где есть
+только пульс, — норма, а не битые данные.
 
 Ключ — `(deviceMac, at)`. При совпадении нужно **слияние полей**, а не замена
 строки: устройство может дослать в тот же слот показатель, которого в первый раз
 не было.
 
-### 3.2. Сводка дня
+### 5.3. Живой отчёт: одна минута в развитии
+
+Пока приложение подключено, устройство шлёт отчёт по **текущей, ещё не
+закончившейся минуте** — примерно раз в десять секунд, без запроса. Это не
+готовая минута, а её промежуточное состояние: на границе минуты счётчики
+сбрасываются.
+
+Так минута приезжает из истории, когда её уже посчитали:
+
+```json
+{
+  "at": "2026-09-08T23:56:00+03:00",
+  "source": "history",
+  "restingHeartRate": 88,
+  "maxHeartRate": 88,
+  "minHeartRate": 88,
+  "averageHeartRate": 88,
+  "mood": 3
+}
+```
+
+А так та же минута 23:56 приезжала вживую — настоящая выгрузка с устройства:
+
+| Время      | Что в отчёте                                                              |
+| ---------- | ------------------------------------------------------------------------- |
+| `23:56:06` | `restingHeartRate: 88`                                                    |
+| `23:56:10` | `restingHeartRate, maxHeartRate, minHeartRate, averageHeartRate` — все 88 |
+| `23:56:20` | то же                                                                     |
+| `23:56:30` | то же                                                                     |
+| `23:56:40` | то же                                                                     |
+| `23:56:41` | то же **плюс** `mood: 3`                                                  |
+| `23:56:50` | то же                                                                     |
+| `23:56:59` | то же                                                                     |
+
+Восемь отчётов на одну минуту. Первый нёс **одно** поле, последние — **пять**.
+Байтовая картина того же — в [band-protocol.md](band-protocol.md), §7.1.
+
+Что из этого следует:
+
+- **Отметка времени — текущая секунда, а не начало минуты.** Клиент округляет её
+  до начала минуты перед отправкой, иначе одна минута превращается в восемь
+  разных строк.
+- **Отчёты дублируются.** `23:56:06` и `23:56:41` пришли по два раза подряд с
+  одинаковым содержимым. Это нормальная работа устройства, а не потеря пакета.
+- **Набор полей растёт по ходу минуты.** Ранний отчёт беднее позднего.
+- **Счётчики внутри минуты растут** от нуля к итогу.
+- **История всегда сильнее живого отчёта.** Приложение закрылось на `23:56:20` —
+  уехали шаги за двадцать секунд, а не за минуту.
+
+**Правило слияния при совпадении `(deviceMac, at)`:**
+
+1. Пришло `history` — заменить строку целиком, живые значения выбросить.
+2. Пришло `live`, а в строке уже `history` — **проигнорировать**.
+3. Пришло `live`, в строке тоже `live` — слить поля: каждое берётся из более
+   позднего отчёта, отсутствующие в нём сохраняются от предыдущих.
+
+Без пункта 1 последние минуты каждого сеанса остаются занижены навсегда: история
+перечитывается только за сегодня, и вчерашний хвост уже никто не исправит.
+
+### 5.4. Сводка дня
 
 Устройство считает дневные итоги само и отдаёт **блоками по типам активности**.
 
@@ -314,30 +923,20 @@ Opus плюс счётчик кадров. Определять по ним ти
 метры лежали только в первом. **Взять один блок значит занизить день, а сложить
 без разбивки — потерять различие между активными калориями и базовым обменом.**
 
-`kind` — один из `unknown · walk · run · climb · ride · stand · lightSleep ·
-deepSleep · awake · swim`. Соответствие тега виду взято из разбора вендора, а не
-угадано: номера тегов и номера видов у него разные, и прямое совпадение дало бы
-неверные подписи.
-
 **Шаги суммируются только по `walk`, `run` и `climb`.** Сон приезжает такими же
-блоками, и слепая сумма приписывала к дневным шагам ночь.
+блоками, и слепая сумма приписывала бы к дневным шагам ночь.
 
 **`totals.calories` — число самого устройства**, когда оно пришло, а не наша
 сумма блоков: браслет считает по своей формуле, и два числа не совпадают.
 
-`heartRate` — пульс **на момент выборки**, а не средний за день.
-
 `date` — всегда сегодняшний день по часам телефона: устройство отдаёт сводку
 только за текущие сутки. **Бэкфилла по ней не будет никогда.**
 
-### 3.3. Сон — сессиями
+### 5.5. Сон — сессиями
 
 **Сон это массив сессий, а не плоский список отрезков.** Устройство размечает
-сессии само: перед каждым сном `sessionStart`, после — `sessionEnd`. Проверено
-на живой выгрузке: в одном ответе лежали дневной сон на 27 минут и ночь на
-восемь часов, разделённые именно этими маркерами.
-
-Стадии имеют смысл внутри одного сна; сложенные за неделю не значат ничего.
+сессии само служебными маркерами. Стадии имеют смысл внутри одного сна;
+сложенные за неделю не значат ничего.
 
 ```json
 {
@@ -364,32 +963,17 @@ deepSleep · awake · swim`. Соответствие тега виду взят
 | `longestBlock` | минуты  | самый длинный сон без пробуждений                     |
 | `segments`     | —       | отрезки; своего ключа не имеют, живут только в сессии |
 
-`stage`: `deep` · `light` · `awake` · `rem` · `nap` · `snore`.
-
-**Служебные маркеры наружу не уходят.** Устройство режет ночь на сессии
-значениями 7 и 8; модуль по ним группирует и в отдаваемые стадии их не кладёт —
-«пять минут начала сессии» смысла не имеют.
+**Служебные маркеры наружу не уходят:** «пять минут начала сессии» смысла не
+имеют. **Дневной сон приходит такой же сессией** — устройство про «ночь» ничего
+не знает.
 
 Ключ сессии — `(deviceMac, from)`; при совпадении сессия заменяется целиком
 вместе с отрезками: человек проснулся и снова уснул, устройство продлило её.
 
-**Дневной сон приходит такой же сессией** — устройство про «ночь» ничего не
-знает.
-
-**Про нумерацию стадий.** В популярном публичном реверсе третья и четвёртая
-стадии перепутаны, из-за чего быстрый сон превращается в пробуждения. Здесь
-константы из SDK вендора: `3 = awake`, `4 = rem`.
-
-`snore` устройство пишет, но микрофон под него не задействует — детектором храпа
-это не является.
-
-### 3.4. Стресс — блоками по суткам
+### 5.6. Стресс — блоками по суткам
 
 Устройство хранит его сутками: время полуночи, шаг сетки и по байту на каждую
-минуту — ровно 1440. Проверено: тело ответа 1448 байт, шаг `1` минута, ненулевых
-126 — реальный замер раз в десять минут.
-
-**Ноль означает «замера не было», а не «стресс равен нулю».**
+минуту. **Ноль означает «замера не было», а не «стресс равен нулю».**
 
 ```json
 {
@@ -399,13 +983,11 @@ deepSleep · awake · swim`. Соответствие тега виду взят
 }
 ```
 
-Клиент шлёт только измеренные минуты, но шаг сетки и границу суток сохраняет:
-без них редкий замер неотличим от потери данных.
+Клиент шлёт только измеренные минуты, но шаг сетки и границу суток сохраняет: без
+них редкий замер неотличим от потери данных. `value` — 1–100, производная от
+вариабельности пульса, а не отдельный датчик.
 
-`value`: 1–100, шкала устройства. Производная от вариабельности пульса, а не
-отдельный датчик.
-
-### 3.5. Разовый замер
+### 5.7. Разовый замер
 
 Результат ручного запуска: оптический датчик включается примерно на минуту.
 
@@ -426,11 +1008,11 @@ deepSleep · awake · swim`. Соответствие тега виду взят
 **Ключом по времени обойтись нельзя:** два запуска подряд попадают в одну минуту
 законно. Идентификатор ставит клиент.
 
-### 3.6. Ношение — окнами, а не событиями
+### 5.8. Ношение — окнами, а не событиями
 
 Отчёты о ношении приходят **только пока приложение подключено к браслету**.
-Браслет пролежал ночь в ящике без телефона — на сервер не придёт ничего, и
-«событий нет» прочитается как «носил».
+Браслет пролежал ночь в ящике без телефона — не придёт ничего, и «событий нет»
+прочитается как «носил».
 
 ```json
 {
@@ -442,97 +1024,85 @@ deepSleep · awake · swim`. Соответствие тега виду взят
 
 Вне окна наблюдения состояние **неизвестно** — не «надет» и не «снят».
 
-### 3.7. Живой отчёт: одна минута в развитии
+### 5.9. Тренировки
 
-Пока приложение подключено, устройство шлёт отчёт по **текущей, ещё не
-закончившейся минуте** — примерно раз в десять секунд, без запроса.
+**Занятие начинает приложение, и его данные надо ловить на лету.** Проверено
+живьём полным циклом: кнопки старта у ES100 нет, автораспознавания занятий тоже.
+Как только занятие начато, браслет присылает данные **раз в секунду** — вдесятеро
+чаще обычного отчёта.
 
-**Это не готовая минута, а её промежуточное состояние.** На границе минуты
-счётчики сбрасываются, и следующий отчёт начинается заново.
+**В историю тренировка не попадает.** После корректного финиша с ненулевыми
+итогами список тренировок остаётся пустым, а сводка отдаёт нули для любого
+номера. Проверено дважды — на минуте и на трёх минутах.
 
-#### Как выглядит завершённая минута
-
-Так минута приезжает из истории, когда её уже посчитали. Одна строка, все
-значения окончательные:
+**Отсюда контракт:** во время занятия браслет работает датчиком, а не
+регистратором. Накопить тренировку обязан клиент и отдать её целиком —
+переспросить устройство потом будет нечего.
 
 ```json
 {
-  "at": "2026-09-08T23:56:00+03:00",
-  "source": "history",
-  "restingHeartRate": 88,
-  "maxHeartRate": 88,
-  "minHeartRate": 88,
-  "averageHeartRate": 88,
-  "mood": 3
+  "sport": 1,
+  "startedAt": "2026-09-09T16:39:47+03:00",
+  "seconds": 182,
+  "distance": 60,
+  "calories": 16,
+  "steps": 12,
+  "averageHeartRate": 104,
+  "peakHeartRate": 110,
+  "heartRates": [87, 88, 90, "…посекундно"]
 }
 ```
 
-#### Как та же минута приезжает вживую
+**`heartRates` — посекундный ряд, и он единственный меняется каждую секунду.**
+Шаги, дистанция и калории приходят нарастающим итогом и подолгу стоят на месте: за
+три минуты наблюдения шаги замерли на 12, дистанция на 60 метрах, а пульс всё это
+время гулял. Поэтому по ним берётся последнее значение, а не разница соседних
+тиков — иначе минуты без обновления превратятся в нули.
 
-Настоящая выгрузка с устройства, минута 23:56. Слева время отчёта, справа то,
-что в нём пришло:
+**Ключ — `(deviceMac, startedAt)`.** Своего идентификатора у тренировки нет:
+устройство её не нумерует, потому что и не хранит.
 
-| Время      | Что в отчёте                                                              |
-| ---------- | ------------------------------------------------------------------------- |
-| `23:56:06` | `restingHeartRate: 88`                                                    |
-| `23:56:10` | `restingHeartRate, maxHeartRate, minHeartRate, averageHeartRate` — все 88 |
-| `23:56:20` | то же                                                                     |
-| `23:56:30` | то же                                                                     |
-| `23:56:40` | то же                                                                     |
-| `23:56:41` | то же **плюс** `mood: 3`                                                  |
-| `23:56:50` | то же                                                                     |
-| `23:56:59` | то же                                                                     |
+**Незавершённое занятие клиент пишет на диск по ходу**, а не только на финише:
+приложение могут закрыть или выгрузить из памяти посреди тренировки, и другой
+копии нет. При следующем открытии раздела оно поднимается и продолжается.
 
-Восемь отчётов на одну минуту. Первый нёс **одно** поле, последние — **пять**.
+Сводка тренировки с устройства (на ES100 всегда пустая) отдаётся как есть:
 
-В байтах видно, как растёт маска показателей внутри одной минуты:
-
+```json
+{
+  "id": 3610,
+  "from": "2026-09-08T18:12:00+03:00",
+  "to": "2026-09-08T18:47:00+03:00",
+  "sport": 1,
+  "sportName": "Running",
+  "fields": [{ "tag": 5, "value": [0, 212] }]
+}
 ```
-23:56:06   01 c6 ac 01 00 06  6a a0 76 66  08        58
-23:56:10   01 c6 ac 01 00 0a  6a a0 76 6a  b8 08     58 58 58 58
-23:56:41   01 c6 ac 01 00 0d  6a a0 76 89  b8 88 02  58 58 58 58 00 03
-                              └ отметка ┘  └ маска ┘  └── значения ──┘
+
+`sportName` — из таблицы вендора на 115 видов. `fields` — номерами: структура
+сводки известна полностью, смысл тегов — нет, а выдуманная подпись хуже честного
+номера, потому что по ней принимают решения как по измеренному.
+
+### 5.10. Распознанная активность
+
+Заходы движения браслет размечает сам, и вот их каждый день много: за сутки на
+живом устройстве было 28, длительностью от одной до восьми минут.
+
+```json
+{ "at": "2026-09-09T09:14:00+03:00", "minutes": 8, "type": 1, "stream": "state" }
 ```
 
-#### Что из этого следует
+**Тип во всех наблюдениях равен единице** — различать виды движения прошивка не
+умеет или не сообщает, поэтому подписывать его словом нельзя. Потоков два, и чем
+они отличаются, не установлено; признак сохраняется, чтобы это можно было
+выяснить на данных.
 
-**Отметка времени — текущая секунда, а не начало минуты.** `23:56:06`,
-`23:56:10`, `23:56:41`. Клиент округляет её до начала минуты перед отправкой,
-иначе одна минута превращается в восемь разных строк.
+Записи появляются с задержкой: заход дописывается, судя по всему, после
+завершения, а не в момент начала.
 
-**Отчёты дублируются.** В той же выгрузке `23:56:06` и `23:56:41` пришли по два
-раза подряд с одинаковым содержимым. Это нормальная работа устройства, а не
-потеря пакета.
+### 5.11. Устройство
 
-**Набор полей растёт по ходу минуты.** Ранний отчёт беднее позднего. Поэтому при
-совпадении `(deviceMac, at)` нужно **слияние полей**, а не замена строки: иначе
-последний отчёт, пришедший с одним полем, сотрёт четыре предыдущих.
-
-**Счётчики внутри минуты растут.** Шаги и калории накапливаются от нуля к итогу.
-Между двумя живыми отчётами на одну минуту побеждает тот, у которого счётчик
-больше — то есть более поздний.
-
-**История всегда сильнее живого отчёта.** Приложение закрылось на `23:56:20` —
-на сервер уехали шаги, накопленные за двадцать секунд, а не за минуту. Когда та
-же минута приедет из истории с `source: "history"`, она должна **перезаписать**
-живые значения, а не слиться с ними по правилу «больший побеждает».
-
-#### Правило целиком
-
-Порядок применения при совпадении `(deviceMac, at)`:
-
-1. Пришло `history` — заменить строку целиком, живые значения выбросить.
-2. Пришло `live`, а в строке уже `history` — **проигнорировать**.
-3. Пришло `live`, в строке тоже `live` — слить поля: каждое поле берётся из
-   более позднего отчёта, отсутствующие в нём поля сохраняются от предыдущих.
-
-Без пункта 1 последние минуты каждого сеанса остаются занижены навсегда:
-история перечитывается только за сегодня, и вчерашний хвост уже никто не
-исправит.
-
-## 4. Устройство
-
-### 4.1. Паспорт
+Паспорт:
 
 ```json
 {
@@ -546,13 +1116,11 @@ deepSleep · awake · swim`. Соответствие тега виду взят
 ```
 
 **Ключ устройства — `mac`, а не идентификатор из системы.** iOS не отдаёт
-приложению адрес устройства: он выдаёт собственный UUID, свой на каждом
-телефоне. Тот же браслет на втором телефоне получит другой UUID, и привязка по
-нему развалит историю на две. MAC браслет отдаёт сам.
+приложению адрес: он выдаёт собственный UUID, свой на каждом телефоне. Тот же
+браслет на втором телефоне получит другой UUID, и привязка по нему развалит
+историю на две. MAC браслет отдаёт сам — в рекламном пакете и в паспорте.
 
-### 4.2. Состояние
-
-Временной ряд, не свойство устройства.
+Состояние — временной ряд, а не свойство устройства:
 
 ```json
 {
@@ -567,13 +1135,9 @@ deepSleep · awake · swim`. Соответствие тега виду взят
 
 `clockSkewSeconds` — на сколько часы браслета расходились с телефоном **в момент
 подключения**, до синхронизации. Модуль читает их до того, как выставит свои,
-именно ради этого числа: **это единственное объяснение сдвинутых дат в
-истории.** Браслет теряет часы при разрыве связи, а время старта записи служит
-её идентификатором.
+именно ради этого числа: **это единственное объяснение сдвинутых дат в истории.**
 
-### 4.3. Возможности
-
-Браслет отдаёт битовые маски — чем эта модель и прошивка умеют пользоваться.
+Возможности — битовые маски, которые браслет отдаёт сам:
 
 ```json
 {
@@ -600,31 +1164,18 @@ deepSleep · awake · swim`. Соответствие тега виду взят
 }
 ```
 
-**Маска — это и есть список возможностей.** Команды «перечисли, что умеешь» в
-протоколе нет: SDK вендора вычисляет её локально из этих же битов, ничего не
-спрашивая у устройства. Значения в примере сняты с живого браслета.
-
-Два флага здесь раньше назывались неверно. `extendedAlarms` на самом деле
-«классического Bluetooth нет» — запрос его состояния устройство игнорирует, а
-будильников у него ровно десять. `offlineVoice` был подписан по чужому
-значению: настоящий флаг офлайн-распознавания речи равен `2`, и такого бита нет
-ни в одном списке — **офлайн-голоса у ES100 нет**.
+**Маска — и есть список возможностей.** Команды «перечисли, что умеешь» в
+протоколе нет: SDK вендора вычисляет её локально из этих же битов.
 
 **`lists` — объект, а не массив:** списки нумеруются с единицы, и массив с
 нулевым элементом-заполнителем даёт ошибку на единицу у всякого, кто повторит
-проверку битов.
-
-`lists` — сырьё от устройства, `features` — производная клиента. Снимок привязан
-к `firmware` и `readAt`: маски меняются при обновлении прошивки.
+проверку битов. `lists` — сырьё от устройства, `features` — производная клиента.
+Снимок привязан к `firmware` и `readAt`: маски меняются при обновлении прошивки.
 
 **Зачем это вам.** Отсутствие данных перестаёт быть загадкой: если
 `temperature: false`, температуры не будет никогда, и это не сбой синхронизации.
 
----
-
-## 5. Настройки и будильники
-
-### 5.1. Настройки
+### 5.12. Настройки, профиль и будильники
 
 ```json
 {
@@ -657,17 +1208,16 @@ deepSleep · awake · swim`. Соответствие тега виду взят
 
 **Автозамеры включены с завода.** Стресс, настроение и давление браслет меряет
 сам по расписанию — отсюда берётся часть показаний, которые иначе выглядят как
-взявшиеся ниоткуда. Читаются и переключаются, интервалы тоже.
+взявшиеся ниоткуда.
 
-**Часть настроек односторонняя.** Единицы веса и автозамер пульса только
-пишутся; напоминание о малоподвижности, лимиты уведомлений и поддержка погоды —
-только читаются. Хранить их можно все, применить обратно на устройство — не все.
+Экрана у ES100 нет, поэтому `screenTimeout` и `language` на нём ни на что не
+влияют: прошивка общая на линейку.
 
 **Профиль, дневная цель и зоны пульса пишутся на устройство.** Рост, вес,
 возраст, пол, длина шага при ходьбе и беге, VO₂max и рука ношения задают, как
-браслет считает дистанцию и калории. Без них он считает по заводским значениям,
-а приложение читает результат как измеренный факт — систематическая ошибка
-уходит во все производные числа. Отправлять при привязке.
+браслет считает дистанцию и калории. Без них он считает по заводским значениям, а
+приложение читает результат как измеренный факт — систематическая ошибка уходит
+во все производные числа. Отправлять при привязке.
 
 ```json
 {
@@ -682,193 +1232,45 @@ deepSleep · awake · swim`. Соответствие тега виду взят
 }
 ```
 
-Экрана у ES100 нет, поэтому `screenTimeout` и `language` на нём ни на что не
-влияют: прошивка общая на линейку.
-
-### 5.2. Будильники
+Будильники:
 
 ```json
 { "slot": 1, "enabled": true, "hour": 7, "minute": 30, "days": 62, "label": "Подъём" }
 ```
 
-`days` — битовая маска: бит 0 воскресенье … бит 6 суббота; `62` = будни.
-`label` — до 20 символов, UTF-16.
+`days` — битовая маска: бит 0 воскресенье … бит 6 суббота; `62` = будни. `label`
+— до 20 символов.
 
-**Браслет принимает будильники только целиком.** Слоты, которых нет в записи,
-обнуляются; команды «измени один» в протоколе нет. Модуль это скрывает —
-добавление, правка и удаление читают список, правят и пишут обратно целиком.
+**Браслет принимает будильники только целиком.** Отсюда требование к хранению:
+любая операция должна возвращать **весь список**, а не изменённый элемент.
+Клиенту всё равно писать на устройство целиком, и собирать список из дельты он не
+должен.
 
-**Отсюда требование к хранению:** любая операция должна возвращать **весь
-список**, а не изменённый элемент. Клиенту всё равно писать на устройство
-целиком, и собирать список из дельты он не должен.
-
-**`slot` — это позиция, а не личность.** После удаления и добавления слот 1
-будет уже другим будильником. Вешать на него историю нельзя.
+**`slot` — это позиция, а не личность.** После удаления и добавления слот 1 будет
+уже другим будильником. Вешать на него историю нельзя.
 
 **Реплик три:** сервер, телефон и сам браслет. У браслета версии нет и быть не
 может. Нужен счётчик версии на стороне сервера, иначе два телефона будут по
-очереди молча затирать будильники друг друга — а человек узнает об этом, когда
-не проснётся.
+очереди молча затирать будильники друг друга — а человек узнает об этом, когда не
+проснётся. Часть изменений приезжает отчётом (устройство умеет сообщать о том,
+что настройку поменяли на нём — 12 записей в списке двусторонних настроек),
+остальные надо перечитывать.
 
-**Предел числа ячеек прошивка сообщает** — `limit()` в модуле, и добавление его
-спрашивает: сверх предела будильник молча не сохранился бы, а человек просто не
-проснулся. На нашем экземпляре ячеек 10. Раньше здесь стояло «не сообщает», и свободная ячейка
-подбиралась вслепую: одиннадцатый будильник молча не сохранялся.
+**Уведомления на браслет:** `kind` — `call` · `message` · `application`,
+заголовок до 32 символов, тело до 60, имя приложения до 32. Экрана нет, до
+человека доходит вибрация и светодиод.
 
-**Реплику браслета можно не угадывать.** Устройство умеет само сообщать о том,
-что настройку поменяли на нём — список таких настроек читается отдельно
-(«двусторонние настройки», 26 флагов). Это и есть недостающий ответ на вопрос о
-трёх репликах выше: часть изменений приезжает отчётом, остальные надо
-перечитывать.
-
-### 5.3. Уведомления на браслет
-
-Экрана нет, до человека доходит вибрация и светодиод. Текст всё равно
-передаётся: по нему прошивка выбирает рисунок вибрации.
-
-`kind`: `call` · `message` · `application`. Заголовок до 32 символов, тело до
-60, имя приложения до 32.
-
-### 5.4. Служебные операции
-
-Отвязка от аккаунта, повторное сопряжение, пароль из шести цифр, заводской сброс
-и стирание всех записей.
-
-**Вам это нужно знать:** после сброса история на устройстве обнуляется, и дыра в
-данных — не сбой синхронизации.
+**Служебные операции:** отвязка от аккаунта, повторное сопряжение, пароль из
+шести цифр, заводской сброс и стирание всех записей. Вам это нужно знать: после
+сброса история на устройстве обнуляется, и дыра в данных — не сбой синхронизации.
 
 ---
 
-## 6. Тренировки
+## 6. Пороги вычислений
 
-**Их две разных вещи, и путать нельзя.**
-
-### Тренировку начинает приложение, и её данные надо ловить на лету
-
-Проверено живьём 09.09.2026 полным циклом. Занятие запускает команда оператора
-(`01 E5 AB AB`, операция `1`); пока никто не начал, устройство отвечает
-состоянием `7` — «не запущена». Кнопки старта у ES100 нет, автораспознавания
-тоже: группа `01 C9 AA 01` не отвечает вовсе.
-
-Как только занятие начато, браслет присылает `01 E8 AC 02` **раз в секунду** —
-вдесятеро чаще обычного отчёта активности:
-
-| Тег  | Значение         | Проверено движением |
-| ---- | ---------------- | ------------------- |
-| `01` | секунд с начала  | 1 → 182             |
-| `02` | пульс            | 87 → 110            |
-| `04` | шаги             | 0 → 12              |
-| `07` | дистанция, метры | 0 → 60              |
-| `08` | калории          | растут ступенями    |
-| `0E` | метка времени    | +1 в секунду        |
-| `1A` | средний пульс    | —                   |
-
-**В историю тренировка не попадает.** После корректного финиша с ненулевыми
-итогами список `01 E8 AA 01` остаётся пустым, а сводка `01 E8 AA 02` отдаёт
-нули для любого номера. Проверено дважды — на минуте и на трёх минутах.
-
-**Отсюда контракт:** во время занятия браслет работает датчиком, а не
-регистратором. Накопить тренировку обязан клиент из секундного потока и отдать
-её на сервер целиком — переспросить устройство потом будет нечего.
-
-Модуль так и делает: начинает занятие, копит тики и записывает результат на
-телефон. Наружу тренировка выглядит так:
-
-```json
-{
-  "sport": 1,
-  "startedAt": "2026-09-09T16:39:47+03:00",
-  "seconds": 182,
-  "distance": 60,
-  "calories": 16,
-  "steps": 12,
-  "averageHeartRate": 104,
-  "peakHeartRate": 110,
-  "heartRates": [87, 88, 90, "…посекундно"]
-}
-```
-
-**`heartRates` — посекундный ряд, и он единственный меняется каждую секунду.**
-Шаги, дистанция и калории приходят нарастающим итогом и подолгу стоят на месте:
-за три минуты наблюдения шаги замерли на 12, дистанция на 60 метрах, а пульс
-всё это время гулял. Поэтому по ним берётся последнее значение, а не разница
-соседних тиков — иначе минуты без обновления превратятся в нули.
-
-**Ключ — `(deviceMac, startedAt)`.** Своего идентификатора у тренировки нет:
-устройство её не нумерует, потому что и не хранит.
-
-**Незавершённое занятие клиент пишет на диск по ходу**, а не только на финише:
-приложение могут закрыть или выгрузить из памяти посреди тренировки, и другой
-копии нет. При следующем открытии раздела оно поднимается и продолжается.
-
-**Заходы движения браслет размечает сам** — и вот их каждый день много. Живут
-они не в `E8`, а отдельным каналом на `C5`/`C6`, поля `02` (Status) и `03`
-(State): счётчик кадров запрашивается на `C5`, сами записи на `C6`. За сутки на
-живом устройстве их было **28**.
-
-Запись — семь байт, `<тип:1><время:BE32><длительность:BE16>`:
-
-```
-01 | 6a a0 23 a4 | 00 03     тип 1, 3 минуты
-01 | 6a a0 49 24 | 00 07     тип 1, 7 минут
-01 | 6a a0 53 74 | 00 08     тип 1, 8 минут
-```
-
-Длительности от одной до восьми минут. **Тип во всех наблюдениях равен единице** —
-различать виды движения прошивка не умеет или не сообщает, поэтому подписывать
-его словом нельзя.
-
-Записи появляются с задержкой: за четыре минуты наблюдения при живом движении
-новых не добавилось, самая свежая была семнадцатичасовой давности. Судя по
-всему, заход дописывается после завершения, а не в момент начала.
-
-Структура: **тренировка → отрезки темпа**. Список отдаёт пары индексов,
-детализация запрашивается по отрезку.
-
-```json
-{
-  "id": 3610,
-  "from": "2026-09-08T18:12:00+03:00",
-  "to": "2026-09-08T18:47:00+03:00",
-  "sport": 1,
-  "sportName": "Running",
-  "fields": [{ "tag": 5, "value": [0, 212] }]
-}
-```
-
-`sportName` — из таблицы вендора на 115 видов. `fields` отдаются как есть.
-
-```json
-{ "index": 3, "paceIndex": 26 }
-```
-
-**Два индекса, а не один.** В чужих разборах их регулярно склеивают в одно число
-— «тренировка №3610» вместо «третья тренировка, двадцать шестой отрезок».
-`index` — порядковый номер на устройстве, а не устойчивый идентификатор: после
-сброса нумерация начнётся заново.
-
-**Состав полей сводки снят с устройства целиком.** На пустой запрос прошивка
-отдаёт шаблон со всеми тегами и их длинами — 49 полей, 117 байт значений:
-
-```
-01:2 02:1 03:4 04:4 05:4 06:4 07:4 08:4 09:2 0A:4 0B:1 0C:1 10:2 11:2 12:4
-13:1 14:1 15:4 16:1 18:4 19:2 1A:4 1B:4 1C:4 20:2 21:2 22:1 23:1 25:4 26:4
-3A:4 3C:2 3D:1 3F:1 40:1 41:1 42:1 43:2 44:2 45:1 46:4 49:1 4B:2 4C:2 4D:2
-4E:2 4F:2 50:2 51:2
-```
-
-Структура известна полностью, **смысл — нет**: сопоставить тег с величиной можно
-только на записанной тренировке, а их на устройстве нет. Отдаём номерами.
-Выдуманная подпись хуже честного номера: по ней принимают решения как по
-измеренному.
-
----
-
-## 7. Пороги вычислений
-
-Производные показатели считаются по конкретным числам. **Это договорённость, а
-не деталь реализации клиента:** если сервер посчитает по своим, приложение
-покажет одну цифру, а сервер за тот же день — другую.
+Производные показатели считаются по конкретным числам. **Это договорённость, а не
+деталь реализации клиента:** если сервер посчитает по своим, приложение покажет
+одну цифру, а сервер за тот же день — другую.
 
 | Порог                           | Значение                 | Где применяется                      |
 | ------------------------------- | ------------------------ | ------------------------------------ |
@@ -891,17 +1293,59 @@ deepSleep · awake · swim`. Соответствие тега виду взят
 
 ---
 
-## 8. Что нам нужно от хранения
+## 7. Что нужно от бэкенда
 
 Формы адресов и способ хранения — ваши. Ниже свойства, без которых клиент не
 сможет работать.
 
-**Приём пачками.** История за период приезжает кадрами; по строке на запрос —
-это сотни вызовов на сутки. У клиента жёсткий потолок 15 секунд на запрос,
-сутки — до 1440 строк. Если это много, назовите лимит, клиент нарежет.
+### 7.1. По записям
 
-**Ключи строк** — в таблице ниже. При совпадении почти везде перезапись; у
-поминутного слота — **слияние полей**.
+**Хранение файла.** Записи должны жить на сервере, а не на телефоне. Телефон —
+транзитный буфер: приложение переустановят, память кончится, человек сменит
+устройство. Сейчас файлы лежат в файловой системе телефона и больше нигде.
+
+**Адрес для загрузки, а не multipart через основной API.** Час звука — 7 МБ, а
+память браслета держит пятнадцать часов. Выгрузка идёт с телефона в фоне, ей
+нужен докачиваемый адрес и своя таймаутная политика. Через JSON-клиент файл
+отправить нельзя вовсе: там только тела `application/json`. Если presigned-адресов
+у вас нет — скажите, клиент будет слать multipart на отдельный хост.
+
+**Распознавание на вашей стороне.** У ES100 признаки `speechToText` и `chatGpt` в
+масках возможностей **выключены** — устройство ничего не расшифровывает. Всё, что
+можно, — снять звук и отдать.
+
+**Транскрипт с таймингами**, а не сплошной текст:
+
+```json
+{
+  "status": "transcribed",
+  "language": "ru",
+  "text": "…",
+  "segments": [{ "from": 0.0, "to": 2.4, "text": "…" }]
+}
+```
+
+Без таймингов метки бесполезны: человек отметил сорок вторую секунду, а показать
+ему нечего.
+
+**Статус, по которому клиент понимает, что происходит:** `awaiting_upload` ·
+`uploaded` · `transcribing` · `transcribed` · `failed`. У `failed` нужна причина
+отдельным полем — иначе нечего показать и не по чему решать, повторять ли.
+
+**Список записей с курсором** и фильтром по статусу: архив на сервере растёт без
+предела, а после переустановки на телефоне не остаётся ничего.
+
+**Отдавать текст без сегментов по умолчанию.** У часовой записи их тысячи; одним
+ответом это не грузится.
+
+### 7.2. По данным
+
+**Приём пачками.** История за период приезжает кадрами; по строке на запрос — это
+сотни вызовов на сутки. У клиента жёсткий потолок 15 секунд на запрос, сутки — до
+1440 строк. Если это много, назовите лимит, клиент нарежет.
+
+**Ключи строк.** При совпадении почти везде перезапись; у поминутного слота —
+**слияние полей**.
 
 | Сущность          | Ключ                        |
 | ----------------- | --------------------------- |
@@ -911,19 +1355,23 @@ deepSleep · awake · swim`. Соответствие тега виду взят
 | сутки стресса     | `(deviceMac, date)`         |
 | разовый замер     | `(deviceMac, id)`           |
 | окно ношения      | `(deviceMac, observedFrom)` |
+| заход движения    | `(deviceMac, at, stream)`   |
+| тренировка        | `(deviceMac, startedAt)`    |
 | запись            | `(deviceMac, session)`      |
 | событие диктофона | `(deviceMac, id)`           |
 | состояние         | `(deviceMac, at)`           |
 | возможности       | `(deviceMac, firmware)`     |
 
-**Дедупликация повтора запроса** отдельно от дедупликации строки. Первое спасает
-от обрыва сети, второе — от пересечения окон синхронизации: клиент может
-прислать те же сутки двумя разными запросами.
+**Идемпотентность по ключу.** Повторная заявка той же записи — не ошибка, а
+нормальный случай после обрыва: верните ту же строку с её текущим статусом.
+**Дедупликация повтора запроса — отдельно от дедупликации строки.** Первое спасает
+от обрыва сети, второе — от пересечения окон синхронизации: клиент может прислать
+те же сутки двумя разными запросами.
 
 **Окно покрытия у каждой пачки.** Клиент сообщает период, который считает
-прочитанным. Без этого «за 5 сентября данных не было» неотличимо от «5 сентября
-не синхронизировали» — а разница существенная, потому что заводской сброс
-обнуляет историю устройства.
+прочитанным. Без этого «за 5 сентября данных не было» неотличимо от «5 сентября не
+синхронизировали» — а разница существенная, потому что заводской сброс обнуляет
+историю устройства, и глубже четырёх суток она не хранится вовсе.
 
 **Частичный приём вместо отказа целиком.** Клиент читает устройство окнами и не
 может выбросить сутки из-за одной минуты с битой отметкой. Нужен список
@@ -934,9 +1382,9 @@ deepSleep · awake · swim`. Соответствие тега виду взят
 `null`, и ручка без тела роняет экран на первом обращении к полю.
 
 **Время со смещением, а не UTC.** Браслет живёт по времени, которое ему выставил
-телефон, и часового пояса не хранит. Отметки приходят как локальное время;
-клиент отдаёт их со смещением и отдельно сообщает зону строкой — по `+03:00`
-нельзя вычислить сутки при переводе часов.
+телефон, и часового пояса не хранит. Отметки приходят как локальное время; клиент
+отдаёт их со смещением и отдельно сообщает зону строкой — по `+03:00` нельзя
+вычислить сутки при переводе часов.
 
 **Машинный код ошибки в поле `error`.** Текст сервера в интерфейс не идёт: экран
 выбирает формулировку по коду. Если в ошибке есть подробность — лимит,
@@ -945,65 +1393,46 @@ deepSleep · awake · swim`. Соответствие тега виду взят
 
 ---
 
-## 9. Железо
+## 8. Что нужно от платформы
 
-Что физически стоит в браслете, какие светодиоды, есть ли термометр и гироскоп —
-в отдельном документе: [band-hardware.md](band-hardware.md). Там же разобранные
-маски возможностей и текущие настройки датчиков.
+| Требование              | iOS                                             | Android                                                                        |
+| ----------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------ |
+| Разрешение на Bluetooth | строка `bluetoothAlwaysPermission` в `app.json` | `BLUETOOTH_SCAN`, `BLUETOOTH_CONNECT` (до Android 12 — `ACCESS_FINE_LOCATION`) |
+| Фоновый режим           | `isBackgroundEnabled`, режим `central`          | —                                                                              |
+| Фоновая выгрузка        | `expo-background-task`, окна выдаёт система     | то же                                                                          |
 
----
+Без разрешений сканирование на Android **молча возвращает пустой список**, а не
+ошибку: человек видит вечное «ищем» и ни одного устройства.
 
-## 9а. Что устройство отвечает на самом деле
+Сразу после запуска приложения состояние радио — `Unknown`: система ещё не
+ответила. Принять это за отказ значит показать «нет доступа» ровно в тот момент,
+когда доступ только что дали.
 
-Полный перебор всех команд чтения, какие есть в SDK вендора, по живому ES100
-(09.09.2026, 111 команд). Это не выписка из документации, а протокол опыта.
-
-**Отвечают данными (40).** Паспорт, заряд, время, дневная сводка, история,
-сон, стресс, поминутные слоты, разовый замер, будильники с пределом в десять
-ячеек, «не беспокоить», лимиты уведомлений, типы сообщений, двусторонние
-настройки, каталог видов спорта, состояние оператора тренировки, память
-диктофона, язык прошивки, автоподсветка, все автозамеры с интервалами,
-непрерывные пульс и кислород, пороги тревог по пульсу и кислороду,
-напоминание о малоподвижности, поддержка погоды, длина в метрических единицах.
-
-**Поле есть, данных нет (8).** Единица температуры, единица давления, сахар
-крови (включённость и интервал), разрешение на звонки, контакты, SOS, ответ
-на SMS. Прошивка их знает, устройство не наполняет.
-
-**Молчат вовсе (49) — этого в ES100 нет.** Термометр (`01 FB AA 01`),
-классический Bluetooth, автораспознавание занятий (`01 C9 AA 01`), журнал
-устройства, ChatGPT и голосовой помощник на устройстве, длина заметки,
-циферблаты, музыка и плейлисты, офлайн-карты и навигация, беговые планы и
-курсы, цикл, утренние сводки, электронные карты и платежи, лаборатория
-здоровья, звук и рисунки вибрации, мировое время, длина дорожки и бассейна,
-GPS-эфемериды, состояние OTA JieLi.
-
-**Про «перечисли, что умеешь».** Такой команды в протоколе нет:
-`01 ED AA 02` молчит, а SDK вендора вычисляет список локально из масок
-`35F1`/`34F1`. Единственный источник истины — сами маски, см. 4.3.
+Фоновая выгрузка регистрируется **из корня приложения**, а не из экрана браслета:
+система будит приложение ради задачи, и бандл при этом поднимается без экрана.
 
 ---
 
-## 10. Чего мы не знаем
+## 9. Чего мы не знаем
 
 Честный список того, что проверить не удалось.
 
-1. ~~Глубина хранения на устройстве~~ — **измерено 09.09.2026: около четырёх
-   суток.** Счётчик кадров растёт с периодом запроса и упирается в 37: за сутки
-   20 кадров, за трое — 37, за 400 дней те же 37. Самая старая запись отстояла
-   от запроса на 3,8 суток. **Окно бэкфилла — четверо суток, не больше.**
-2. **Поведение при полной памяти диктофона** — перезапись по кругу или отказ
+1. **Поведение при полной памяти диктофона** — перезапись по кругу или отказ
    записи.
-3. **Раскладка полей тренировок**: записать тренировку на ES100 нечем.
-4. **Раскладка списка меток, сохранённого на устройстве** — по той же причине
+2. **Раскладка полей сводки тренировки**: структура снята целиком (49 полей), но
+   сопоставить тег с величиной можно только на записанной тренировке, а ES100 их
+   не хранит.
+3. **Раскладка списка меток, сохранённого на устройстве** — по той же причине
    метки старых записей теряются при переустановке приложения.
-5. **Шкала `mood`** — 1–5, но что означает каждое значение, неизвестно.
-6. **`restingHeartRate`**: в протоколе на него отображаются три разных бита.
-   Одно ли это и то же в разных прошивках, на одном устройстве не проверить.
+4. **Шкала `mood`** — 1–5, но что означает каждое значение, неизвестно.
+5. **`restingHeartRate`**: в протоколе на него отображаются три разных бита. Одно
+   ли это и то же в разных прошивках, на одном устройстве не проверить.
+6. **Чем различаются два потока распознанной активности.**
+7. **Глубина истории измерена — около четырёх суток.** Окно бэкфилла не больше.
 
 ---
 
-## 11. Открытые вопросы к вам
+## 10. Открытые вопросы к вам
 
 1. **Модель владения устройством.** Браслет привязан к телефону или к аккаунту?
    Сейчас привязка локальная. Если нужен второй телефон на тот же аккаунт —
