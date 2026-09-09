@@ -33,6 +33,7 @@ export function summaryOfBand(state: BandState): Summary {
   const walk = walkOf(state.today);
   const stress = stressPoints(state.stress, startOfToday());
   const oxygen = state.measurement?.bloodOxygen ?? state.live?.bloodOxygen;
+  const distance = state.summary?.distance ?? walk?.distance ?? 0;
 
   const sleepMinutes = state.sleep
     .filter((segment) => segment.stage !== 'awake' && segment.minutes > 0)
@@ -53,7 +54,10 @@ export function summaryOfBand(state: BandState): Summary {
       {
         id: 'steps',
         title: 'Steps',
-        subtitle: walk ? `${kilometres(walk.distance)} km` : 'no movement yet',
+        // Шаги и метры — из одного источника: устройство считает дневной итог
+        // само, и брать число оттуда, а расстояние из истории значит показать
+        // две цифры, которые между собой не сходятся.
+        subtitle: distance === 0 ? 'no movement yet' : `${kilometres(distance)} km`,
         value: String(state.summary?.steps ?? walk?.steps ?? 0),
       },
       {
