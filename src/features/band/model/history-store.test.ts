@@ -101,4 +101,17 @@ describe('rememberDay', () => {
   it('несохранённые сутки читаются как пусто, а не падают', async () => {
     expect(await loadDay('2020-01-01')).toBeNull();
   });
+
+  it('параллельные записи не затирают друг друга', async () => {
+    // Так бывает на границе полуночи: обновление раздела пишет сегодняшние
+    // сутки, а дочитывание пропущенных целится в тот же ключ.
+    await Promise.all([
+      rememberDay('2026-09-08', [sample('2026-09-08T10:00:00', { steps: 10 })]),
+      rememberDay('2026-09-08', [sample('2026-09-08T11:00:00', { steps: 20 })]),
+      rememberDay('2026-09-08', [sample('2026-09-08T12:00:00', { steps: 30 })]),
+    ]);
+
+    const stored = await loadDay('2026-09-08');
+    expect(stored?.samples.map((item) => item.steps).sort()).toEqual([10, 20, 30]);
+  });
 });

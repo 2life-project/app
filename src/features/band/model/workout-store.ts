@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { logger } from '@/core/log/logger';
 
+import { serial } from './serial';
 import { averageHeartRate, type WorkoutSession } from './workout-session';
 
 /**
@@ -64,7 +65,13 @@ export async function loadWorkouts(): Promise<RecordedWorkout[]> {
  * тренировки нет больше нигде, устройство её не хранит. Показать человеку
  * сохранённое занятие, которого нет на диске, — худшее из возможных поведений.
  */
-export async function rememberWorkout(record: RecordedWorkout): Promise<RecordedWorkout[]> {
+export function rememberWorkout(record: RecordedWorkout): Promise<RecordedWorkout[]> {
+  // Через очередь: чтение-дополнение-запись внахлёст теряет занятие целиком,
+  // а второй копии у него нет — устройство тренировок не хранит.
+  return serial(() => writeWorkout(record));
+}
+
+async function writeWorkout(record: RecordedWorkout): Promise<RecordedWorkout[]> {
   const next = [...(await loadWorkouts()), record].slice(-KEEP);
   await AsyncStorage.setItem(KEY, JSON.stringify(next));
   return next;

@@ -16,25 +16,31 @@ import { walkOf } from './walk-metrics';
  * нет и быть не может — их считает сервер, и спорить с ним этим числам не о чем.
  */
 export function readingsOf(state: BandState, now = new Date()): BandReadings {
+  const today = dayKey(now);
   const heart = seriesOf(state.today, (sample) => sample.heartRate ?? sample.averageHeartRate);
   const range = summaryOf(heart);
   const walk = walkOf(state.today);
   const stress = stressPoints(state.stress, startOfToday(now));
 
+  // Сводка устройства переживает полночь в снимке на диске, а её дата — часть
+  // ответа браслета. Без этой проверки вчерашние шаги и калории уезжали бы на
+  // Главную как сегодняшние — и висели там, пока браслет не переподключится.
+  const summary = state.summary?.date === today ? state.summary : undefined;
+
   // Последняя ночь, а не сумма за неделю: сложенные ночи не значат ничего.
   const night = state.sleep[state.sleep.length - 1];
 
   return {
-    date: dayKey(now),
+    date: today,
     updatedAt: now.toISOString(),
     live: state.stage === 'connected',
 
     // Шаги и метры — из одного источника. Устройство считает дневной итог само,
     // и взять шаги оттуда, а расстояние из поминутной истории значит показать
     // две цифры, которые между собой не сходятся.
-    steps: state.summary?.totals.steps ?? walk?.steps,
-    distanceMeters: state.summary?.totals.distance ?? walk?.distance,
-    calories: state.summary?.totals.calories,
+    steps: summary?.totals.steps ?? walk?.steps,
+    distanceMeters: summary?.totals.distance ?? walk?.distance,
+    calories: summary?.totals.calories,
     activeMinutes: walk?.activeMinutes,
 
     heartRate: state.measurement?.heartRate ?? state.live?.heartRate ?? range?.last,

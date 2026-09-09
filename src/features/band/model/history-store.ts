@@ -6,6 +6,7 @@ import type { ActivitySample } from '../api';
 
 import { appendSample, startOfToday } from './day-metrics';
 import { reviveDates } from './revive-dates';
+import { serial } from './serial';
 
 /**
  * Архив поминутной истории на телефоне.
@@ -90,10 +91,14 @@ export async function loadDay(day: string): Promise<StoredDay | null> {
  * приносит недостающие минуты, а не весь день заново. Правило слияния — то же,
  * что у экрана: минута из истории сильнее живого отчёта.
  */
-export async function rememberDay(
-  day: string,
-  samples: readonly ActivitySample[],
-): Promise<StoredDay> {
+export function rememberDay(day: string, samples: readonly ActivitySample[]): Promise<StoredDay> {
+  // Через очередь: чтение суток идёт из двух мест сразу — обновление раздела и
+  // дочитывание пропущенных дней, — и на границе полуночи они целятся в один
+  // ключ. Внахлёст минуты одного затирают минуты другого.
+  return serial(() => writeDay(day, samples));
+}
+
+async function writeDay(day: string, samples: readonly ActivitySample[]): Promise<StoredDay> {
   const stored = await loadDay(day);
   const merged = samples.reduce<ActivitySample[]>(
     (acc, sample) => appendSample(acc, sample),

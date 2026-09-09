@@ -55,8 +55,18 @@ export function useDeviceSettings(bandRef: MutableRefObject<Band | null>): Devic
 
       // Переключатель встаёт сразу, до ответа радио: обмен идёт до секунды, и
       // всё это время тумблер под пальцем стоял бы в старом положении.
-      const before = settings;
-      setSettings((current) => (current ? { ...current, ...optimistic } : current));
+      //
+      // Прежние значения снимаются здесь же, внутри правки состояния, и только
+      // по тронутым полям: снимок «всего, что было» откатывал бы заодно
+      // соседнюю настройку, которую человек успел переключить следом.
+      let rollback: Partial<DeviceSettings> = {};
+      setSettings((current) => {
+        if (!current) return current;
+        rollback = Object.fromEntries(
+          Object.keys(optimistic).map((key) => [key, current[key as keyof DeviceSettings]]),
+        );
+        return { ...current, ...optimistic };
+      });
       setProblem(null);
 
       try {
@@ -67,12 +77,12 @@ export function useDeviceSettings(bandRef: MutableRefObject<Band | null>): Devic
         // устройстве осталось выключенным, и разойдутся они навсегда —
         // перечитать настройки человек сам не догадается.
         logger.warn('band: настройка не записалась', { reason: String(failure) });
-        setSettings(before);
+        setSettings((current) => (current ? { ...current, ...rollback } : current));
         setProblem('write');
         return false;
       }
     },
-    [bandRef, settings],
+    [bandRef],
   );
 
   return { settings, busy, problem, load, write };
