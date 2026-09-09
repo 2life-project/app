@@ -55,10 +55,11 @@ export function BandPanel() {
       )}
 
       <BandManage
+        state={band.state}
         alarms={band.alarms}
         settings={band.settings}
-        supported={band.state.supported}
-        live={band.state.stage === 'connected'}
+        service={band.service}
+        onFind={band.vibrate}
       />
     </Stack>
   );

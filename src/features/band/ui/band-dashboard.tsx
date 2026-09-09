@@ -59,8 +59,7 @@ export function BandDashboard({
     () => summaryOfBand(state),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- сверено с полями, которые читает summaryOfBand
     [
-      state.battery,
-      state.firmware,
+      state.info,
       state.live,
       state.measurement,
       state.sleep,

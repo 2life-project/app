@@ -108,8 +108,9 @@ function toneOf(current: number | undefined): 'success' | 'warning' | 'danger' |
  */
 function captionOf(state: BandState): string {
   const parts = [state.stage === 'connected' ? 'LIVE' : 'LAST KNOWN'];
-  if (state.battery !== undefined) parts.push(`${state.battery}%`);
-  if (state.firmware) parts.push(state.firmware);
+  const battery = state.info?.battery?.level;
+  if (battery !== undefined) parts.push(`${battery}%`);
+  if (state.info?.firmware) parts.push(state.info.firmware);
   if (state.worn === true && state.stage === 'connected') parts.push('WORN');
   return parts.join(' · ');
 }

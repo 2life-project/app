@@ -30,6 +30,7 @@ import { useAlarms } from './use-alarms';
 import { useBandEvents } from './use-band-events';
 import { useForeground } from './use-foreground';
 import { useOpenSession } from './use-open-session';
+import { useService } from './use-service';
 import { useDeviceSettings } from './use-settings';
 import { clearOpenSession, rememberWorkout, toRecord } from './workout-store';
 
@@ -201,7 +202,7 @@ export function useBand() {
         // Дочитать сутки, которые устройство ещё помнит, а телефон уже нет.
         // После `refresh`, а не вместо: экран к этому моменту уже полон, а
         // архив набивается молча — по кадру на минуту, это долго.
-        void backfillHistory(connected, latest.current.mac);
+        void backfillHistory(connected, latest.current.info?.mac);
       } catch (error) {
         logger.warn('band: подключение не удалось', { reason: String(error) });
         patch({ stage: 'failed', problem: 'connect-failed' });
@@ -279,6 +280,7 @@ export function useBand() {
   // двадцать обменов по радио в общее состояние раздела незачем.
   const alarms = useAlarms(band);
   const settings = useDeviceSettings(band);
+  const service = useService(band);
 
   const actions = useBandActions({
     bandRef: band,
@@ -300,6 +302,7 @@ export function useBand() {
     refresh,
     alarms,
     settings,
+    service,
     ...actions,
   };
 }

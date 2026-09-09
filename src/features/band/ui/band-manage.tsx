@@ -2,11 +2,13 @@ import { useState } from 'react';
 
 import { Card, IconTile, ListRow, SectionCaption, Stack } from '@/shared/ui';
 
-import type { FeatureName } from '../api';
+import type { BandState } from '../model/band-state';
 import type { Alarms } from '../model/use-alarms';
+import type { Service } from '../model/use-service';
 import type { DeviceSettingsState } from '../model/use-settings';
 
 import { AlarmsSheet } from './alarms-sheet';
+import { DeviceSheet } from './device-sheet';
 import { DeviceSettingsSheet } from './settings-sheet';
 
 /**
@@ -17,17 +19,20 @@ import { DeviceSettingsSheet } from './settings-sheet';
  * в один ряд с «показать пульс» — и однажды кто-то промахнётся.
  */
 export function BandManage({
+  state,
   alarms,
   settings,
-  supported,
-  live,
+  service,
+  onFind,
 }: {
+  state: BandState;
   alarms: Alarms;
   settings: DeviceSettingsState;
-  supported: readonly FeatureName[];
-  live: boolean;
+  service: Service;
+  onFind: () => void;
 }) {
-  const [open, setOpen] = useState<'alarms' | 'settings' | null>(null);
+  const [open, setOpen] = useState<'alarms' | 'settings' | 'device' | null>(null);
+  const live = state.stage === 'connected';
 
   return (
     <Stack gap="sm">
@@ -52,6 +57,12 @@ export function BandManage({
             }
             onPress={live ? () => setOpen('settings') : undefined}
           />
+          <ListRow
+            leading={<IconTile name="info" size={ICON} />}
+            title="About this band"
+            subtitle="Battery, firmware, memory and service commands"
+            onPress={() => setOpen('device')}
+          />
         </Stack>
       </Card>
 
@@ -59,7 +70,14 @@ export function BandManage({
       <DeviceSettingsSheet
         visible={open === 'settings'}
         state={settings}
-        supported={supported}
+        supported={state.supported}
+        onClose={() => setOpen(null)}
+      />
+      <DeviceSheet
+        visible={open === 'device'}
+        state={state}
+        service={service}
+        onFind={onFind}
         onClose={() => setOpen(null)}
       />
     </Stack>

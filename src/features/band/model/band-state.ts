@@ -1,5 +1,6 @@
 import type {
   ActivitySample,
+  DeviceInfo,
   FeatureName,
   ActivityState,
   DaySummary,
@@ -30,10 +31,14 @@ export type BandState = {
     ScanProblem | 'connect-failed' | 'workout-failed' | 'workout-save-failed' | 'workout-open';
   found: FoundBand[];
   device?: { id: string; name: string };
-  battery?: number;
-  firmware?: string;
-  /** Адрес устройства из паспорта. Им ключуются сутки в архиве. */
-  mac?: string;
+  /** Паспорт и заряд одним ответом устройства: адрес, модель, прошивка, батарея. */
+  info?: DeviceInfo;
+  /**
+   * На сколько часы браслета расходились с телефоном в момент подключения.
+   * Единственное объяснение сдвинутых дат в истории — после синхронизации
+   * расхождения уже не видно.
+   */
+  clockSkew?: number | null;
   /** Что эта прошивка умеет. Пусто — масок ещё не читали, а не «ничего не умеет». */
   supported: FeatureName[];
   /** Последний живой отчёт: приходит сам каждые десять секунд. */

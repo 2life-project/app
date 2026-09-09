@@ -33,9 +33,8 @@ const KEY = '2life:band-snapshot.2';
  * молча при каждом новом поле.
  */
 const KEEP = [
-  'battery',
-  'firmware',
-  'mac',
+  'info',
+  'clockSkew',
   'supported',
   'live',
   'summary',
@@ -118,8 +117,7 @@ export async function loadEverything(
   const week = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
   await step('info', async () => {
-    const info = await band.info();
-    patch({ battery: info.battery?.level, firmware: info.firmware, mac: info.mac });
+    patch({ info: await band.info(), clockSkew: band.clockSkewSeconds });
   });
 
   // Маски возможностей устройство отдало при подключении. Без них экран
