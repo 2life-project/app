@@ -45,12 +45,13 @@
       [
         "react-native-ble-plx",
         {
-          "isBackgroundEnabled": false,
+          "isBackgroundEnabled": true,
           "modes": ["central"],
           "bluetoothAlwaysPermission": "Нужен, чтобы найти ваш браслет и забирать с него измерения."
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-background-task"
     ],
     "experiments": {
       "typedRoutes": true,

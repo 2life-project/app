@@ -1,0 +1,121 @@
+import { StyleSheet, View } from 'react-native';
+
+import { space } from '@/shared/theme';
+import { Card, LineChart, Stack, StatTile, SummaryRow, Text } from '@/shared/ui';
+
+import type { ActivitySample } from '../api';
+import type { BandState } from '../model/band-state';
+import { seriesOf, summaryOf, thin, type Point } from '../model/day-metrics';
+import { readingsCaption } from '../model/day-metrics';
+import { clock } from '../model/format';
+
+/**
+ * История разовых замеров.
+ *
+ * У этих показателей нет непрерывного ряда: датчик включается по расписанию или
+ * по кнопке, и за сутки набирается один-два замера. Смысл разбора здесь не в
+ * графике, а в том, когда именно замер был сделан — показатель без времени
+ * снятия проверить нечем.
+ */
+const METRICS: readonly {
+  title: string;
+  unit: string;
+  pick: (sample: ActivitySample) => number | undefined;
+  tone: 'success' | 'warning' | 'danger' | 'highlight';
+}[] = [
+  { title: 'Кислород', unit: '%', pick: (s) => s.bloodOxygen, tone: 'highlight' },
+  { title: 'ВСР', unit: 'ms', pick: (s) => s.hrv, tone: 'success' },
+  { title: 'Систолическое', unit: 'мм рт. ст.', pick: (s) => s.systolic, tone: 'danger' },
+  { title: 'Диастолическое', unit: 'мм рт. ст.', pick: (s) => s.diastolic, tone: 'danger' },
+  { title: 'Настроение', unit: '', pick: (s) => s.mood, tone: 'highlight' },
+  { title: 'Сахар', unit: 'ммоль/л', pick: (s) => s.bloodSugar, tone: 'warning' },
+];
+
+export function MeasurementsDetail({ state }: { state: BandState }) {
+  const series = METRICS.map((metric) => ({
+    ...metric,
+    points: seriesOf(state.today, metric.pick),
+  }));
+
+  const measured = series.filter((item) => item.points.length > 0);
+  const silent = series.filter((item) => item.points.length === 0);
+
+  return (
+    <Stack gap="md">
+      {measured.map((item) => (
+        <Card key={item.title} variant="sunken">
+          <Stack gap="sm">
+            <View style={styles.header}>
+              <Text variant="subtitle">{item.title}</Text>
+              <Text variant="bodySmall" tone="muted">
+                {readingsCaption(item.points.length)}
+              </Text>
+            </View>
+
+            {item.points.length > 1 ? (
+              <LineChart values={thin(item.points, 120)} tone={item.tone} height={100} />
+            ) : null}
+
+            <Range points={item.points} unit={item.unit} />
+
+            {item.points
+              .slice(-8)
+              .reverse()
+              .map((point, index) => (
+                <SummaryRow
+                  key={point.at.getTime()}
+                  title={clock(point.at)}
+                  value={withUnit(point.value, item.unit)}
+                  divider={index > 0}
+                />
+              ))}
+          </Stack>
+        </Card>
+      ))}
+
+      {silent.length === 0 ? null : (
+        <Card variant="sunken">
+          <Stack gap="xs">
+            <Text variant="subtitle">Сегодня не измерялось</Text>
+            <Text variant="bodySmall" tone="muted">
+              {silent.map((item) => item.title).join(', ')}. These sensors run on a schedule or on
+              demand — press Measure on the main screen to take a reading now.
+            </Text>
+          </Stack>
+        </Card>
+      )}
+    </Stack>
+  );
+}
+
+/** Разброс за день. У единственного замера его нет — и три одинаковых числа не нужны. */
+function Range({ points, unit }: { points: readonly Point[]; unit: string }) {
+  const summary = summaryOf(points);
+  if (!summary || summary.count < 2) return null;
+
+  return (
+    <View style={styles.tiles}>
+      <StatTile label="Минимум" value={String(summary.min)} unit={unit || undefined} />
+      <StatTile label="Среднее" value={String(summary.average)} unit={unit || undefined} />
+      <StatTile label="Максимум" value={String(summary.max)} unit={unit || undefined} />
+    </View>
+  );
+}
+
+/** Процент пишется вплотную к числу, словесная единица — через пробел. */
+function withUnit(value: number, unit: string): string {
+  if (unit === '') return String(value);
+  return unit === '%' ? `${value}%` : `${value} ${unit}`;
+}
+
+const styles = StyleSheet.create({
+  header: {
+    alignItems: 'baseline',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  tiles: {
+    flexDirection: 'row',
+    gap: space.sm,
+  },
+});

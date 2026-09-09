@@ -6,6 +6,10 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { restoreSession } from '@/core/auth';
+// Импорт ради побочного эффекта: он регистрирует фоновую выгрузку с браслета.
+// Система будит приложение без экранов, и обработчик должен существовать уже к
+// этому моменту.
+import '@/features/band';
 import { theme } from '@/shared/theme';
 
 /**

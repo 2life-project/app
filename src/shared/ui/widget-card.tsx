@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 
 import { ActionLink } from './action-link';
-import { Card } from './card';
+import { Card, type CardProps } from './card';
 import { Stack } from './stack';
 import { Text } from './text';
 
@@ -11,6 +11,8 @@ export type WidgetCardProps = {
   caption?: string;
   /** Ссылка справа в шапке виджета. */
   action?: { label: string; onPress: () => void; chevron?: boolean };
+  /** Вид подложки. Разделы поверх ленты идут утопленными, виджеты — приподнятыми. */
+  variant?: CardProps['variant'];
   children: ReactNode;
 };
 
@@ -19,9 +21,9 @@ export type WidgetCardProps = {
  * Все виджеты Главной собраны на ней — иначе шапка расходится по отступам
  * и выравниванию от виджета к виджету.
  */
-export function WidgetCard({ title, caption, action, children }: WidgetCardProps) {
+export function WidgetCard({ title, caption, action, variant, children }: WidgetCardProps) {
   return (
-    <Card padding="lg">
+    <Card padding="lg" variant={variant}>
       <Stack gap="widget">
         <Stack direction="row" justify="space-between" align={caption ? 'flex-start' : 'center'}>
           <Stack gap="xs">

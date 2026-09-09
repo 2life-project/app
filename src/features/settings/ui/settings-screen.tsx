@@ -57,7 +57,7 @@ export function SettingsScreen() {
   const [confirm, setConfirm] = useState<string | null>(null);
 
   const open = (row: SettingsRow) => {
-    if (row.opens === 'device') router.push(to.device(row.id));
+    if (row.opens === 'device') router.push(to.device());
     else if (row.opens === 'records') router.push(to.recordsIntro());
     else if (row.opens === 'confirm') setConfirm(row.id);
     else if (row.opens === 'choice') setChoice(row.id);
@@ -120,9 +120,11 @@ export function SettingsScreen() {
               subtitle={option.subtitle}
               selected={(picked[choice ?? ''] ?? sheet.options[0]?.id) === option.id}
               onPress={() => {
-                if (choice === 'add') {
+                // Экран есть только у своего браслета: чужой трекер
+                // подключается в приложении его производителя, а не у нас.
+                if (choice === 'add' && option.id === 'band') {
                   setChoice(null);
-                  router.push(to.device(option.id));
+                  router.push(to.device());
                   return;
                 }
                 setPicked({ ...picked, [choice ?? '']: option.id });

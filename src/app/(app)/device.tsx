@@ -1,14 +1,12 @@
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { Stack } from 'expo-router';
 
-import { DeviceScreen, DeviceScreenOptions } from '@/features/device';
+import { BandScreen, BandScreenOptions } from '@/features/band';
 
 export default function Route() {
-  const { kind } = useLocalSearchParams<{ kind?: string }>();
-
   return (
     <>
-      <Stack.Screen options={DeviceScreenOptions} />
-      <DeviceScreen kind={kind} />
+      <Stack.Screen options={BandScreenOptions} />
+      <BandScreen />
     </>
   );
 }

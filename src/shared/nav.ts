@@ -20,8 +20,8 @@ export const to = {
 
   assistant: (): Href => '/assistant',
   settings: (): Href => '/settings',
-  /** Без вида — наш браслет; с видом — экран стороннего трекера. */
-  device: (kind?: string): Href => (kind ? `/device?kind=${kind}` : '/device'),
+  /** Браслет: привязка, показатели, записи. */
+  device: (): Href => '/device',
   checkIn: (): Href => '/check-in',
   widgets: (): Href => '/widgets',
 

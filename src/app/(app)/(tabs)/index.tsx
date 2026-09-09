@@ -1,3 +1,5 @@
 import { HomeScreen } from '@/features/home';
 
-export default HomeScreen;
+export default function Home() {
+  return <HomeScreen />;
+}

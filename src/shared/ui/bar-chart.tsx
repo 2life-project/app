@@ -11,13 +11,37 @@ export type BarChartProps = {
   tone?: Extract<Tone, 'success' | 'warning' | 'danger'>;
   /** Подписи по краям оси: начало периода и «сегодня». */
   axis?: [string, string];
+  /**
+   * Рисовать ноль засечкой, а не коротким столбцом.
+   *
+   * По умолчанию выключено: общий минимум высоты был у всех графиков с самого
+   * начала, и менять их вид заодно с правкой одной карточки нельзя. Там, где
+   * пустой час важно отличать от часа с парой шагов, признак включается явно.
+   */
+  markEmpty?: boolean;
 };
+
+/** Доля высоты у пустого столбца: он остаётся засечкой на оси, а не столбцом. */
+const EMPTY_HEIGHT = 2;
+
+/** Минимум для непустого столбца: иначе единица на фоне тысячи исчезает вовсе. */
+const MIN_HEIGHT = 8;
 
 /**
  * Столбчатый график периода. Значения нормируются по максимуму — так столбцы
  * занимают всю высоту независимо от единиц измерения.
+ *
+ * Ноль рисуется засечкой, а не коротким столбцом: общий минимум высоты делал
+ * пустой час неотличимым от часа с парой шагов, и день из трёх прогулок
+ * выглядел как день сплошной активности.
  */
-export function BarChart({ values, highlightIndex, tone = 'success', axis }: BarChartProps) {
+export function BarChart({
+  values,
+  highlightIndex,
+  tone = 'success',
+  axis,
+  markEmpty = false,
+}: BarChartProps) {
   const peak = Math.max(...values, 1);
 
   return (
@@ -29,9 +53,17 @@ export function BarChart({ values, highlightIndex, tone = 'success', axis }: Bar
             style={[
               styles.bar,
               {
-                height: `${Math.max(6, (value / peak) * 100)}%`,
+                height: `${
+                  markEmpty && value === 0
+                    ? EMPTY_HEIGHT
+                    : Math.max(MIN_HEIGHT, (value / peak) * 100)
+                }%`,
                 backgroundColor:
-                  index === highlightIndex ? theme.color[tone].solid : theme.color[tone].border,
+                  markEmpty && value === 0
+                    ? theme.color.border
+                    : index === highlightIndex
+                      ? theme.color[tone].solid
+                      : theme.color[tone].border,
               },
             ]}
           />
