@@ -15,6 +15,14 @@ export {
   type Sex,
   type Hand,
 } from './body-profile';
+export {
+  clearBandReadings,
+  readingsAge,
+  readingsNote,
+  setBandReadings,
+  useBandReadings,
+  type BandReadings,
+} from './band-readings';
 export { setPairedBand, useBandConnected, usePairedBand, type PairedBand } from './connection';
 export {
   availability,

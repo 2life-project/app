@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { logger } from '@/core/log/logger';
-import { setPairedBand, syncBodyProfile, usePairedBand } from '@/shared/domain';
+import { clearBandReadings, setPairedBand, syncBodyProfile, usePairedBand } from '@/shared/domain';
 
 import {
   Band,
@@ -26,6 +26,7 @@ import {
 import { INITIAL, type BandState } from './band-state';
 import { clearHistory } from './history-store';
 import { sendProfile } from './profile-sync';
+import { publishReadings } from './publish-readings';
 import { useAlarms } from './use-alarms';
 import { useBandEvents } from './use-band-events';
 import { useForeground } from './use-foreground';
@@ -69,7 +70,11 @@ export function useBand() {
   // начинаться с пустых графиков только потому, что связь ещё не поднялась.
   useEffect(() => {
     void loadSnapshot().then((snapshot) => {
-      if (snapshot) patch(snapshot);
+      if (!snapshot) return;
+      patch(snapshot);
+      // Последнее известное — сразу, не дожидаясь связи: Главная не должна
+      // начинаться с пустого места, пока браслет ещё подключается.
+      publishReadings(latest.current);
     });
   }, [patch]);
 
@@ -114,6 +119,9 @@ export function useBand() {
     try {
       await loadEverything(active, patch);
       saveSnapshot(latest.current);
+      // Итоги дня — остальному приложению. Здесь, а не на каждом живом отчёте:
+      // отчёты приходят каждые десять секунд, а минутные итоги между ними те же.
+      publishReadings(latest.current);
     } finally {
       patch({ busy: false });
     }
@@ -254,6 +262,7 @@ export function useBand() {
 
     setPairedBand(null);
     clearSnapshot();
+    clearBandReadings();
     // Архив суток уходит вместе с браслетом: иначе история старого устройства
     // подмешается к новому, а разделить их будет уже нечем.
     await clearHistory().catch(() => undefined);

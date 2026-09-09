@@ -2,7 +2,7 @@ import Feather from '@expo/vector-icons/Feather';
 import { router } from 'expo-router';
 import { StyleSheet } from 'react-native';
 
-import { useBandConnected } from '@/shared/domain';
+import { useBandConnected, useBandReadings } from '@/shared/domain';
 import { longDay, useToday, weekdayOf } from '@/shared/lib/day';
 import { to } from '@/shared/nav';
 import { theme } from '@/shared/theme';
@@ -12,6 +12,7 @@ import { pendingCount, useDecisions, useHome } from '../model/home';
 import { HOME_SECTIONS } from '../model/sections';
 
 import { Activity } from './activity';
+import { BandOnly } from './band-only';
 import { Nutrition } from './nutrition';
 import { Overview } from './overview';
 import { StateCard } from './state';
@@ -33,6 +34,9 @@ export function HomeScreen() {
   const home = useHome(date, timeZone);
   const decisions = useDecisions();
   const bandPaired = useBandConnected();
+  // Показания браслета за тот же день, что и лента. Их пишет раздел устройства,
+  // Главная только читает: фича фиче не видна, а показатели видны обеим.
+  const band = useBandReadings(date);
 
   // Дату показываем свою, пока не приехала серверная: шапка не должна быть
   // пустой на время загрузки — день известен ещё до запроса.
@@ -80,12 +84,21 @@ export function HomeScreen() {
   const pages = state
     ? [
         <Overview key="o" state={state} decisions={decisions} />,
-        <Activity key="a" home={state.home} />,
+        <Activity key="a" home={state.home} band={band} />,
         <Nutrition key="n" home={state.home} />,
         <Supplements key="s" home={state.home} />,
         <Wellbeing key="w" home={state.home} date={date} timeZone={timeZone} />,
       ]
-    : HOME_SECTIONS.map((section) => <StateCard key={section.value} query={home} />);
+    : HOME_SECTIONS.map((section) =>
+        // Данные браслета лежат на телефоне и от сети не зависят. Прятать их
+        // за «сервер не ответил» значит терять единственное, что у человека
+        // сейчас есть, — и ровно то, что он собрал своим телом за сегодня.
+        section.value === 'activity' && band ? (
+          <BandOnly key={section.value} band={band} />
+        ) : (
+          <StateCard key={section.value} query={home} />
+        ),
+      );
 
   return (
     <PagedScreen
