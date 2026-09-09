@@ -157,9 +157,14 @@ export function useBand() {
       void band.current
         ?.daySummary()
         .then((summary) => patch({ summary }))
-        .catch((failure: unknown) =>
-          logger.warn('band: сводка не обновилась', { reason: String(failure) }),
-        );
+        .catch((failure: unknown) => {
+          // Сама по себе связь не восстановится, а опрос будет ходить в неё до
+          // ухода с экрана — по строке в лог каждые полминуты, пока человек
+          // смотрит на «подключено», которого нет.
+          logger.warn('band: связь потеряна на опросе', { reason: String(failure) });
+          band.current = null;
+          patch({ stage: 'idle' });
+        });
     }, LIVE_POLL_MS);
 
     return () => clearInterval(timer);
