@@ -132,6 +132,17 @@ export function readingsNote(current: BandReadings | null, now = new Date()): st
 }
 
 /**
+ * Заголовок блока показаний: откуда числа и насколько они свежие.
+ *
+ * Один на все три экрана, которые их показывают. Пока формулировка стояла в
+ * каждом своя, она разъезжалась на первой же правке — а человек по ней
+ * отличает данные браслета от серверных.
+ */
+export function sourceCaption(current: BandReadings | null): string {
+  return (readingsNote(current) ?? 'from your band').toUpperCase();
+}
+
+/**
  * Показания строками.
  *
  * Живут рядом с самими показаниями, а не в фиче: их показывают и Главная, и

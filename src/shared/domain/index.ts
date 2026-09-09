@@ -1,12 +1,16 @@
+// Побочный эффект импорта: подписка на выход из аккаунта, стирающая личные
+// данные. Подключается здесь, потому что это единственное место, через которое
+// домен видят все.
+import './on-sign-out';
+
 export {
   ageOf,
-  bodyProfile,
+  clearBodyProfile,
   EMPTY_PROFILE,
   isComplete,
   LIMITS,
   runStepOf,
   setBodyProfile,
-  sexOf,
   syncBodyProfile,
   useBodyProfile,
   walkStepOf,
@@ -17,7 +21,7 @@ export {
 } from './body-profile';
 export {
   clearBandReadings,
-  readingsAge,
+  sourceCaption,
   readingsNote,
   setBandReadings,
   useBandReadings,
@@ -26,7 +30,7 @@ export {
   type Vital,
   type VitalGroup,
 } from './band-readings';
-export { setPairedBand, useBandConnected, usePairedBand, type PairedBand } from './connection';
+export { setPairedBand, useBandPaired, usePairedBand, type PairedBand } from './connection';
 export {
   availability,
   coverageRatio,

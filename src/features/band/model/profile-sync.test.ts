@@ -8,6 +8,7 @@ const filled: BodyProfile = {
   weightKg: 78,
   birthDate: '1992-04-17',
   sex: 'male',
+  wearHand: 'left',
 };
 
 describe('toDeviceProfile', () => {
@@ -44,6 +45,7 @@ describe('toDeviceProfile', () => {
     expect(toDeviceProfile(EMPTY_PROFILE)).toBeNull();
     expect(toDeviceProfile({ ...filled, weightKg: null })).toBeNull();
     expect(toDeviceProfile({ ...filled, sex: null })).toBeNull();
+    expect(toDeviceProfile({ ...filled, wearHand: null })).toBeNull();
   });
 
   it('рост и вес вне пределов протокола не отправляются', () => {

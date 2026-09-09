@@ -12,7 +12,7 @@ import { BYTES_PER_SECOND, type Storage } from '../api/recorder';
  */
 
 /** Что означает возможность из маски. Перечислено только то, что видно человеку. */
-export const FEATURE_LABELS: Partial<Record<FeatureName, string>> = {
+const FEATURE_LABELS: Partial<Record<FeatureName, string>> = {
   audioRecorder: 'Voice recorder',
   heartRateVariability: 'Heart rate variability',
   bloodPressure: 'Blood pressure estimate',

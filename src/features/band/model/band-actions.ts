@@ -119,9 +119,12 @@ export function useBandActions({ bandRef, adopt, patch, refresh, deviceId, state
   const saveProfile = useCallback(
     async (profile: BodyProfile) => {
       const active = bandRef.current;
-      if (active) await sendProfile(active, profile);
+      // Без связи это не отказ: профиль лежит на телефоне и уедет при
+      // следующем подключении. А вот отказ живого устройства — отказ.
+      if (!active) return;
+      patch({ profileSent: await sendProfile(active, profile) });
     },
-    [bandRef],
+    [bandRef, patch],
   );
 
   /**

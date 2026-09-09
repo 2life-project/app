@@ -12,7 +12,7 @@ export type ProfileDraft = {
   weight: string;
   birth: string;
   sex: Sex | null;
-  hand: Hand;
+  hand: Hand | null;
   /** Длина шага: пусто — считаем от роста. */
   walk: string;
   run: string;
@@ -59,7 +59,7 @@ export function isBirthDate(input: string, now = new Date()): boolean {
   return ageOf(input, now) !== null;
 }
 
-export type ProfileErrors = Partial<Record<'height' | 'weight' | 'birth' | 'sex', string>>;
+export type ProfileErrors = Partial<Record<'height' | 'weight' | 'birth' | 'sex' | 'hand', string>>;
 
 /**
  * Что мешает сохранить. Пустое поле — тоже ошибка: неполный профиль на
@@ -83,6 +83,7 @@ export function profileErrors(draft: ProfileDraft): ProfileErrors {
 
   if (!isBirthDate(draft.birth)) errors.birth = 'Use YYYY-MM-DD, for example 1992-04-17.';
   if (draft.sex === null) errors.sex = 'The band needs it to estimate energy.';
+  if (draft.hand === null) errors.hand = 'The band tells a wrist raise from a hand movement by it.';
 
   return errors;
 }

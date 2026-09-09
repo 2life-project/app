@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 
-import { readingsNote, useBandReadings, vitalsOf } from '@/shared/domain';
+import { sourceCaption, useBandReadings, vitalsOf } from '@/shared/domain';
 import { to } from '@/shared/nav';
 import { ActionLink, Card, ListRow, SectionCaption, Stack } from '@/shared/ui';
 
@@ -23,7 +23,7 @@ export function BandDay({ day }: { day: string }) {
 
   return (
     <Stack gap="sm">
-      <SectionCaption>{(readingsNote(band) ?? 'from your band').toUpperCase()}</SectionCaption>
+      <SectionCaption>{sourceCaption(band)}</SectionCaption>
       <Card>
         <Stack gap="xs">
           {band.steps === undefined ? null : (

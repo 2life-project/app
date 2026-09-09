@@ -60,8 +60,19 @@ describe('profileErrors', () => {
   });
 
   it('пустое поле — ошибка, а не молчаливый пропуск', () => {
-    const errors = profileErrors({ ...valid, height: '', weight: '', birth: '', sex: null });
-    expect(Object.keys(errors).sort()).toEqual(['birth', 'height', 'sex', 'weight']);
+    const errors = profileErrors({
+      ...valid,
+      height: '',
+      weight: '',
+      birth: '',
+      sex: null,
+      hand: null,
+    });
+    expect(Object.keys(errors).sort()).toEqual(['birth', 'hand', 'height', 'sex', 'weight']);
+  });
+
+  it('рука ношения обязательна: её дефолт смещает дистанцию у правши', () => {
+    expect(profileErrors({ ...valid, hand: null }).hand).toBeDefined();
   });
 
   it('значения вне пределов устройства не проходят', () => {
@@ -75,13 +86,13 @@ describe('profileErrors', () => {
 });
 
 describe('draftOf и toProfile', () => {
-  it('пустой профиль даёт пустой черновик', () => {
+  it('пустой профиль даёт пустой черновик, рука не выбрана', () => {
     expect(draftOf(EMPTY_PROFILE)).toEqual({
       height: '',
       weight: '',
       birth: '',
       sex: null,
-      hand: 'left',
+      hand: null,
       walk: '',
       run: '',
     });

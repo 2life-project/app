@@ -5,6 +5,7 @@ import { logger } from '@/core/log/logger';
 import type { ActivitySample } from '../api';
 
 import { appendSample, startOfToday } from './day-metrics';
+import { reviveDates } from './revive-dates';
 
 /**
  * Архив поминутной истории на телефоне.
@@ -16,9 +17,8 @@ import { appendSample, startOfToday } from './day-metrics';
  * там, даже когда на устройстве их уже нет.
  *
  * Форма записи — та же, в которой сутки уедут на сервер, когда появится
- * приёмник: сутки целиком, с отметкой, когда их прочитали, и с адресом
- * устройства. Пересобирать формат потом значило бы разбирать на лету то, что
- * уже лежит на дисках у людей.
+ * приёмник: сутки целиком и отметка, когда их прочитали. Версия формы стоит в
+ * ключе, поэтому дополнить запись потом можно, не разбирая старую на лету.
  */
 
 /** Сколько суток назад имеет смысл дочитывать: глубже устройство не хранит. */
@@ -26,21 +26,13 @@ const HISTORY_DAYS = 4;
 
 const PREFIX = '2life:band-day.1:';
 
-export type StoredDay = {
+type StoredDay = {
   /** `YYYY-MM-DD` по часам телефона: сутки считает телефон, браслет пояса не знает. */
   date: string;
-  /** Адрес устройства. Сменили браслет — сутки не смешиваются в одну кучу. */
-  mac?: string;
   /** Когда эти сутки прочитали с устройства. По нему видно, дочитаны ли они до конца. */
   readAt: string;
   samples: ActivitySample[];
 };
-
-const ISO = /^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/;
-
-function revive(_key: string, value: unknown): unknown {
-  return typeof value === 'string' && ISO.test(value) ? new Date(value) : value;
-}
 
 /** `YYYY-MM-DD` по местным часам: сервер и устройство считают сутки одинаково. */
 export function dayKey(at: Date = new Date()): string {
@@ -84,7 +76,7 @@ export function needsRead(day: string, stored: StoredDay | null, now = new Date(
 export async function loadDay(day: string): Promise<StoredDay | null> {
   try {
     const raw = await AsyncStorage.getItem(PREFIX + day);
-    return raw === null ? null : (JSON.parse(raw, revive) as StoredDay);
+    return raw === null ? null : (JSON.parse(raw, reviveDates) as StoredDay);
   } catch (failure) {
     logger.warn('band: сутки истории не прочитались', { day, failure });
     return null;
@@ -101,7 +93,6 @@ export async function loadDay(day: string): Promise<StoredDay | null> {
 export async function rememberDay(
   day: string,
   samples: readonly ActivitySample[],
-  mac?: string,
 ): Promise<StoredDay> {
   const stored = await loadDay(day);
   const merged = samples.reduce<ActivitySample[]>(
@@ -109,12 +100,7 @@ export async function rememberDay(
     stored?.samples ?? [],
   );
 
-  const record: StoredDay = {
-    date: day,
-    mac: mac ?? stored?.mac,
-    readAt: new Date().toISOString(),
-    samples: merged,
-  };
+  const record: StoredDay = { date: day, readAt: new Date().toISOString(), samples: merged };
 
   try {
     await AsyncStorage.setItem(PREFIX + day, JSON.stringify(record));

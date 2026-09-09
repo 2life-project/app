@@ -29,7 +29,12 @@ export type BodyProfile = {
   /** Длина шага в сантиметрах. `null` — считаем от роста. */
   walkStepCm: number | null;
   runStepCm: number | null;
-  wearHand: Hand;
+  /**
+   * На какой руке носят. Без ответа — `null`, а не «левая»: прошивка по этому
+   * полю отличает подъём руки от взмаха, и молчаливый левый дефолт смещает
+   * дистанцию у каждого правши, который до формы не дошёл.
+   */
+  wearHand: Hand | null;
 };
 
 export const EMPTY_PROFILE: BodyProfile = {
@@ -39,7 +44,7 @@ export const EMPTY_PROFILE: BodyProfile = {
   sex: null,
   walkStepCm: null,
   runStepCm: null,
-  wearHand: 'left',
+  wearHand: null,
 };
 
 /**
@@ -85,12 +90,15 @@ export function ageOf(birthDate: string | null, now = new Date()): number | null
  *
  * Пол и дата рождения обязательны наравне с ростом и весом: расход энергии
  * прошивка считает по всем четырём, и без любого из них она подставит своё.
+ * Рука ношения — по той же причине: по ней прошивка отличает подъём руки от
+ * взмаха, и её дефолт смещает дистанцию у половины людей.
  */
 export function isComplete(profile: BodyProfile): boolean {
   return (
     profile.heightCm !== null &&
     profile.weightKg !== null &&
     profile.sex !== null &&
+    profile.wearHand !== null &&
     ageOf(profile.birthDate) !== null
   );
 }
@@ -152,8 +160,18 @@ export function setBodyProfile(patch: Partial<BodyProfile>): BodyProfile {
   return profile;
 }
 
-export function bodyProfile(): BodyProfile {
-  return profile;
+/**
+ * Забыть тело человека.
+ *
+ * Рост, вес, пол и дата рождения принадлежат человеку, а не телефону: при
+ * выходе из аккаунта они обязаны исчезнуть, иначе следующий вошедший увидит
+ * чужие цифры — и его браслет будет считать по чужому телу.
+ */
+export function clearBodyProfile(): void {
+  touched = true;
+  profile = EMPTY_PROFILE;
+  publish();
+  void AsyncStorage.removeItem(KEY).catch(() => undefined);
 }
 
 export function useBodyProfile(): BodyProfile {

@@ -14,7 +14,6 @@ import type { AlarmDraft } from '../model/use-alarms';
  * Время вводится текстом, а не колесом системы: колесо — это отдельная
  * нативная зависимость ради одного экрана. Поле принимает и `7:30`, и `07:30`,
  * а рядом стоит разбор — человек видит, что именно поняли, до сохранения.
- * ponytail: станет неудобно — берём нативный пикер, разбор уже отделён.
  */
 export function AlarmEditor({
   alarm,
@@ -110,12 +109,12 @@ export function AlarmEditor({
   );
 }
 
-const DAY_SIZE = 42;
-
 const styles = StyleSheet.create({
   days: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   day: {
-    minWidth: DAY_SIZE,
+    // Ширина по той же зоне нажатия, что и высота: у короткой подписи вроде
+    // «Thu» чип иначе уже пальца, и промах читается как «не работает».
+    minWidth: size.tapTarget,
     height: size.tapTarget,
     paddingHorizontal: space.sm,
     borderRadius: radius.full,

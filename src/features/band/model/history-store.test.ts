@@ -71,12 +71,11 @@ describe('rememberDay', () => {
   });
 
   it('сутки ложатся на диск и читаются обратно', async () => {
-    await rememberDay('2026-09-08', [sample('2026-09-08T10:00:00', { steps: 12 })], 'aa:bb');
+    await rememberDay('2026-09-08', [sample('2026-09-08T10:00:00', { steps: 12 })]);
     const stored = await loadDay('2026-09-08');
 
     expect(stored?.samples).toHaveLength(1);
     expect(stored?.samples[0]?.steps).toBe(12);
-    expect(stored?.mac).toBe('aa:bb');
     // Время должно вернуться датой, а не строкой: на нём считают графики.
     expect(stored?.samples[0]?.at).toBeInstanceOf(Date);
   });
@@ -97,12 +96,6 @@ describe('rememberDay', () => {
     const stored = await loadDay('2026-09-08');
     expect(stored?.samples).toHaveLength(1);
     expect(stored?.samples[0]?.steps).toBe(18);
-  });
-
-  it('адрес устройства сохраняется, когда его не передали повторно', async () => {
-    await rememberDay('2026-09-08', [], 'aa:bb');
-    await rememberDay('2026-09-08', [sample('2026-09-08T10:00:00')]);
-    expect((await loadDay('2026-09-08'))?.mac).toBe('aa:bb');
   });
 
   it('несохранённые сутки читаются как пусто, а не падают', async () => {

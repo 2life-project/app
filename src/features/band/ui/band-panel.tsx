@@ -57,6 +57,19 @@ export function BandPanel() {
         />
       )}
 
+      {/* Профиль заполнен, но на устройство не уехал: форма закрылась со
+          словом «сохранено», а браслет продолжает считать по заводским
+          значениям. Молчать об этом нельзя — числа выглядят измеренными. */}
+      {isComplete(profile) && band.state.profileSent === false ? (
+        <Banner
+          tone="warning"
+          checked={false}
+          title="Your body profile did not reach the band"
+          subtitle="It is saved on the phone and will be sent again on the next connection. Until then the band counts by factory values."
+          action={{ label: 'Send now', onPress: () => void band.saveProfile(profile) }}
+        />
+      ) : null}
+
       {/* Привязки нет — показываем подключение, даже если на диске остались
           показания: иначе после «забыть браслет» человек видел бы старые числа
           и ни одной точки входа в поиск. */}

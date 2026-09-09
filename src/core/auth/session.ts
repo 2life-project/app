@@ -53,6 +53,21 @@ let generation = 0;
 
 const listeners = new Set<() => void>();
 
+/**
+ * Что стереть при выходе из аккаунта.
+ *
+ * Ключ доступа гасится здесь, а данные человека лежат слоями выше — профиль
+ * тела, показания браслета, архив суток. Ядро о них не знает и знать не должно,
+ * поэтому они приходят сюда сами: телефоном пользуются двое, и второй не должен
+ * увидеть чужой рост, вес и пульс, а его браслет — считать по чужому телу.
+ */
+const onSignOutHandlers = new Set<() => void>();
+
+export function onSignOut(handler: () => void): () => void {
+  onSignOutHandlers.add(handler);
+  return () => onSignOutHandlers.delete(handler);
+}
+
 function publish(next: SessionState) {
   state = next;
   for (const listener of listeners) listener();
@@ -109,6 +124,17 @@ export async function signOut(): Promise<void> {
   generation += 1;
   access = null;
   refreshToken = null;
+
+  // До объявления анонимности: иначе экраны успеют перерисоваться на чужих
+  // данных, которые ещё лежат в памяти.
+  for (const handler of onSignOutHandlers) {
+    try {
+      handler();
+    } catch (failure) {
+      logger.error('Личные данные не стёрлись при выходе', { failure });
+    }
+  }
+
   publish({ status: 'anonymous' });
   await SecureStore.deleteItemAsync(REFRESH_KEY).catch(() => undefined);
 

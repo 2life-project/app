@@ -10,13 +10,10 @@ import { sportName } from '../api/sports';
  */
 
 /** Что предлагаем сразу. Номера — из таблицы прошивки, имена берутся оттуда же. */
-export const COMMON_SPORTS = [9, 1, 2, 28, 19, 43, 4, 25] as const;
+const COMMON_SPORTS = [9, 1, 2, 28, 19, 43, 4, 25] as const;
 
-export type SportOption = { code: number; name: string };
+type SportOption = { code: number; name: string };
 
 export function sportOptions(): SportOption[] {
   return COMMON_SPORTS.map((code) => ({ code, name: sportName(code) }));
 }
-
-/** Чем помечаем занятие, если человек ничего не выбирал. */
-export const DEFAULT_SPORT = 9;

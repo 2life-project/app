@@ -8,6 +8,9 @@
  * открыл раздел, то есть ровно наоборот замыслу.
  */
 import './api/sync';
+// Побочный эффект импорта: при выходе из аккаунта показания браслета уходят
+// вместе с человеком. Регистрируется в корне по той же причине, что и выгрузка.
+import './model/on-sign-out';
 
 export { BandPanel } from './ui/band-panel';
 export { BandScreen, BandScreenOptions } from './ui/band-screen';

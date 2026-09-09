@@ -8,6 +8,7 @@ import { Feature, savedRecordings, supports } from '../api';
 import type { BandState } from './band-state';
 import { startOfToday } from './day-metrics';
 import { dayKey, loadDay, needsRead, recentDays, rememberDay } from './history-store';
+import { reviveDates } from './revive-dates';
 import { loadWorkouts } from './workout-store';
 
 /**
@@ -51,19 +52,12 @@ const KEEP = [
 
 type Snapshot = Pick<BandState, (typeof KEEP)[number]>;
 
-const ISO = /^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/;
-
-/** JSON не знает дат: без восстановления время замера приезжает строкой. */
-function revive(_key: string, value: unknown): unknown {
-  return typeof value === 'string' && ISO.test(value) ? new Date(value) : value;
-}
-
 export async function loadSnapshot(): Promise<Snapshot | null> {
   try {
     const raw = await AsyncStorage.getItem(KEY);
     if (raw === null) return null;
 
-    const snapshot = JSON.parse(raw, revive) as Snapshot;
+    const snapshot = JSON.parse(raw, reviveDates) as Snapshot;
 
     // Снимок мог пролежать до следующего дня. Показывать вчерашние минуты как
     // сегодняшние нельзя: карточки складывают их в дневные шаги и пульс, и
@@ -115,14 +109,9 @@ export async function loadEverything(
 ): Promise<void> {
   const now = new Date();
   const week = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  // Адрес устройства нужен архиву суток, а читается он тем же ответом, что и
-  // паспорт: держим его здесь, чтобы не спрашивать устройство второй раз.
-  let mac: string | undefined;
 
   await step('info', async () => {
-    const info = await band.info();
-    mac = info.mac;
-    patch({ info, clockSkew: band.clockSkewSeconds });
+    patch({ info: await band.info(), clockSkew: band.clockSkewSeconds });
   });
 
   // Маски возможностей устройство отдало при подключении. Без них экран
@@ -164,7 +153,7 @@ export async function loadEverything(
     patch({ today });
     // Сразу в архив, без повторного чтения: сутки уже в руках, а второй заход
     // за теми же минутами — это ещё сотня кадров по радио и заряд браслета.
-    await rememberDay(dayKey(now), today, mac);
+    await rememberDay(dayKey(now), today);
   });
 }
 
@@ -196,7 +185,7 @@ async function step(what: string, run: () => Promise<void>): Promise<void> {
  * По одним суткам за раз: у браслета одна очередь команд, и параллельные
  * запросы истории перемешали бы ответы.
  */
-export async function backfillHistory(band: Band, mac?: string): Promise<string[]> {
+export async function backfillHistory(band: Band): Promise<string[]> {
   const filled: string[] = [];
   // Сегодняшние сутки уже прочитаны и уложены при обновлении раздела — здесь
   // они дали бы второй проход по тем же минутам.
@@ -216,7 +205,7 @@ export async function backfillHistory(band: Band, mac?: string): Promise<string[
     const to = end > new Date() ? new Date() : end;
 
     try {
-      await rememberDay(day, await band.history(from, to), mac);
+      await rememberDay(day, await band.history(from, to));
       filled.push(day);
     } catch (failure) {
       // Один непрочитанный день не отменяет остальные: связь могла оборваться

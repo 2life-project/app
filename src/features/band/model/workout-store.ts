@@ -100,6 +100,18 @@ export async function loadOpenSession(): Promise<WorkoutSession | undefined> {
   }
 }
 
+/**
+ * Забыть все записанные занятия.
+ *
+ * Единственная их копия лежит здесь: устройство тренировок не хранит. Поэтому
+ * стирается это только вместе с человеком — при выходе из аккаунта.
+ */
+export async function clearWorkouts(): Promise<void> {
+  await AsyncStorage.multiRemove([KEY, OPEN_KEY]).catch((failure: unknown) =>
+    logger.warn('band: тренировки не стёрлись', { failure }),
+  );
+}
+
 export async function clearOpenSession(): Promise<void> {
   try {
     await AsyncStorage.removeItem(OPEN_KEY);

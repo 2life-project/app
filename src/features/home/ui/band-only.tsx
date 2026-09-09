@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { View, StyleSheet } from 'react-native';
 
-import { readingsNote, vitalsOf, type BandReadings } from '@/shared/domain';
+import { sourceCaption, vitalsOf, type BandReadings } from '@/shared/domain';
 import { to } from '@/shared/nav';
 import { space } from '@/shared/theme';
 import { ActionLink, Card, ListRow, SectionCaption, Stack, StatTile, Text } from '@/shared/ui';
@@ -30,7 +30,7 @@ export function BandOnly({ band }: { band: BandReadings }) {
       </Card>
 
       <Stack gap="sm">
-        <SectionCaption>{(readingsNote(band) ?? 'from your band').toUpperCase()}</SectionCaption>
+        <SectionCaption>{sourceCaption(band)}</SectionCaption>
         <Card>
           <View style={styles.tiles}>
             <StatTile label="STEPS" value={text(band.steps)} />

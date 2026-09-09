@@ -4,7 +4,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { useQuery } from '@/core/http/use-query';
 import { logger } from '@/core/log/logger';
-import { readingsNote, useBandReadings, vitalsOf, type Vital } from '@/shared/domain';
+import { sourceCaption, useBandReadings, vitalsOf, type Vital } from '@/shared/domain';
 import { shortDay } from '@/shared/lib/day';
 import { to } from '@/shared/nav';
 import { space } from '@/shared/theme';
@@ -70,7 +70,7 @@ export function BodySystem({
     // чисел значит спрятать единственное, что у человека сейчас есть.
     return vitals.length > 0 ? (
       <Stack gap="md">
-        <BandVitals note={readingsNote(band)} vitals={vitals} />
+        <BandVitals caption={sourceCaption(band)} vitals={vitals} />
         {fallback}
       </Stack>
     ) : (
@@ -94,7 +94,7 @@ export function BodySystem({
         </Card>
       ) : null}
 
-      {vitals.length > 0 ? <BandVitals note={readingsNote(band)} vitals={vitals} /> : null}
+      {vitals.length > 0 ? <BandVitals caption={sourceCaption(band)} vitals={vitals} /> : null}
 
       {empty && vitals.length === 0 ? (
         <>
@@ -197,10 +197,10 @@ export function BodySystem({
 }
 
 /** Что браслет измерил сам по этой системе. Источник подписан: рядом стоят числа сервера. */
-function BandVitals({ note, vitals }: { note: string | null; vitals: readonly Vital[] }) {
+function BandVitals({ caption, vitals }: { caption: string; vitals: readonly Vital[] }) {
   return (
     <Stack gap="sm">
-      <SectionCaption>{(note ?? 'from your band').toUpperCase()}</SectionCaption>
+      <SectionCaption>{caption}</SectionCaption>
       <Card>
         <Stack gap="xs">
           {vitals.map((vital) => (

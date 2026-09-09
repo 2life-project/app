@@ -98,20 +98,23 @@ describe('isComplete', () => {
     weightKg: 78,
     birthDate: '1992-04-17',
     sex: 'male' as const,
+    wearHand: 'left' as const,
   };
 
   it('заполненного профиля достаточно', () => {
     expect(isComplete(filled)).toBe(true);
   });
 
-  it('без любого из четырёх полей профиль не полон', () => {
+  it('без любого обязательного поля профиль не полон', () => {
     expect(isComplete({ ...filled, heightCm: null })).toBe(false);
     expect(isComplete({ ...filled, weightKg: null })).toBe(false);
     expect(isComplete({ ...filled, sex: null })).toBe(false);
     expect(isComplete({ ...filled, birthDate: null })).toBe(false);
+    // Рука ношения — тоже: её дефолт смещает дистанцию у каждого правши.
+    expect(isComplete({ ...filled, wearHand: null })).toBe(false);
   });
 
-  it('длина шага и рука не обязательны: их считают от роста', () => {
+  it('длина шага не обязательна: её считают от роста', () => {
     expect(isComplete({ ...filled, walkStepCm: null, runStepCm: null })).toBe(true);
   });
 });

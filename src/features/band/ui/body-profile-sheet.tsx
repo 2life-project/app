@@ -130,10 +130,16 @@ function ProfileForm({
         </Text>
         <Segmented
           items={HANDS}
-          value={draft.hand}
+          value={draft.hand ?? ''}
           onChange={(value) => setDraft({ ...draft, hand: value === 'right' ? 'right' : 'left' })}
         />
-        <Hint text="The band tells a wrist raise from a hand movement by this." />
+        {/* Заранее не выбираем: по этому полю прошивка отличает подъём руки от
+            взмаха, и молчаливая «левая» смещает дистанцию у каждого правши. */}
+        {draft.hand === null ? (
+          <FieldError text={show('hand')} />
+        ) : (
+          <Hint text="The band tells a wrist raise from a hand movement by this." />
+        )}
       </Stack>
 
       <Stack gap="sm">

@@ -78,6 +78,18 @@ export function BandDashboard({
       {/* Связи нет, а числа на экране остались: без этой плашки они выдают
           себя за свежие. Подпись под кольцом говорит «LAST KNOWN», но её
           человек читает уже после того, как поверил цифрам. */}
+      {/* Отказы занятия человек обязан увидеть: сессия существует только в
+          памяти приложения, устройство её не хранит, и молчание здесь стоит
+          человеку целой тренировки. */}
+      {WORKOUT_TROUBLE[state.problem ?? ''] ? (
+        <Banner
+          tone={state.problem === 'workout-save-failed' ? 'danger' : 'warning'}
+          checked={false}
+          title={WORKOUT_TROUBLE[state.problem ?? '']?.title ?? ''}
+          subtitle={WORKOUT_TROUBLE[state.problem ?? '']?.subtitle}
+        />
+      ) : null}
+
       {live ? null : (
         <Banner
           tone="warning"
@@ -167,6 +179,30 @@ export function BandDashboard({
     </Stack>
   );
 }
+
+/**
+ * Что пошло не так с занятием — словами о последствии, а не о команде.
+ *
+ * Три состояния различаются тем, где сейчас находятся данные: не начали вовсе,
+ * не записали на диск (единственная копия ещё в памяти), не закрыли на
+ * устройстве (браслет продолжает считать и тратить заряд).
+ */
+const WORKOUT_TROUBLE: Record<string, { title: string; subtitle: string } | undefined> = {
+  'workout-failed': {
+    title: 'The band did not start the workout',
+    subtitle: 'Nothing is being recorded. Try again while the band is connected.',
+  },
+  'workout-save-failed': {
+    title: 'The workout did not save',
+    subtitle:
+      'It is still running here and exists only in the app — the band keeps no copy. Try finishing it again before closing the app.',
+  },
+  'workout-open': {
+    title: 'The band is still in workout mode',
+    subtitle:
+      'Your workout is saved, but the device keeps counting and draining its battery until it hears otherwise. It closes on the next connection.',
+  },
+};
 
 const styles = StyleSheet.create({
   controls: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },

@@ -4,7 +4,13 @@ import { StyleSheet, View } from 'react-native';
 
 import { signOut, useSession } from '@/core/auth';
 import { useQuery } from '@/core/http/use-query';
-import { setPairedBand, useBandReadings, usePairedBand } from '@/shared/domain';
+import {
+  clearBandReadings,
+  clearBodyProfile,
+  setPairedBand,
+  useBandReadings,
+  usePairedBand,
+} from '@/shared/domain';
 import { useToday } from '@/shared/lib/day';
 import { clearStore, usePersistentState } from '@/shared/lib/store';
 import { to } from '@/shared/nav';
@@ -176,7 +182,14 @@ export function SettingsScreen() {
             label="Reset"
             tone="warning"
             onPress={() => {
-              void clearStore().then(() => setPairedBand(null));
+              // Диск чистит `clearStore` по общему префиксу, но доменные
+              // сущности живут ещё и в памяти: без этих вызовов экраны
+              // показывали бы стёртые профиль и показания до перезапуска.
+              void clearStore().then(() => {
+                setPairedBand(null);
+                clearBodyProfile();
+                clearBandReadings();
+              });
               setConfirm(null);
             }}
           />

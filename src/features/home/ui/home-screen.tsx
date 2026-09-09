@@ -2,7 +2,7 @@ import Feather from '@expo/vector-icons/Feather';
 import { router } from 'expo-router';
 import { StyleSheet } from 'react-native';
 
-import { useBandConnected, useBandReadings } from '@/shared/domain';
+import { useBandPaired, useBandReadings } from '@/shared/domain';
 import { longDay, useToday, weekdayOf } from '@/shared/lib/day';
 import { to } from '@/shared/nav';
 import { theme } from '@/shared/theme';
@@ -33,7 +33,7 @@ export function HomeScreen() {
   const { date, timeZone } = useToday();
   const home = useHome(date, timeZone);
   const decisions = useDecisions();
-  const bandPaired = useBandConnected();
+  const bandPaired = useBandPaired();
   // Показания браслета за тот же день, что и лента. Их пишет раздел устройства,
   // Главная только читает: фича фиче не видна, а показатели видны обеим.
   const band = useBandReadings(date);
