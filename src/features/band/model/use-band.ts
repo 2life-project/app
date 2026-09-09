@@ -47,9 +47,6 @@ export type BandStage = 'idle' | 'scanning' | 'connecting' | 'connected' | 'fail
 /** Как часто обновлять сводку дня при открытом разделе. */
 const LIVE_POLL_MS = 30_000;
 
-/** Каким видом спорта помечать занятие: ES100 видов движения не различает. */
-const DEFAULT_SPORT = 1;
-
 export function useBand() {
   const paired = usePairedBand();
   const foreground = useForeground();
@@ -296,7 +293,6 @@ export function useBand() {
     refresh,
     deviceId: state.device?.id,
     stateRef: latest,
-    sport: DEFAULT_SPORT,
   });
 
   return {

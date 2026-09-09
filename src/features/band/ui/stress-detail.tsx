@@ -53,7 +53,7 @@ export function StressDetail({ state }: { state: BandState }) {
     <Stack gap="md">
       <Card variant="sunken">
         <Stack gap="sm">
-          <Text variant="subtitle">За день</Text>
+          <Text variant="subtitle">Across the day</Text>
           <LineChart values={thin(points, 200)} tone="warning" height={140} />
           <View style={styles.tiles}>
             <StatTile label="MIN" value={String(summary.min)} />
@@ -65,7 +65,7 @@ export function StressDetail({ state }: { state: BandState }) {
 
       <Card variant="sunken">
         <Stack gap="sm">
-          <Text variant="subtitle">По часам</Text>
+          <Text variant="subtitle">By hour</Text>
           <BarChart
             markEmpty
             values={hours.map((hour) => hour.value)}
@@ -77,12 +77,12 @@ export function StressDetail({ state }: { state: BandState }) {
             <>
               <SummaryRow
                 title="Calmest hour"
-                subtitle={`замеров: ${peak.low.count}`}
+                subtitle={`${peak.low.count} readings`}
                 value={`${hourLabel(peak.low.hour)} · ${peak.low.value}`}
               />
               <SummaryRow
                 title="Most strained hour"
-                subtitle={`замеров: ${peak.high.count}`}
+                subtitle={`${peak.high.count} readings`}
                 value={`${hourLabel(peak.high.hour)} · ${peak.high.value}`}
                 divider
               />
@@ -93,14 +93,14 @@ export function StressDetail({ state }: { state: BandState }) {
 
       <Card variant="sunken">
         <Stack gap="sm">
-          <Text variant="subtitle">Зоны</Text>
+          <Text variant="subtitle">Zones</Text>
           <ZoneBars zones={zonesOf(points, STRESS_ZONES)} all />
         </Stack>
       </Card>
 
       <Card variant="sunken">
         <Stack gap="sm">
-          <Text variant="subtitle">Последние замеры</Text>
+          <Text variant="subtitle">Latest readings</Text>
           {[...points]
             .slice(-RECENT)
             .reverse()

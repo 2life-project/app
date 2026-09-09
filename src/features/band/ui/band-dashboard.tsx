@@ -42,7 +42,7 @@ export function BandDashboard({
   onStopRecording: () => void;
   onPull: () => void;
   onRemoveRecording: (session: number) => void;
-  onStartWorkout: () => void;
+  onStartWorkout: (sport: number) => void;
   onStopWorkout: () => void;
   onRefresh: () => void;
   onDisconnect: () => void;

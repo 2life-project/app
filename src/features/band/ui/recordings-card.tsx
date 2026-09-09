@@ -82,8 +82,8 @@ export function RecordingsCard({
 
 /** Длительность, метки и признак отправки — всё, что про запись известно. */
 function describe(item: SavedRecording): string {
-  const parts = [`${Math.round(item.seconds)} с`];
-  if (item.marks.length > 0) parts.push(`меток: ${item.marks.length}`);
+  const parts = [`${Math.round(item.seconds)} s`];
+  if (item.marks.length > 0) parts.push(`${item.marks.length} marks`);
   parts.push(item.uploaded ? 'uploaded' : 'not uploaded');
   return parts.join(' · ');
 }

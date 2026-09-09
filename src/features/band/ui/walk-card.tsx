@@ -68,13 +68,13 @@ export function WalkCard({
                 label="CADENCE"
                 value={String(walk.cadenceAverage)}
                 unit="spm"
-                note={`пик ${walk.cadencePeak}`}
+                note={`peak ${walk.cadencePeak}`}
               />
               <StatTile
                 label="PACE"
                 value={walk.speedAverage === null ? '—' : walk.speedAverage.toFixed(1)}
                 unit="km/h"
-                note={walk.speedPeak === null ? undefined : `пик ${walk.speedPeak.toFixed(1)}`}
+                note={walk.speedPeak === null ? undefined : `peak ${walk.speedPeak.toFixed(1)}`}
               />
             </View>
             <View style={styles.tiles}>

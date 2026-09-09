@@ -55,7 +55,7 @@ export function HeartDetail({ state }: { state: BandState }) {
     <Stack gap="md">
       <Card variant="sunken">
         <Stack gap="sm">
-          <Text variant="subtitle">За день</Text>
+          <Text variant="subtitle">Across the day</Text>
           <LineChart values={thin(points, 200)} tone="danger" height={140} />
           <View style={styles.tiles}>
             <StatTile label="MIN" value={String(summary.min)} unit="bpm" />
@@ -74,7 +74,7 @@ export function HeartDetail({ state }: { state: BandState }) {
 
       <Card variant="sunken">
         <Stack gap="sm">
-          <Text variant="subtitle">По часам</Text>
+          <Text variant="subtitle">By hour</Text>
           <BarChart
             markEmpty
             values={hours.map((hour) => hour.value)}
@@ -86,13 +86,13 @@ export function HeartDetail({ state }: { state: BandState }) {
             <>
               <SummaryRow
                 title="Calmest hour"
-                subtitle={`замеров: ${peak.low.count}`}
-                value={`${hourLabel(peak.low.hour)} · ${peak.low.value} уд/мин`}
+                subtitle={`${peak.low.count} readings`}
+                value={`${hourLabel(peak.low.hour)} · ${peak.low.value} bpm`}
               />
               <SummaryRow
                 title="Busiest hour"
-                subtitle={`замеров: ${peak.high.count}`}
-                value={`${hourLabel(peak.high.hour)} · ${peak.high.value} уд/мин`}
+                subtitle={`${peak.high.count} readings`}
+                value={`${hourLabel(peak.high.hour)} · ${peak.high.value} bpm`}
                 divider
               />
             </>
@@ -102,7 +102,7 @@ export function HeartDetail({ state }: { state: BandState }) {
 
       <Card variant="sunken">
         <Stack gap="sm">
-          <Text variant="subtitle">Зоны</Text>
+          <Text variant="subtitle">Zones</Text>
           <ZoneBars zones={zonesOf(points, HEART_RATE_ZONES)} all />
           <Text variant="caption" tone="muted">
             Доля сегодняшних замеров, попавших в каждый диапазон.
@@ -112,7 +112,7 @@ export function HeartDetail({ state }: { state: BandState }) {
 
       <Card variant="sunken">
         <Stack gap="sm">
-          <Text variant="subtitle">Последние замеры</Text>
+          <Text variant="subtitle">Latest readings</Text>
           {[...points]
             .slice(-RECENT)
             .reverse()
@@ -120,7 +120,7 @@ export function HeartDetail({ state }: { state: BandState }) {
               <SummaryRow
                 key={point.at.getTime()}
                 title={clock(point.at)}
-                value={`${point.value} уд/мин`}
+                value={`${point.value} bpm`}
                 divider={index > 0}
               />
             ))}

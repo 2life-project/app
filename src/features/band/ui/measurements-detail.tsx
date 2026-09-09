@@ -76,7 +76,7 @@ export function MeasurementsDetail({ state }: { state: BandState }) {
       {silent.length === 0 ? null : (
         <Card variant="sunken">
           <Stack gap="xs">
-            <Text variant="subtitle">Сегодня не измерялось</Text>
+            <Text variant="subtitle">Not measured today</Text>
             <Text variant="bodySmall" tone="muted">
               {silent.map((item) => item.title).join(', ')}. These sensors run on a schedule or on
               demand — press Measure on the main screen to take a reading now.

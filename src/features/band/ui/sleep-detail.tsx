@@ -55,7 +55,7 @@ export function SleepDetail({ state }: { state: BandState }) {
 
       <Card variant="sunken">
         <Stack gap="sm">
-          <Text variant="subtitle">Качество</Text>
+          <Text variant="subtitle">Quality</Text>
           <View style={styles.tiles}>
             <StatTile label="EFFICIENCY" value={`${quality.efficiency}`} unit="%" />
             <StatTile label="CYCLES" value={String(quality.cycles)} />
@@ -73,7 +73,7 @@ export function SleepDetail({ state }: { state: BandState }) {
 
       <Card variant="sunken">
         <Stack gap="sm">
-          <Text variant="subtitle">Стадии</Text>
+          <Text variant="subtitle">Stages</Text>
           <SummaryRow
             title="Deep"
             subtitle={`${quality.shares.deep}%`}
@@ -102,7 +102,7 @@ export function SleepDetail({ state }: { state: BandState }) {
 
       <Card variant="sunken">
         <Stack gap="sm">
-          <Text variant="subtitle">Ход ночи</Text>
+          <Text variant="subtitle">Through the night</Text>
           {night.segments.map((segment, index) => (
             <SummaryRow
               key={`${segment.at.getTime()}-${index}`}
