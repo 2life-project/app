@@ -1,9 +1,10 @@
 import { logger } from '@/core/log/logger';
 
 import { type ActivitySample, decodeActivityFrame, decodeLiveSample } from './activity';
+import { BandAdmin } from './admin';
+import { BandAlarms } from './alarms';
 import { byteAt } from './bytes';
 import * as cmd from './commands';
-import * as danger from './danger';
 import {
   type Capabilities,
   type DeviceInfo,
@@ -24,8 +25,12 @@ import {
   decodeStress,
   decodeWearState,
 } from './health';
+import { BandNotifications } from './notifications';
 import * as recorder from './recorder';
+import { BandRecorder } from './recorder-api';
+import { BandSettings } from './settings';
 import { type BandTransport, connectTransport } from './transport';
+import { BandWorkouts } from './workouts';
 
 /**
  * Потолок кадров истории за один запрос. Сутки по минутам не дают больше сотни
@@ -53,7 +58,27 @@ export class Band {
   private readonly listeners = new Set<BandListener>();
   private capabilities: Capabilities | null = null;
 
+  /**
+   * Разделы устройства отдельными входами. Плоский фасад на сорок методов
+   * читается как свалка: «сохранить будильник» и «стереть все записи» стоят в
+   * нём рядом и различаются только именем.
+   */
+  readonly settings: BandSettings;
+  readonly alarms: BandAlarms;
+  readonly notifications: BandNotifications;
+  readonly recorder: BandRecorder;
+  readonly workouts: BandWorkouts;
+  /** Необратимое: отвязка, пароль, заводской сброс. */
+  readonly admin: BandAdmin;
+
   private constructor(private readonly transport: BandTransport) {
+    this.settings = new BandSettings(transport);
+    this.alarms = new BandAlarms(transport);
+    this.notifications = new BandNotifications(transport);
+    this.recorder = new BandRecorder(transport);
+    this.workouts = new BandWorkouts(transport);
+    this.admin = new BandAdmin(transport);
+
     this.transport.onReport((data) => this.handleReport(data));
     this.transport.onLost(() => this.emit({ kind: 'disconnected' }));
   }
@@ -77,16 +102,6 @@ export class Band {
 
   async disconnect(): Promise<void> {
     await this.transport.stop();
-  }
-
-  /**
-   * Снять привязку на самом браслете: он забывает аккаунт и снова доступен
-   * другому телефону. Без этого «забыть» стирает память только у приложения, а
-   * устройство продолжает считать себя занятым.
-   */
-  async unbind(): Promise<void> {
-    await this.transport.send(danger.unbind());
-    await this.transport.send(danger.clearAccount());
   }
 
   /** Подписаться на отчёты устройства. Возвращает функцию отписки. */
@@ -122,6 +137,11 @@ export class Band {
 
   get features(): Capabilities | null {
     return this.capabilities;
+  }
+
+  /** Надет ли браслет прямо сейчас. Тем же полем приходит и самостоятельный отчёт. */
+  async worn(): Promise<boolean | undefined> {
+    return decodeWearState(await this.transport.request(cmd.readWearState()))?.worn;
   }
 
   /** Вибрация: единственный способ позвать браслет без экрана. */
@@ -193,76 +213,6 @@ export class Band {
     }
 
     return samples;
-  }
-
-  // ---------------------------------------------------------------- диктофон
-
-  async storage(): Promise<recorder.Storage | null> {
-    return recorder.decodeStorage(
-      await this.transport.requestRaw(recorder.readStorage(), recorder.Op.storage),
-    );
-  }
-
-  async recordings(): Promise<recorder.Recording[]> {
-    const body = await this.transport.requestRaw(recorder.listRecordings(), recorder.Op.list);
-    return recorder.decodeRecordings(body);
-  }
-
-  async startRecording(): Promise<void> {
-    await this.transport.send(recorder.startRecording());
-  }
-
-  async stopRecording(): Promise<void> {
-    await this.transport.send(recorder.stopRecording());
-  }
-
-  /**
-   * Скачать запись. Данные идут отдельным потоком кадров, а не ответом на
-   * команду, поэтому слушаем их напрямую.
-   *
-   * Диапазон позволяет продолжить с места обрыва: если фоновое окно закрылось,
-   * дозагрузка начинается с `from`, а не с нуля.
-   */
-  async downloadRecording(
-    session: number,
-    size: number,
-    options: { from?: number; onProgress?: (received: number) => void } = {},
-  ): Promise<Uint8Array> {
-    const buffer = new recorder.DownloadBuffer(session);
-
-    return new Promise<Uint8Array>((resolve, reject) => {
-      const timer = setTimeout(() => {
-        stop();
-        reject(new Error('браслет прервал выгрузку записи'));
-      }, 120_000);
-
-      const unsubscribe = this.transport.onReport((data) => {
-        if (!buffer.push(data)) {
-          options.onProgress?.(buffer.received);
-          return;
-        }
-        stop();
-        resolve(buffer.data());
-      });
-
-      const stop = () => {
-        clearTimeout(timer);
-        unsubscribe();
-        void this.transport.send(recorder.cancelDownload());
-      };
-
-      this.transport
-        .send(recorder.downloadRange(session, options.from ?? 0, size))
-        .catch((error: unknown) => {
-          stop();
-          reject(error instanceof Error ? error : new Error(String(error)));
-        });
-    });
-  }
-
-  /** Удалить запись с браслета. Вызывать только после сохранения файла. */
-  async removeRecording(session: number): Promise<void> {
-    await this.transport.send(recorder.removeRecording(session));
   }
 
   // ------------------------------------------------------------------ отчёты

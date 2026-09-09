@@ -238,7 +238,7 @@ export function useBand() {
 
     if (active) {
       try {
-        await active.unbind();
+        await active.admin.unbind();
       } catch (error) {
         logger.warn('band: устройство не отвязалось', { reason: String(error) });
       }

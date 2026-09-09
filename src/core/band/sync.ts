@@ -34,13 +34,13 @@ export async function syncRecordings(deviceId: string): Promise<SyncResult> {
 
   try {
     const known = savedSessions();
-    const fresh = (await band.recordings()).filter((item) => !known.has(item.session));
+    const fresh = (await band.recorder.list()).filter((item) => !known.has(item.session));
 
     let fetched = 0;
     let freed = 0;
 
     for (const recording of fresh.slice(0, RECORDINGS_PER_RUN)) {
-      const raw = await band.downloadRecording(recording.session, recording.bytes);
+      const raw = await band.recorder.download(recording.session, recording.bytes);
 
       // Скачали не всё — на устройстве не трогаем: остаток дозагрузится
       // в следующее окно, а неполный файл потом не восстановить.
@@ -56,7 +56,7 @@ export async function syncRecordings(deviceId: string): Promise<SyncResult> {
       saveRecording(recording.session, raw);
       fetched += 1;
 
-      await band.removeRecording(recording.session);
+      await band.recorder.remove(recording.session);
       freed += recording.bytes;
     }
 

@@ -50,12 +50,12 @@ export function useBandActions({ bandRef, patch, refresh, deviceId }: Options) {
   });
 
   const startRecording = withBand(async (active) => {
-    await active.startRecording();
+    await active.recorder.start();
     patch({ recording: true });
   });
 
   const stopRecording = withBand(async (active) => {
-    await active.stopRecording();
+    await active.recorder.stop();
     patch({ recording: false });
   });
 

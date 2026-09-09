@@ -100,8 +100,10 @@ export async function loadEverything(
     patch({ battery: info.battery?.level, firmware: info.firmware });
   });
   await step('сводка дня', async () => patch({ summary: await band.daySummary() }));
-  await step('записи', async () => patch({ recordings: await band.recordings() }));
-  await step('память', async () => patch({ storage: (await band.storage()) ?? undefined }));
+  await step('записи', async () => patch({ recordings: await band.recorder.list() }));
+  await step('память', async () =>
+    patch({ storage: (await band.recorder.storage()) ?? undefined }),
+  );
   await step('сон', async () => patch({ sleep: await band.sleep(week, now) }));
   await step('стресс', async () => patch({ stress: await band.stress(startOfToday(now), now) }));
 
