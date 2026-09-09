@@ -23,7 +23,8 @@ export type { Alarm } from './alarms';
 export { EVERY_DAY, WEEKDAYS, WEEKEND, Weekday } from './alarms';
 export type { DeviceSettings, DoNotDisturb, Threshold } from './settings';
 export { NotificationKind } from './notifications';
-export type { WorkoutRef } from './workouts';
+export type { ActivityState, SportCatalog, Workout, WorkoutRef } from './workouts';
+export { SportType, sportName } from './sports';
 
 export type { ActivitySample } from './activity';
 export type { BatteryState, Capabilities, DeviceInfo, FeatureName } from './device';
