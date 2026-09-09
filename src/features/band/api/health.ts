@@ -54,14 +54,16 @@ export type ActivityBlock = {
   sleepMinutes: number;
 };
 
+/** Дневные итоги. Отдельным объектом: так их видит принимающая сторона. */
+export type DayTotals = { steps: number; distance: number; calories: number };
+
 export type DaySummary = {
+  /** Календарный день по часам телефона. Устройство отдаёт только текущие сутки. */
+  date: string;
+  totals: DayTotals;
   /** Пульс на момент выборки, а не средний за день. */
   heartRate?: number;
   measuredAt?: Date;
-  steps: number;
-  /** Метры. */
-  distance: number;
-  calories: number;
   /**
    * Из чего сложился итог. Калории приходят несколькими блоками — активность
    * отдельно, базовый обмен отдельно, — и без разбивки одно от другого уже не
@@ -79,12 +81,17 @@ export type DaySummary = {
 /** Виды, у которых шаги имеют смысл. У сна и стояния их быть не должно. */
 const STEPPING = new Set<ActivityKind>(['walk', 'run', 'climb']);
 
+/** Календарный ключ дня в местном времени: `YYYY-MM-DD`. */
+function dayKey(at: Date): string {
+  const month = String(at.getMonth() + 1).padStart(2, '0');
+  return `${at.getFullYear()}-${month}-${String(at.getDate()).padStart(2, '0')}`;
+}
+
 export function decodeDaySummary(body: Uint8Array): DaySummary {
   const fields = parseModal(body);
   const summary: DaySummary = {
-    steps: 0,
-    distance: 0,
-    calories: 0,
+    date: dayKey(new Date()),
+    totals: { steps: 0, distance: 0, calories: 0 },
     byActivity: [],
     heartRate: intField(fields, 0x02),
   };
@@ -108,76 +115,21 @@ export function decodeDaySummary(body: Uint8Array): DaySummary {
     };
 
     summary.byActivity.push(part);
-    summary.calories += part.calories;
-    summary.distance += part.distance;
+    summary.totals.calories += part.calories;
+    summary.totals.distance += part.distance;
 
     // Шаги берём только у того, что человек прошёл ногами. Сон и стояние
     // приходят такими же блоками, и слепая сумма приписывала бы к дневным
     // шагам ночь.
-    if (STEPPING.has(part.kind)) summary.steps += part.steps;
+    if (STEPPING.has(part.kind)) summary.totals.steps += part.steps;
   }
 
   // Свой итог калорий устройство считает по собственной формуле, и он не равен
   // сумме блоков. Раз он есть — верим ему, а не нашему сложению.
   const own = intField(fields, 0x01);
-  if (own !== undefined && own > 0) summary.calories = own;
+  if (own !== undefined && own > 0) summary.totals.calories = own;
 
   return summary;
-}
-
-export const SleepStage = {
-  deep: 1,
-  light: 2,
-  awake: 3,
-  rem: 4,
-  nap: 5,
-  snore: 6,
-  sessionStart: 7,
-  sessionEnd: 8,
-} as const;
-
-export type SleepStageName = keyof typeof SleepStage;
-
-const STAGE_NAMES = Object.fromEntries(
-  Object.entries(SleepStage).map(([name, value]) => [value, name]),
-) as Record<number, SleepStageName>;
-
-export type SleepSegment = {
-  at: Date;
-  minutes: number;
-  stage: SleepStageName;
-};
-
-/**
- * Сон: две служебные байта заголовка, затем записи по семь байт.
- *
- * Стадии взяты из констант SDK вендора, а не из чужих разборов протокола: в
- * популярном реверсе третья и четвёртая перепутаны местами, из-за чего быстрый
- * сон превращается в пробуждения и ночь выглядит рваной.
- */
-export function decodeSleep(body: Uint8Array): SleepSegment[] {
-  const segments: SleepSegment[] = [];
-
-  for (let offset = 2; offset + 6 < body.length; offset += 7) {
-    const seconds = be32(body, offset) ?? 0;
-    const minutes = be16(body, offset + 4) ?? 0;
-    const stage = STAGE_NAMES[byteAt(body, offset + 6)];
-    if (!stage || seconds === 0) continue;
-
-    segments.push({ at: new Date(seconds * 1000), minutes, stage });
-  }
-
-  return segments;
-}
-
-/** Сколько минут пришлось на каждую стадию. Маркеры сессии не считаются. */
-export function sleepTotals(segments: readonly SleepSegment[]): Record<SleepStageName, number> {
-  const totals = Object.fromEntries(Object.keys(SleepStage).map((name) => [name, 0])) as Record<
-    SleepStageName,
-    number
-  >;
-  for (const segment of segments) totals[segment.stage] += segment.minutes;
-  return totals;
 }
 
 export type StressSample = {

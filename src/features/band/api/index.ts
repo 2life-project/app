@@ -6,15 +6,6 @@
  * внутренние детали и за пределы модуля не выходят.
  */
 
-export {
-  HEART_RATE_ZONES,
-  SLEEP_GAP_MINUTES,
-  SLEEP_TARGET_MINUTES,
-  STRESS_ZONES,
-  STRIDE_METRES,
-  WALKING_STEPS_PER_MINUTE,
-} from './analysis';
-
 export { Band } from './band';
 export type { BandEvent, BandListener } from './events';
 
@@ -28,15 +19,9 @@ export { SportType, sportName } from './sports';
 export type { ActivitySample } from './activity';
 export type { BatteryState, Capabilities, DeviceInfo, FeatureName } from './device';
 export { Feature, supports } from './device';
-export type {
-  DaySummary,
-  Measurement,
-  SleepSegment,
-  SleepStageName,
-  StressDay,
-  StressSample,
-} from './health';
-export { SleepStage, sleepTotals } from './health';
+export type { DaySummary, Measurement, StressDay, StressSample } from './health';
+export { SLEEP_STAGES, SleepStage, sleepTotals } from './sleep-stages';
+export type { SleepSegment, SleepStageName, SleepStageOnly } from './sleep-stages';
 export type { SleepSession } from './sleep';
 export { groupSleep, lastSleep } from './sleep';
 export type { Recording, RecorderEvent, Storage } from './recorder';

@@ -1,9 +1,8 @@
 import type { SectionSummaryRow } from '@/shared/ui';
 
-import { HEART_RATE_ZONES, SLEEP_TARGET_MINUTES } from '../api';
-
+import { HEART_RATE_ZONES, SLEEP_TARGET_MINUTES } from './analysis';
+import type { BandState } from './band-state';
 import { seriesOf, startOfToday, stressPoints, summaryOf } from './day-metrics';
-import type { BandState } from './use-band';
 import { walkOf } from './walk-metrics';
 
 /**
@@ -32,7 +31,7 @@ export function summaryOfBand(state: BandState): Summary {
   const walk = walkOf(state.today);
   const stress = stressPoints(state.stress, startOfToday());
   const oxygen = state.measurement?.bloodOxygen ?? state.live?.bloodOxygen;
-  const distance = state.summary?.distance ?? walk?.distance ?? 0;
+  const distance = state.summary?.totals.distance ?? walk?.distance ?? 0;
 
   // Последняя сессия, а не сумма за неделю: сложенные ночи не значат ничего.
   const sleepMinutes = state.sleep[state.sleep.length - 1]?.asleep ?? 0;
@@ -56,7 +55,7 @@ export function summaryOfBand(state: BandState): Summary {
         // само, и брать число оттуда, а расстояние из истории значит показать
         // две цифры, которые между собой не сходятся.
         subtitle: distance === 0 ? 'no movement yet' : `${kilometres(distance)} km`,
-        value: String(state.summary?.steps ?? walk?.steps ?? 0),
+        value: String(state.summary?.totals.steps ?? walk?.steps ?? 0),
       },
       {
         id: 'sleep',

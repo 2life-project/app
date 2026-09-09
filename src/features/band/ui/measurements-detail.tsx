@@ -4,8 +4,10 @@ import { space } from '@/shared/theme';
 import { Card, LineChart, Stack, StatTile, SummaryRow, Text } from '@/shared/ui';
 
 import type { ActivitySample } from '../api';
+import type { BandState } from '../model/band-state';
 import { seriesOf, summaryOf, thin, type Point } from '../model/day-metrics';
-import type { BandState } from '../model/use-band';
+import { readingsCaption } from '../model/day-metrics';
+import { clock } from '../model/format';
 
 /**
  * История разовых замеров.
@@ -23,10 +25,10 @@ const METRICS: readonly {
 }[] = [
   { title: 'Кислород', unit: '%', pick: (s) => s.bloodOxygen, tone: 'highlight' },
   { title: 'ВСР', unit: 'ms', pick: (s) => s.hrv, tone: 'success' },
-  { title: 'Systolic', unit: 'mmHg', pick: (s) => s.systolic, tone: 'danger' },
-  { title: 'Diastolic', unit: 'mmHg', pick: (s) => s.diastolic, tone: 'danger' },
+  { title: 'Систолическое', unit: 'мм рт. ст.', pick: (s) => s.systolic, tone: 'danger' },
+  { title: 'Диастолическое', unit: 'мм рт. ст.', pick: (s) => s.diastolic, tone: 'danger' },
   { title: 'Настроение', unit: '', pick: (s) => s.mood, tone: 'highlight' },
-  { title: 'Blood sugar', unit: 'mmol/L', pick: (s) => s.bloodSugar, tone: 'warning' },
+  { title: 'Сахар', unit: 'ммоль/л', pick: (s) => s.bloodSugar, tone: 'warning' },
 ];
 
 export function MeasurementsDetail({ state }: { state: BandState }) {
@@ -46,7 +48,7 @@ export function MeasurementsDetail({ state }: { state: BandState }) {
             <View style={styles.header}>
               <Text variant="subtitle">{item.title}</Text>
               <Text variant="bodySmall" tone="muted">
-                {item.points.length === 1 ? '1 reading' : `${item.points.length} readings`}
+                {readingsCaption(item.points.length)}
               </Text>
             </View>
 
@@ -62,7 +64,7 @@ export function MeasurementsDetail({ state }: { state: BandState }) {
               .map((point, index) => (
                 <SummaryRow
                   key={point.at.getTime()}
-                  title={time(point.at)}
+                  title={clock(point.at)}
                   value={withUnit(point.value, item.unit)}
                   divider={index > 0}
                 />
@@ -104,10 +106,6 @@ function Range({ points, unit }: { points: readonly Point[]; unit: string }) {
 function withUnit(value: number, unit: string): string {
   if (unit === '') return String(value);
   return unit === '%' ? `${value}%` : `${value} ${unit}`;
-}
-
-function time(at: Date): string {
-  return at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 const styles = StyleSheet.create({

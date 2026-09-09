@@ -4,9 +4,12 @@ import { StyleSheet, View } from 'react-native';
 import { space } from '@/shared/theme';
 import { ActionLink, BarChart, Card, Stack, StatTile, Text } from '@/shared/ui';
 
+import type { BandState } from '../model/band-state';
 import { byHour } from '../model/day-metrics';
-import type { BandState } from '../model/use-band';
+import { kilometres } from '../model/format';
 import { walkOf } from '../model/walk-metrics';
+
+import { BandEmpty } from './band-empty';
 
 /**
  * Ходьба: не сколько шагов, а как человек шёл.
@@ -16,15 +19,23 @@ import { walkOf } from '../model/walk-metrics';
  * своим правилам, и два разных числа под одним словом «сегодня» доверия не
  * прибавляют.
  */
-export function WalkCard({ state, onOpen }: { state: BandState; onOpen: () => void }) {
+export function WalkCard({
+  state,
+  reading,
+  onOpen,
+}: {
+  state: BandState;
+  reading: boolean;
+  onOpen: () => void;
+}) {
   // Оба прохода идут по всем минутам дня — до 1440 записей — и без памяти
   // повторяются на каждый живой отчёт, то есть раз в десять секунд.
   const walk = useMemo(() => walkOf(state.today), [state.today]);
   const hours = useMemo(() => byHour(state.today, (sample) => sample.steps), [state.today]);
 
-  const steps = state.summary?.steps ?? walk?.steps ?? 0;
-  const distance = state.summary?.distance ?? walk?.distance ?? 0;
-  const calories = state.summary?.calories ?? walk?.calories ?? 0;
+  const steps = state.summary?.totals.steps ?? walk?.steps ?? 0;
+  const distance = state.summary?.totals.distance ?? walk?.distance ?? 0;
+  const calories = state.summary?.totals.calories ?? walk?.calories ?? 0;
 
   return (
     <Card variant="sunken">
@@ -35,9 +46,7 @@ export function WalkCard({ state, onOpen }: { state: BandState; onOpen: () => vo
         </View>
 
         {walk === null ? (
-          <Text variant="bodySmall" tone="muted">
-            Шагов за сегодня пока нет.
-          </Text>
+          <BandEmpty reading={reading} text="Шагов за сегодня пока нет" />
         ) : (
           <>
             <View style={styles.value}>
@@ -48,6 +57,7 @@ export function WalkCard({ state, onOpen }: { state: BandState; onOpen: () => vo
             </View>
 
             <BarChart
+              markEmpty
               values={hours}
               highlightIndex={new Date().getHours()}
               axis={['00:00', '24:00']}
@@ -58,13 +68,13 @@ export function WalkCard({ state, onOpen }: { state: BandState; onOpen: () => vo
                 label="Каденс"
                 value={String(walk.cadenceAverage)}
                 unit="шаг/мин"
-                note={`peak ${walk.cadencePeak}`}
+                note={`пик ${walk.cadencePeak}`}
               />
               <StatTile
                 label="Скорость"
                 value={walk.speedAverage === null ? '—' : walk.speedAverage.toFixed(1)}
                 unit="km/h"
-                note={walk.speedPeak === null ? undefined : `peak ${walk.speedPeak.toFixed(1)}`}
+                note={walk.speedPeak === null ? undefined : `пик ${walk.speedPeak.toFixed(1)}`}
               />
             </View>
             <View style={styles.tiles}>
@@ -73,17 +83,13 @@ export function WalkCard({ state, onOpen }: { state: BandState; onOpen: () => vo
                 value={walk.stride === null ? '—' : walk.stride.toFixed(2)}
                 unit="m"
               />
-              <StatTile label="Активность" value={`${walk.activeMinutes} min`} />
+              <StatTile label="Активность" value={`${walk.activeMinutes} мин`} />
             </View>
           </>
         )}
       </Stack>
     </Card>
   );
-}
-
-function kilometres(metres: number): string {
-  return (Math.round(metres / 100) / 10).toFixed(1);
 }
 
 const styles = StyleSheet.create({

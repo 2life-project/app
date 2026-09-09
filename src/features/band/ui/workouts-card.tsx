@@ -1,6 +1,7 @@
 import { Button, Stack, StatTile, Text, WidgetCard } from '@/shared/ui';
 
 import type { ActivityState } from '../api';
+import { stamp } from '../model/format';
 import type { WorkoutSession } from '../model/workout-session';
 import type { RecordedWorkout } from '../model/workout-store';
 
@@ -66,7 +67,7 @@ export function WorkoutsCard({
               .reverse()
               .map((item) => (
                 <Stack key={item.startedAt} direction="row" justify="space-between" align="center">
-                  <Text variant="body">{when(item.startedAt)}</Text>
+                  <Text variant="body">{stamp(new Date(item.startedAt))}</Text>
                   <Text variant="bodySmall" tone="muted">
                     {Math.round(item.seconds / 60)} мин
                     {item.averageHeartRate === undefined
@@ -86,13 +87,4 @@ export function WorkoutsCard({
       </Stack>
     </WidgetCard>
   );
-}
-
-function when(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 }

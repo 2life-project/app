@@ -2,7 +2,7 @@ import type { PairedBand } from '@/shared/domain';
 import { Banner, Button, Card, ListRow, Stack, Text } from '@/shared/ui';
 
 import type { FoundBand } from '../api';
-import type { BandState } from '../model/use-band';
+import type { BandState } from '../model/band-state';
 
 /**
  * Подключение браслета.
@@ -30,7 +30,7 @@ export function BandConnect({
         tone="warning"
         title="Bluetooth выключен"
         subtitle="Включите его в настройках системы и повторите поиск."
-        action={{ label: 'Search', onPress: onScan }}
+        action={{ label: 'Искать', onPress: onScan }}
       />
     );
   }
@@ -41,7 +41,7 @@ export function BandConnect({
         tone="warning"
         title="Нет доступа к поиску"
         subtitle="Разрешите приложению доступ к Bluetooth, чтобы найти браслет."
-        action={{ label: 'Search', onPress: onScan }}
+        action={{ label: 'Искать', onPress: onScan }}
       />
     );
   }
@@ -54,7 +54,7 @@ export function BandConnect({
         tone="warning"
         title="Bluetooth ещё не готов"
         subtitle="Система пока не ответила. Повторите поиск через мгновение."
-        action={{ label: 'Search', onPress: onScan }}
+        action={{ label: 'Искать', onPress: onScan }}
       />
     );
   }
@@ -82,8 +82,8 @@ export function BandConnect({
             <Text variant="title">{paired.name}</Text>
             <Text variant="bodySmall" tone="muted">
               {state.problem === 'connect-failed'
-                ? 'Out of range or held by another phone. It will connect as soon as it is nearby.'
-                : 'Paired with this phone. Connecting happens on its own.'}
+                ? 'Вне зоны или занят другим телефоном. Подключится, как только окажется рядом.'
+                : 'Привязан к этому телефону. Подключение произойдёт само.'}
             </Text>
           </Stack>
           <Button label="Подключить" onPress={() => onConnect({ ...paired, rssi: 0 })} />
@@ -121,13 +121,13 @@ export function BandConnect({
           tone="danger"
           title="Не удалось подключиться"
           subtitle="Браслет может быть занят другим телефоном."
-          action={{ label: 'Try again', onPress: onScan }}
+          action={{ label: 'Повторить', onPress: onScan }}
         />
       ) : null}
 
       <Card variant="sunken">
         <Stack gap="sm">
-          <Text variant="title">{searching ? 'Searching…' : 'Found nearby'}</Text>
+          <Text variant="title">{searching ? 'Ищем…' : 'Найдено рядом'}</Text>
 
           {state.found.length === 0 ? (
             <Text variant="bodySmall" tone="muted">
@@ -153,6 +153,6 @@ export function BandConnect({
 
 /** Чем устройство подписано в списке: адрес, сила сигнала или готовая связь. */
 function subtitle(device: FoundBand): string {
-  if (device.connected) return 'already connected to this phone';
-  return device.mac ?? `signal ${device.rssi} dBm`;
+  if (device.connected) return 'уже подключён к этому телефону';
+  return device.mac ?? `сигнал ${device.rssi} dBm`;
 }

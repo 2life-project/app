@@ -63,8 +63,8 @@ const styles = StyleSheet.create({
   strip: {
     borderRadius: radius.sm,
     flexDirection: 'row',
-    gap: 2,
-    height: 10,
+    gap: space.xs,
+    height: space.md,
     overflow: 'hidden',
   },
   legend: {
@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
   },
   dot: {
     borderRadius: radius.full,
-    height: 8,
-    width: 8,
+    height: space.sm,
+    width: space.sm,
   },
 });

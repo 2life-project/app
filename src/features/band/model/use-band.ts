@@ -5,18 +5,7 @@ import { setPairedBand, usePairedBand } from '@/shared/domain';
 
 import {
   Band,
-  type ActivityState,
-  type ActivitySample,
-  type DaySummary,
   type FoundBand,
-  type Measurement,
-  type Recording,
-  type SavedRecording,
-  type ScanProblem,
-  type SleepSession,
-  type Storage,
-  type StressDay,
-  type Workout,
   connectedBands,
   dropConnection,
   mergeFound,
@@ -28,11 +17,11 @@ import {
 
 import { useBandActions } from './band-actions';
 import { clearSnapshot, loadEverything, loadSnapshot, saveSnapshot } from './band-data';
-import { INITIAL } from './band-state';
+import { INITIAL, type BandState } from './band-state';
 import { useBandEvents } from './use-band-events';
 import { useForeground } from './use-foreground';
-import type { WorkoutSession } from './workout-session';
-import type { RecordedWorkout } from './workout-store';
+import { useOpenSession } from './use-open-session';
+import { clearOpenSession, rememberWorkout, toRecord } from './workout-store';
 
 /**
  * Состояние работы с браслетом: поиск, подключение и всё, что устройство отдаёт.
@@ -44,48 +33,11 @@ import type { RecordedWorkout } from './workout-store';
 
 export type BandStage = 'idle' | 'scanning' | 'connecting' | 'connected' | 'failed';
 
-export type BandState = {
-  stage: BandStage;
-  problem?: ScanProblem | 'connect-failed';
-  found: FoundBand[];
-  device?: { id: string; name: string };
-  battery?: number;
-  firmware?: string;
-  /** Последний живой отчёт: приходит сам каждые десять секунд. */
-  live?: ActivitySample;
-  summary?: DaySummary;
-  measurement?: Measurement;
-  worn?: boolean;
-  sleep: SleepSession[];
-  /** Поминутная история за сегодня: из неё строятся все графики дня. */
-  today: ActivitySample[];
-  stress: StressDay[];
-  recordings: Recording[];
-  /** Тренировки: полноценные записи с видом спорта. На ES100 их не бывает. */
-  workouts: Workout[];
-  /** Заходы активности, которые браслет распознал сам: начало и длительность. */
-  states: ActivityState[];
-  /** Идущее занятие. Живёт только здесь: устройство его не хранит. */
-  session?: WorkoutSession;
-  /** Записанные занятия с телефона. */
-  recorded: RecordedWorkout[];
-  saved: SavedRecording[];
-  storage?: Storage;
-  /** Идёт ли запись прямо сейчас. */
-  recording: boolean;
-  busy: boolean;
-};
-
-/**
- * Каким видом спорта помечать занятие.
- *
- * Первый из включённых в каталоге устройства. Выбирать вид на экране пока
- * незачем: ES100 не различает виды движения — тип во всех наблюдениях единица.
- */
-const DEFAULT_SPORT = 1;
-
 /** Как часто обновлять сводку дня при открытом разделе. */
 const LIVE_POLL_MS = 30_000;
+
+/** Каким видом спорта помечать занятие: ES100 видов движения не различает. */
+const DEFAULT_SPORT = 1;
 
 export function useBand() {
   const paired = usePairedBand();
@@ -159,7 +111,24 @@ export function useBand() {
     }
   }, [patch]);
 
-  const adopt = useBandEvents({ bandRef: band, latest, patch, refresh });
+  /**
+   * Правка, считающая новое значение от актуального состояния.
+   *
+   * Нужна там, где отчёты приходят пачкой: `patch` берёт готовое значение,
+   * посчитанное до вызова, и два кадра в одной порции обновлений считались бы
+   * от одного и того же старого состояния — второй затирал бы первый.
+   */
+  const update = useCallback((next: (current: BandState) => Partial<BandState>) => {
+    setState((current) => {
+      const merged = { ...current, ...next(current) };
+      latest.current = merged;
+      return merged;
+    });
+  }, []);
+
+  const adopt = useBandEvents({ bandRef: band, patch, update, refresh });
+
+  useOpenSession(state.session, patch);
 
   // Пока раздел открыт, сводка дня подтягивается сама: шаги и калории живой
   // отчёт не несёт, а смотреть на цифры получасовой давности при подключённом
@@ -248,6 +217,12 @@ export function useBand() {
     // Связь могли держать и без нас: другой экран, прошлый запуск, система.
     if (deviceId) await dropConnection(deviceId);
     await stopBackgroundSync();
+
+    // Занятие могло идти прямо сейчас. Копии на устройстве нет, поэтому
+    // дописываем его перед тем, как стереть всё остальное.
+    const open = latest.current.session;
+    if (open) await rememberWorkout(toRecord(open)).catch(() => undefined);
+    await clearOpenSession();
 
     setPairedBand(null);
     clearSnapshot();

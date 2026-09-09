@@ -1,4 +1,4 @@
-import { concat } from './bytes';
+import { concat, toBe16 } from './bytes';
 import { Mode, encode, encodeReadAll } from './frame';
 import { encodeTime } from './tlv';
 
@@ -47,7 +47,7 @@ export const MeasureType = {
 } as const;
 
 export const byte = (value: number) => Uint8Array.from([value & 0xff]);
-export const word = (value: number) => Uint8Array.from([(value >> 8) & 0xff, value & 0xff]);
+export const word = toBe16;
 
 // ---------------------------------------------------------------- устройство
 

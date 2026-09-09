@@ -22,7 +22,6 @@ import {
   type StressDay,
   decodeDaySummary,
   decodeMeasurement,
-  decodeSleep,
   decodeStress,
   decodeWearState,
 } from './health';
@@ -31,6 +30,7 @@ import * as recorder from './recorder';
 import { BandRecorder } from './recorder-api';
 import { BandSettings } from './settings';
 import { type SleepSession, groupSleep } from './sleep';
+import { decodeSleep } from './sleep-stages';
 import { type BandTransport } from './transport';
 import { decodeWorkoutTick } from './workouts';
 import { BandWorkouts } from './workouts-api';

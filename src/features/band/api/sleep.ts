@@ -1,6 +1,9 @@
-import { SLEEP_GAP_MINUTES } from './analysis';
-import type { SleepSegment, SleepStageName } from './health';
-import { sleepTotals } from './health';
+import {
+  sleepTotals,
+  type SleepSegment,
+  type SleepStageName,
+  type SleepStageOnly,
+} from './sleep-stages';
 
 /**
  * Сон сессиями.
@@ -13,6 +16,9 @@ import { sleepTotals } from './health';
  * Плоский список сегментов без сессий бессмыслен: стадии имеют смысл внутри
  * одного сна, а сложенные за неделю не значат ничего.
  */
+
+/** Разрыв, по которому сон режется на сессии, когда маркеров устройства нет. */
+export const SLEEP_GAP_MINUTES = 180;
 
 export type SleepSession = {
   from: Date;
@@ -28,7 +34,7 @@ export type SleepSession = {
   cycles: number;
   /** Самый длинный сон без пробуждений — он важнее суммы для восстановления. */
   longestBlock: number;
-  totals: Record<SleepStageName, number>;
+  totals: Record<SleepStageOnly, number>;
   /** Доли стадий во времени в постели, проценты. */
   shares: Record<'deep' | 'light' | 'rem' | 'awake', number>;
   segments: SleepSegment[];

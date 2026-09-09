@@ -1,6 +1,7 @@
-import { Card, Stack, Text } from '@/shared/ui';
+import { Card, EmptyState, Stack, Text } from '@/shared/ui';
 
 import type { ActivityState } from '../api';
+import { stamp } from '../model/format';
 import type { RecordedWorkout } from '../model/workout-store';
 
 /**
@@ -19,15 +20,10 @@ export function WorkoutsDetail({
 }) {
   if (recorded.length === 0 && states.length === 0) {
     return (
-      <Card variant="sunken">
-        <Stack gap="xs">
-          <Text variant="subtitle">Ничего не размечено</Text>
-          <Text tone="muted">
-            Браслет размечает заходы движения сам, без кнопки старта. За последние сутки он не
-            распознал ни одного.
-          </Text>
-        </Stack>
-      </Card>
+      <EmptyState
+        title="Ничего не размечено"
+        description="Браслет размечает заходы движения сам, без кнопки старта. За последние сутки он не распознал ни одного."
+      />
     );
   }
 
@@ -44,7 +40,7 @@ export function WorkoutsDetail({
                 key={`${item.stream}-${item.at.getTime()}`}
                 direction="row"
                 justify="space-between">
-                <Text variant="bodySmall">{item.at.toLocaleString()}</Text>
+                <Text variant="bodySmall">{stamp(item.at)}</Text>
                 <Text variant="bodySmall" tone="muted">
                   {item.minutes} мин · поток {item.stream}
                 </Text>
@@ -61,7 +57,7 @@ export function WorkoutsDetail({
             {/* Хранятся на телефоне: браслет их не сохраняет. */}
             {[...recorded].reverse().map((item) => (
               <Stack key={item.startedAt} direction="row" justify="space-between">
-                <Text variant="bodySmall">{new Date(item.startedAt).toLocaleString()}</Text>
+                <Text variant="bodySmall">{stamp(new Date(item.startedAt))}</Text>
                 <Text variant="bodySmall" tone="muted">
                   {Math.round(item.seconds / 60)} мин · {item.distance} м · {item.calories} ккал
                 </Text>

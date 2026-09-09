@@ -1,5 +1,5 @@
 import { Mode } from './frame';
-import { encodeBatch, tlv, tlvByte, tlvWord } from './outbound';
+import { encodeBatch, tlv, tlvByte, tlvLong, tlvWord } from './outbound';
 
 /**
  * Настройки, которые пишутся на устройство пачкой: профиль человека, дневная
@@ -115,19 +115,6 @@ export function motionGoal(goal: MotionGoal): Uint8Array[] {
     tlvLong(0x05, goal.distance),
     tlvWord(0x06, goal.duration),
   ]);
-}
-
-/** Четырёхбайтовое значение внутри пачки. */
-export function tlvLong(tag: number, value: number): Uint8Array {
-  return tlv(
-    tag,
-    Uint8Array.from([
-      (value >>> 24) & 0xff,
-      (value >>> 16) & 0xff,
-      (value >>> 8) & 0xff,
-      value & 0xff,
-    ]),
-  );
 }
 
 // ------------------------------------------------------------- тренировка

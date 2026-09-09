@@ -1,6 +1,6 @@
 import { type ActivitySample, type StressDay } from '../api';
 
-export { HEART_RATE_ZONES, STRESS_ZONES } from '../api';
+export { HEART_RATE_ZONES, STRESS_ZONES } from './analysis';
 
 /**
  * Показатели дня из поминутной истории браслета.

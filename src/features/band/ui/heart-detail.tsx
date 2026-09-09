@@ -1,8 +1,18 @@
 import { StyleSheet, View } from 'react-native';
 
 import { space } from '@/shared/theme';
-import { BarChart, Card, LineChart, Stack, StatTile, SummaryRow, Text } from '@/shared/ui';
+import {
+  BarChart,
+  Card,
+  EmptyState,
+  LineChart,
+  Stack,
+  StatTile,
+  SummaryRow,
+  Text,
+} from '@/shared/ui';
 
+import type { BandState } from '../model/band-state';
 import {
   HEART_RATE_ZONES,
   lastResting,
@@ -12,7 +22,7 @@ import {
   zonesOf,
 } from '../model/day-metrics';
 import { extremes, hourlyAverages } from '../model/detail';
-import type { BandState } from '../model/use-band';
+import { clock, hourLabel } from '../model/format';
 
 import { ZoneBars } from './zone-bars';
 
@@ -34,9 +44,10 @@ export function HeartDetail({ state }: { state: BandState }) {
 
   if (!summary) {
     return (
-      <Card variant="sunken">
-        <Text tone="muted">Пульс сегодня не записан.</Text>
-      </Card>
+      <EmptyState
+        title="Пульса за сегодня нет"
+        description="Браслет меряет его по расписанию и во время занятия. Нажмите «Замерить» на разделе, чтобы снять сейчас."
+      />
     );
   }
 
@@ -65,6 +76,7 @@ export function HeartDetail({ state }: { state: BandState }) {
         <Stack gap="sm">
           <Text variant="subtitle">По часам</Text>
           <BarChart
+            markEmpty
             values={hours.map((hour) => hour.value)}
             highlightIndex={new Date().getHours()}
             tone="danger"
@@ -74,13 +86,13 @@ export function HeartDetail({ state }: { state: BandState }) {
             <>
               <SummaryRow
                 title="Самый спокойный час"
-                subtitle={`${peak.low.count} readings`}
-                value={`${clock(peak.low.hour)} · ${peak.low.value} bpm`}
+                subtitle={`замеров: ${peak.low.count}`}
+                value={`${hourLabel(peak.low.hour)} · ${peak.low.value} уд/мин`}
               />
               <SummaryRow
                 title="Самый нагруженный час"
-                subtitle={`${peak.high.count} readings`}
-                value={`${clock(peak.high.hour)} · ${peak.high.value} bpm`}
+                subtitle={`замеров: ${peak.high.count}`}
+                value={`${hourLabel(peak.high.hour)} · ${peak.high.value} уд/мин`}
                 divider
               />
             </>
@@ -90,7 +102,7 @@ export function HeartDetail({ state }: { state: BandState }) {
 
       <Card variant="sunken">
         <Stack gap="sm">
-          <Text variant="subtitle">Zones</Text>
+          <Text variant="subtitle">Зоны</Text>
           <ZoneBars zones={zonesOf(points, HEART_RATE_ZONES)} all />
           <Text variant="caption" tone="muted">
             Доля сегодняшних замеров, попавших в каждый диапазон.
@@ -107,8 +119,8 @@ export function HeartDetail({ state }: { state: BandState }) {
             .map((point, index) => (
               <SummaryRow
                 key={point.at.getTime()}
-                title={time(point.at)}
-                value={`${point.value} bpm`}
+                title={clock(point.at)}
+                value={`${point.value} уд/мин`}
                 divider={index > 0}
               />
             ))}
@@ -116,14 +128,6 @@ export function HeartDetail({ state }: { state: BandState }) {
       </Card>
     </Stack>
   );
-}
-
-function clock(hour: number): string {
-  return `${String(hour).padStart(2, '0')}:00`;
-}
-
-function time(at: Date): string {
-  return at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 const styles = StyleSheet.create({

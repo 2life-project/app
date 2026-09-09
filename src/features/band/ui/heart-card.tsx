@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { space } from '@/shared/theme';
 import { Button, StatTile, Text } from '@/shared/ui';
 
+import type { BandState } from '../model/band-state';
 import {
   HEART_RATE_ZONES,
   lastResting,
@@ -13,7 +14,6 @@ import {
   thin,
   zonesOf,
 } from '../model/day-metrics';
-import type { BandState } from '../model/use-band';
 import { useHeartbeat } from '../model/use-heartbeat';
 
 import { MetricCard } from './metric-card';
@@ -77,7 +77,7 @@ export function HeartCard({
       {heartbeat.available ? (
         <View style={styles.beat}>
           <Button
-            label={heartbeat.on ? 'Stop the beat' : 'Feel the beat'}
+            label={heartbeat.on ? 'Остановить ритм' : 'Почувствовать ритм'}
             variant={heartbeat.on ? 'filled' : 'tonal'}
             size="sm"
             onPress={heartbeat.toggle}

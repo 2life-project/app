@@ -2,8 +2,8 @@ import { StyleSheet, View } from 'react-native';
 
 import { ActionLink, Card, Stack, SummaryRow, Text } from '@/shared/ui';
 
+import type { BandState } from '../model/band-state';
 import { seriesOf, type Point } from '../model/day-metrics';
-import type { BandState } from '../model/use-band';
 
 /**
  * Показатели, которые снимаются по расписанию или по кнопке.
@@ -19,7 +19,7 @@ export function MeasurementsCard({ state, onOpen }: { state: BandState; onOpen: 
     row('ВСР', unit(pick(state, 'hrv'), ' ms')),
     row('Давление', pressure(state)),
     row('Настроение', unit(pick(state, 'mood'), '')),
-    row('Blood sugar', unit(last(seriesOf(state.today, (s) => s.bloodSugar)), ' mmol/L')),
+    row('Сахар', unit(last(seriesOf(state.today, (s) => s.bloodSugar)), ' mmol/L')),
   ];
 
   return (
@@ -33,7 +33,7 @@ export function MeasurementsCard({ state, onOpen }: { state: BandState; onOpen: 
           <SummaryRow
             key={item.title}
             title={item.title}
-            subtitle={item.value === '—' ? 'not measured today' : 'last reading'}
+            subtitle={item.value === '—' ? 'сегодня не измерялось' : 'последний замер'}
             value={item.value}
             divider={index > 0}
           />

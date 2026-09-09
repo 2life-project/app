@@ -4,7 +4,8 @@ import { StyleSheet, View } from 'react-native';
 import { radius, space, theme } from '@/shared/theme';
 import { Text } from '@/shared/ui';
 
-import type { SleepSegment, SleepStageName } from '../api';
+import type { SleepSegment, SleepStageOnly } from '../api';
+import { clock, duration } from '../model/format';
 
 /**
  * Ход ночи по стадиям — дорожками, а не одной полосой.
@@ -15,7 +16,7 @@ import type { SleepSegment, SleepStageName } from '../api';
  */
 
 /** Порядок дорожек сверху вниз: от бодрствования к самому глубокому сну. */
-const LANES: readonly { label: string; stage: SleepStageName }[] = [
+const LANES: readonly { label: string; stage: SleepStageOnly }[] = [
   { label: 'Пробуждения', stage: 'awake' },
   { label: 'REM', stage: 'rem' },
   { label: 'Лёгкий', stage: 'light' },
@@ -23,15 +24,13 @@ const LANES: readonly { label: string; stage: SleepStageName }[] = [
 ];
 
 /** Цвет углубляется вместе со стадией: глубокий сон — самый плотный тон. */
-const STAGE_COLOR: Record<SleepStageName, string> = {
+const STAGE_COLOR: Record<SleepStageOnly, string> = {
   awake: theme.color.warning.solid,
   rem: theme.color.highlight.solid,
   light: theme.color.accent.border,
   deep: theme.color.accent.solid,
   nap: theme.color.accent.border,
   snore: theme.color.neutral.border,
-  sessionStart: theme.color.neutral.border,
-  sessionEnd: theme.color.neutral.border,
 };
 
 /** Минимальная ширина отрезка в процентах: минута из восьми часов иначе исчезает. */
@@ -43,7 +42,7 @@ export function Hypnogram({
 }: {
   segments: readonly SleepSegment[];
   /** Сколько минут в каждой стадии: число стоит у своей дорожки, а не отдельным блоком. */
-  totals: Record<SleepStageName, number>;
+  totals: Record<SleepStageOnly, number>;
 }) {
   // Сортировка и разбор по дорожкам — четыре прохода по всем отрезкам ночи.
   // В теле рендера они повторялись на каждую перерисовку панели.
@@ -78,7 +77,9 @@ export function Hypnogram({
                     {
                       left: `${((segment.at.getTime() - from) / span) * 100}%`,
                       width: `${Math.max(MIN_WIDTH, ((segment.minutes * 60_000) / span) * 100)}%`,
-                      backgroundColor: STAGE_COLOR[segment.stage],
+                      // Маркеры сессии на дорожки не попадают: они отфильтрованы
+                      // выше, и цвета у них нет.
+                      backgroundColor: STAGE_COLOR[segment.stage as SleepStageOnly],
                     },
                   ]}
                 />
@@ -102,16 +103,12 @@ export function Hypnogram({
   );
 }
 
-function duration(minutes: number): string {
-  if (minutes < 60) return `${minutes}m`;
-  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
-}
+/** Высота дорожки стадии: соседние не должны сливаться в одну полосу. */
+/** Колонки подписи и итога: ширина фиксирована, чтобы дорожки были в одной сетке. */
+const LABEL_WIDTH = space.cardX * 2 + space.sm;
+const TOTAL_WIDTH = space.cardX * 3 + space.sm;
 
-function clock(at: Date): string {
-  return at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-const LANE_HEIGHT = 14;
+const LANE_HEIGHT = space.md;
 
 const styles = StyleSheet.create({
   wrap: {
@@ -123,13 +120,13 @@ const styles = StyleSheet.create({
     gap: space.sm,
   },
   label: {
-    width: 42,
+    width: LABEL_WIDTH,
   },
   total: {
     // Итог стоит у своей дорожки: отдельным блоком под графиком он заставлял
     // сопоставлять цвет с числом, а здесь они на одной строке.
     textAlign: 'right',
-    width: 54,
+    width: TOTAL_WIDTH,
   },
   track: {
     backgroundColor: theme.color.surfaceSunken,
@@ -152,7 +149,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     // Дорожки сдвинуты подписью слева: без того же отступа время не совпадает
     // с началом шкалы.
-    paddingLeft: 42 + space.sm,
-    paddingRight: 54 + space.sm,
+    paddingLeft: LABEL_WIDTH + space.sm,
+    paddingRight: TOTAL_WIDTH + space.sm,
   },
 });

@@ -64,6 +64,9 @@ export function decodeAlarms(body: Uint8Array): Alarm[] {
   return [...slots.values()].sort((a, b) => a.slot - b.slot);
 }
 
+/** Если прошивка предел не назвала — берём её же типичный. */
+const DEFAULT_LIMIT = 10;
+
 export class BandAlarms {
   constructor(private readonly transport: BandTransport) {}
 
@@ -89,12 +92,21 @@ export class BandAlarms {
    * Добавить будильник в первый свободный слот. Предел числа слотов прошивка
    * не сообщает — переполнение она отклонит сама, и это её право.
    */
+  /**
+   * Добавить будильник в первую свободную ячейку.
+   *
+   * Предел спрашиваем у прошивки, а не подбираем вслепую: сверх него будильник
+   * молча не сохранится, и человек просто не проснётся. На проверенном
+   * устройстве ячеек десять.
+   */
   async add(alarm: Omit<Alarm, 'slot'>): Promise<Alarm[]> {
     const list = await this.list();
     const used = new Set(list.map((item) => item.slot));
+    const limit = (await this.limit()) ?? DEFAULT_LIMIT;
 
     let slot = 1;
     while (used.has(slot)) slot += 1;
+    if (slot > limit) throw new Error(`band: свободных ячеек будильника нет, предел ${limit}`);
 
     const next = [...list, { ...alarm, slot }];
     await this.save(next);

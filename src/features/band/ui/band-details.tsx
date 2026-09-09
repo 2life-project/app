@@ -1,6 +1,6 @@
 import { Sheet } from '@/shared/ui';
 
-import type { BandState } from '../model/use-band';
+import type { BandState } from '../model/band-state';
 
 import { HeartDetail } from './heart-detail';
 import { MeasurementsDetail } from './measurements-detail';

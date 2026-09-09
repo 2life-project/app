@@ -10,11 +10,8 @@
  * (github.com/tcsenpai/ht36, MIT) — она подтверждена на живом устройстве.
  */
 
-import { concat } from './bytes';
-import { Mode } from './frame';
-
-const HEADER = 0x01;
-const TERMINATOR = 0xfd;
+import { concat, toBe16, toBe32 } from './bytes';
+import { HEADER, Mode, TERMINATOR } from './frame';
 
 /** Сколько байт полезной нагрузки влезает в кадр при MTU 247. */
 const CHUNK = 230;
@@ -37,7 +34,7 @@ export function tlvByte(tag: number, value: number): Uint8Array {
 }
 
 export function tlvWord(tag: number, value: number): Uint8Array {
-  return tlv(tag, Uint8Array.from([(value >> 8) & 0xff, value & 0xff]));
+  return tlv(tag, toBe16(value));
 }
 
 /**
@@ -45,6 +42,11 @@ export function tlvWord(tag: number, value: number): Uint8Array {
  * эмодзи — занимают две пары байт, поэтому длина считается в байтах, а не в
  * символах: иначе прошивка отрежет строку по середине пары.
  */
+/** Четырёхбайтовое значение внутри пачки. */
+export function tlvLong(tag: number, value: number): Uint8Array {
+  return tlv(tag, toBe32(value));
+}
+
 export function utf16(text: string): Uint8Array {
   const units: number[] = [];
 

@@ -6,3 +6,6 @@ coverage
 ios
 android
 package-lock.json
+
+# Рабочие копии других веток: их формат — забота их ветки, не этой.
+.claude/worktrees

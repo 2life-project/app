@@ -1,6 +1,6 @@
 import { be16, be32, byteAt } from './bytes';
 import { sportName } from './sports';
-import { type Field, intField, parseModal, parseTagged } from './tlv';
+import { intField, parseModal, parseTagged, type Field } from './tlv';
 
 /**
  * Тренировки.
@@ -197,7 +197,7 @@ export function decodeSportCatalog(body: Uint8Array): SportCatalog {
   };
 
   return {
-    slots: byteAt(fields.find((item) => item.tag === 0x01)?.value ?? new Uint8Array(), 0),
+    slots: intField(fields, 0x01) ?? 0,
     supported: list(0x03),
     enabled: list(0x04),
   };

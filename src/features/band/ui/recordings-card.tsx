@@ -1,6 +1,9 @@
+import { Share } from 'react-native';
+
 import { ActionLink, Button, Stack, StatTile, Text, WidgetCard } from '@/shared/ui';
 
 import type { Recording, SavedRecording } from '../api';
+import { stamp } from '../model/format';
 
 import { BandEmpty } from './band-empty';
 
@@ -57,7 +60,12 @@ export function RecordingsCard({
                 {describe(item)}
               </Text>
             </Stack>
-            <ActionLink label="Удалить" onPress={() => onRemove(item.session)} />
+            <Stack direction="row" gap="sm" align="center">
+              {/* Без этого выгрузка кончалась ничем: файл лежал на телефоне, а
+                  добраться до него из приложения было нельзя. */}
+              <ActionLink label="Отправить" onPress={() => void share(item.uri)} />
+              <ActionLink label="Удалить" onPress={() => onRemove(item.session)} />
+            </Stack>
           </Stack>
         ))}
 
@@ -72,19 +80,15 @@ export function RecordingsCard({
   );
 }
 
-function stamp(at: Date): string {
-  return at.toLocaleString(undefined, {
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
 /** Длительность, метки и признак отправки — всё, что про запись известно. */
 function describe(item: SavedRecording): string {
   const parts = [`${Math.round(item.seconds)} с`];
   if (item.marks.length > 0) parts.push(`меток: ${item.marks.length}`);
   parts.push(item.uploaded ? 'отправлена' : 'не отправлена');
   return parts.join(' · ');
+}
+
+/** Отдать файл системе: почта, мессенджер, «сохранить в файлы» — выбирает человек. */
+async function share(uri: string): Promise<void> {
+  await Share.share({ url: uri }).catch(() => undefined);
 }

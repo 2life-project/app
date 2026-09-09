@@ -11,12 +11,6 @@ import { encodeTime } from './tlv';
  * одноимённым методом вендорского SDK. Выводить их друг из друга нельзя.
  */
 
-// ------------------------------------------------- автозамеры и их интервалы
-//
-// Поля чтения и записи здесь не совпадают: стресс читается полем 0x12, а
-// пишется полем 0x07. Каждая строка сверена с одноимённым методом вендорского
-// SDK — выводить их друг из друга нельзя.
-
 export const readAutoStress = () => encode(Cmd.health, Mode.read, 0x12);
 export const readAutoMood = () => encode(Cmd.health, Mode.read, 0x13);
 export const readAutoBloodPressure = () => encode(Cmd.health, Mode.read, 0x14);

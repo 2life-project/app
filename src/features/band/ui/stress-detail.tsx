@@ -1,8 +1,18 @@
 import { StyleSheet, View } from 'react-native';
 
 import { space } from '@/shared/theme';
-import { BarChart, Card, LineChart, Stack, StatTile, SummaryRow, Text } from '@/shared/ui';
+import {
+  BarChart,
+  Card,
+  EmptyState,
+  LineChart,
+  Stack,
+  StatTile,
+  SummaryRow,
+  Text,
+} from '@/shared/ui';
 
+import type { BandState } from '../model/band-state';
 import {
   STRESS_ZONES,
   startOfToday,
@@ -12,7 +22,7 @@ import {
   zonesOf,
 } from '../model/day-metrics';
 import { extremes, hourlyAverages } from '../model/detail';
-import type { BandState } from '../model/use-band';
+import { clock, hourLabel } from '../model/format';
 
 import { ZoneBars } from './zone-bars';
 
@@ -32,9 +42,10 @@ export function StressDetail({ state }: { state: BandState }) {
 
   if (!summary) {
     return (
-      <Card variant="sunken">
-        <Text tone="muted">Замеров стресса сегодня нет.</Text>
-      </Card>
+      <EmptyState
+        title="Замеров стресса сегодня нет"
+        description="Устройство меряет стресс само примерно раз в десять минут."
+      />
     );
   }
 
@@ -56,6 +67,7 @@ export function StressDetail({ state }: { state: BandState }) {
         <Stack gap="sm">
           <Text variant="subtitle">По часам</Text>
           <BarChart
+            markEmpty
             values={hours.map((hour) => hour.value)}
             highlightIndex={new Date().getHours()}
             tone="warning"
@@ -65,13 +77,13 @@ export function StressDetail({ state }: { state: BandState }) {
             <>
               <SummaryRow
                 title="Самый спокойный час"
-                subtitle={`${peak.low.count} readings`}
-                value={`${clock(peak.low.hour)} · ${peak.low.value}`}
+                subtitle={`замеров: ${peak.low.count}`}
+                value={`${hourLabel(peak.low.hour)} · ${peak.low.value}`}
               />
               <SummaryRow
                 title="Самый напряжённый час"
-                subtitle={`${peak.high.count} readings`}
-                value={`${clock(peak.high.hour)} · ${peak.high.value}`}
+                subtitle={`замеров: ${peak.high.count}`}
+                value={`${hourLabel(peak.high.hour)} · ${peak.high.value}`}
                 divider
               />
             </>
@@ -81,7 +93,7 @@ export function StressDetail({ state }: { state: BandState }) {
 
       <Card variant="sunken">
         <Stack gap="sm">
-          <Text variant="subtitle">Zones</Text>
+          <Text variant="subtitle">Зоны</Text>
           <ZoneBars zones={zonesOf(points, STRESS_ZONES)} all />
         </Stack>
       </Card>
@@ -95,7 +107,7 @@ export function StressDetail({ state }: { state: BandState }) {
             .map((point, index) => (
               <SummaryRow
                 key={point.at.getTime()}
-                title={time(point.at)}
+                title={clock(point.at)}
                 value={String(point.value)}
                 divider={index > 0}
               />
@@ -104,14 +116,6 @@ export function StressDetail({ state }: { state: BandState }) {
       </Card>
     </Stack>
   );
-}
-
-function clock(hour: number): string {
-  return `${String(hour).padStart(2, '0')}:00`;
-}
-
-function time(at: Date): string {
-  return at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 const styles = StyleSheet.create({

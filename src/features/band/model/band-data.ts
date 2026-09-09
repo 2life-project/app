@@ -5,8 +5,8 @@ import { logger } from '@/core/log/logger';
 import type { Band, Workout } from '../api';
 import { savedRecordings } from '../api';
 
+import type { BandState } from './band-state';
 import { startOfToday } from './day-metrics';
-import type { BandState } from './use-band';
 import { loadWorkouts } from './workout-store';
 
 /**
@@ -24,25 +24,14 @@ import { loadWorkouts } from './workout-store';
  */
 const KEY = '2life:band-snapshot.2';
 
-/** Что переживает перезапуск. Остальное — состояние соединения, оно всегда новое. */
-type Snapshot = Pick<
-  BandState,
-  | 'battery'
-  | 'firmware'
-  | 'live'
-  | 'summary'
-  | 'measurement'
-  | 'worn'
-  | 'sleep'
-  | 'today'
-  | 'stress'
-  | 'recordings'
-  | 'workouts'
-  | 'states'
-  | 'storage'
->;
-
-const KEEP: readonly (keyof Snapshot)[] = [
+/**
+ * Что переживает перезапуск. Остальное — состояние соединения, оно всегда новое.
+ *
+ * Список один: и форма снимка, и перечень ключей для сборки выводятся из него.
+ * Двумя списками, которые обязаны совпадать, это уже было — и разъезжалось
+ * молча при каждом новом поле.
+ */
+const KEEP = [
   'battery',
   'firmware',
   'live',
@@ -56,7 +45,9 @@ const KEEP: readonly (keyof Snapshot)[] = [
   'workouts',
   'states',
   'storage',
-];
+] as const satisfies readonly (keyof BandState)[];
+
+type Snapshot = Pick<BandState, (typeof KEEP)[number]>;
 
 const ISO = /^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/;
 

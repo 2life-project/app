@@ -3,7 +3,9 @@ import { StyleSheet, View } from 'react-native';
 import { space } from '@/shared/theme';
 import { ActionLink, Card, ProgressBar, Stack, Text, WidgetCard } from '@/shared/ui';
 
-import { SLEEP_TARGET_MINUTES, type SleepSession } from '../api';
+import { type SleepSession } from '../api';
+import { SLEEP_TARGET_MINUTES } from '../model/analysis';
+import { clock, duration } from '../model/format';
 
 import { BandEmpty } from './band-empty';
 import { Hypnogram } from './hypnogram';
@@ -76,17 +78,8 @@ function toneOf(asleep: number): 'success' | 'warning' | 'danger' {
   return 'danger';
 }
 
-function duration(minutes: number): string {
-  if (minutes < 60) return `${minutes}m`;
-  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
-}
-
 function share(part: number, total: number): number {
   return total === 0 ? 0 : Math.round((part / total) * 100);
-}
-
-function clock(at: Date): string {
-  return at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 const styles = StyleSheet.create({

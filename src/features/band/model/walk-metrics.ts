@@ -1,5 +1,6 @@
-import { type ActivitySample, STRIDE_METRES, WALKING_STEPS_PER_MINUTE } from '../api';
+import { type ActivitySample } from '../api';
 
+import { STRIDE_METRES, WALKING_STEPS_PER_MINUTE } from './analysis';
 import type { Point } from './day-metrics';
 
 /**

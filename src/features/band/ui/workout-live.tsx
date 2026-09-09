@@ -1,5 +1,8 @@
+import { useMemo } from 'react';
+
 import { StatTile, Stack, Text } from '@/shared/ui';
 
+import { stopwatch } from '../model/format';
 import { averageHeartRate, type WorkoutSession } from '../model/workout-session';
 
 /**
@@ -10,12 +13,14 @@ import { averageHeartRate, type WorkoutSession } from '../model/workout-session'
  * ровно то, что уже накоплено на телефоне, а не запрашивает у браслета заново.
  */
 export function WorkoutLive({ session }: { session: WorkoutSession }) {
-  const average = averageHeartRate(session);
+  // Считается из бегущей суммы, но вызов всё равно на каждом кадре — раз в
+  // секунду; память снимает и его.
+  const average = useMemo(() => averageHeartRate(session), [session]);
 
   return (
     <Stack gap="sm">
       <Stack direction="row" gap="sm">
-        <StatTile label="Время" value={clock(session.seconds)} />
+        <StatTile label="Время" value={stopwatch(session.seconds)} />
         <StatTile
           label="Пульс"
           value={session.heartRate === undefined ? '—' : String(session.heartRate)}
@@ -39,9 +44,4 @@ export function WorkoutLive({ session }: { session: WorkoutSession }) {
       </Text>
     </Stack>
   );
-}
-
-function clock(seconds: number): string {
-  const minutes = Math.floor(seconds / 60);
-  return `${minutes}:${String(seconds % 60).padStart(2, '0')}`;
 }

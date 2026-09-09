@@ -1,11 +1,21 @@
 import { StyleSheet, View } from 'react-native';
 
 import { space } from '@/shared/theme';
-import { BarChart, Card, LineChart, Stack, StatTile, SummaryRow, Text } from '@/shared/ui';
+import {
+  BarChart,
+  Card,
+  EmptyState,
+  LineChart,
+  Stack,
+  StatTile,
+  SummaryRow,
+  Text,
+} from '@/shared/ui';
 
+import type { BandState } from '../model/band-state';
 import { byHour, thin } from '../model/day-metrics';
 import { boutsOf } from '../model/detail';
-import type { BandState } from '../model/use-band';
+import { clock, kilometres } from '../model/format';
 import { cadenceSeries, walkOf } from '../model/walk-metrics';
 
 /**
@@ -23,9 +33,10 @@ export function WalkDetail({ state }: { state: BandState }) {
 
   if (!walk) {
     return (
-      <Card variant="sunken">
-        <Text tone="muted">Шагов за сегодня нет.</Text>
-      </Card>
+      <EmptyState
+        title="Шагов за сегодня нет"
+        description="Они появятся, как только браслет их насчитает."
+      />
     );
   }
 
@@ -33,27 +44,28 @@ export function WalkDetail({ state }: { state: BandState }) {
     <Stack gap="md">
       <Card variant="sunken">
         <Stack gap="sm">
-          <Text variant="subtitle">Steps by hour</Text>
+          <Text variant="subtitle">Шаги по часам</Text>
           <BarChart
+            markEmpty
             values={hours}
             highlightIndex={new Date().getHours()}
             axis={['00:00', '24:00']}
           />
           <View style={styles.tiles}>
-            <StatTile label="Шаги" value={String(state.summary?.steps ?? walk.steps)} />
+            <StatTile label="Шаги" value={String(state.summary?.totals.steps ?? walk.steps)} />
             <StatTile
               label="Дистанция"
-              value={kilometres(state.summary?.distance ?? walk.distance)}
+              value={kilometres(state.summary?.totals.distance ?? walk.distance)}
               unit="km"
             />
           </View>
           <View style={styles.tiles}>
             <StatTile
               label="Калории"
-              value={String(state.summary?.calories ?? walk.calories)}
+              value={String(state.summary?.totals.calories ?? walk.calories)}
               unit="ккал"
             />
-            <StatTile label="Активность" value={`${walk.activeMinutes} min`} />
+            <StatTile label="Активность" value={`${walk.activeMinutes} мин`} />
           </View>
         </Stack>
       </Card>
@@ -61,14 +73,14 @@ export function WalkDetail({ state }: { state: BandState }) {
       {cadence.length > 1 ? (
         <Card variant="sunken">
           <Stack gap="sm">
-            <Text variant="subtitle">Cadence while walking</Text>
+            <Text variant="subtitle">Каденс при ходьбе</Text>
             <LineChart values={thin(cadence, 160)} tone="success" height={120} />
             <View style={styles.tiles}>
               <StatTile
                 label="Среднее"
                 value={String(walk.cadenceAverage)}
                 unit="шаг/мин"
-                note={`peak ${walk.cadencePeak}`}
+                note={`пик ${walk.cadencePeak}`}
               />
               <StatTile
                 label="Длина шага"
@@ -98,7 +110,7 @@ export function WalkDetail({ state }: { state: BandState }) {
                 <SummaryRow
                   key={bout.from.getTime()}
                   title={`${clock(bout.from)} — ${clock(bout.to)}`}
-                  subtitle={`${bout.minutes} min · ${bout.cadence} spm · ${bout.speed.toFixed(1)} km/h`}
+                  subtitle={`${bout.minutes} мин · ${bout.cadence} шаг/мин · ${bout.speed.toFixed(1)} км/ч`}
                   value={`${bout.steps}`}
                   divider={index > 0}
                 />
@@ -108,14 +120,6 @@ export function WalkDetail({ state }: { state: BandState }) {
       </Card>
     </Stack>
   );
-}
-
-function kilometres(metres: number): string {
-  return (Math.round(metres / 100) / 10).toFixed(1);
-}
-
-function clock(at: Date): string {
-  return at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 const styles = StyleSheet.create({

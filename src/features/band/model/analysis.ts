@@ -14,9 +14,6 @@ export const WALKING_STEPS_PER_MINUTE = 20;
 /** Человеческий диапазон длины шага в метрах. Вне его — расхождение окон, а не шаг. */
 export const STRIDE_METRES = { min: 0.3, max: 1.2 } as const;
 
-/** Разрыв, по которому сон режется на сессии, когда маркеров устройства нет. */
-export const SLEEP_GAP_MINUTES = 180;
-
 /** Ориентир длительности сна, к которому считается доля. */
 export const SLEEP_TARGET_MINUTES = 8 * 60;
 

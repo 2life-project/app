@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 
 import { Stack } from '@/shared/ui';
 
+import type { BandState } from '../model/band-state';
 import {
   STRESS_ZONES,
   readingsCaption,
@@ -11,7 +12,7 @@ import {
   thin,
   zonesOf,
 } from '../model/day-metrics';
-import type { BandState } from '../model/use-band';
+import { clock } from '../model/format';
 
 import type { DetailKind } from './band-details';
 import { HeartCard } from './heart-card';
@@ -30,9 +31,12 @@ import { ZoneBars } from './zone-bars';
  */
 export function BandMetrics({
   state,
+  reading,
   onOpen,
 }: {
   state: BandState;
+  /** Идёт чтение с устройства: пустая карточка тогда не «нет данных». */
+  reading: boolean;
   onOpen: (kind: DetailKind) => void;
 }) {
   // `startOfToday()` в теле рендера возвращает новую дату на каждый вызов и
@@ -46,7 +50,7 @@ export function BandMetrics({
     <Stack gap="md">
       <HeartCard state={state} axis={timeAxis(state.today)} onOpen={() => onOpen('heart')} />
 
-      <WalkCard state={state} onOpen={() => onOpen('walk')} />
+      <WalkCard state={state} reading={reading} onOpen={() => onOpen('walk')} />
 
       <MetricCard
         title="Стресс"
@@ -69,8 +73,4 @@ function timeAxis(samples: readonly { at: Date }[]): [string, string] | undefine
   const final = samples[samples.length - 1];
   if (!first || !final) return undefined;
   return [clock(first.at), clock(final.at)];
-}
-
-function clock(at: Date): string {
-  return at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }

@@ -4,8 +4,8 @@ import { StyleSheet, View } from 'react-native';
 import { space } from '@/shared/theme';
 import { Button, Card, SectionCaption, SectionSummary, Stack, Text } from '@/shared/ui';
 
+import type { BandState } from '../model/band-state';
 import { summaryOfBand } from '../model/band-summary';
-import type { BandState } from '../model/use-band';
 
 import { BandDetails, type DetailKind } from './band-details';
 import { BandMetrics } from './band-metrics';
@@ -51,10 +51,26 @@ export function BandDashboard({
   const live = state.stage === 'connected';
   const [detail, setDetail] = useState<DetailKind>(null);
 
-  // Шапка пересчитывает три ряда по всем минутам дня, а живой отчёт приходит
-  // каждые десять секунд. Без памяти этот пересчёт идёт на каждый такт вместе
-  // со всеми карточками под ним.
-  const summary = useMemo(() => summaryOfBand(state), [state]);
+  // Шапка пересчитывает три ряда по всем минутам дня. Зависимости перечислены
+  // по полям, а не по всему состоянию: во время тренировки состояние меняется
+  // раз в секунду из-за занятия, и память по объекту целиком не держала бы
+  // ничего — весь пересчёт шёл бы каждую секунду.
+  const summary = useMemo(
+    () => summaryOfBand(state),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- сверено с полями, которые читает summaryOfBand
+    [
+      state.battery,
+      state.firmware,
+      state.live,
+      state.measurement,
+      state.sleep,
+      state.stage,
+      state.stress,
+      state.summary,
+      state.today,
+      state.worn,
+    ],
+  );
 
   return (
     <Stack gap="md">
@@ -70,7 +86,7 @@ export function BandDashboard({
         rows={summary.rows}
       />
 
-      <BandMetrics state={state} onOpen={setDetail} />
+      <BandMetrics state={state} reading={state.busy} onOpen={setDetail} />
 
       <SleepCard sleep={state.sleep} reading={state.busy} onOpen={() => setDetail('sleep')} />
 

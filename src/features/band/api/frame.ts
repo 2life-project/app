@@ -13,10 +13,10 @@ import { byteAt, be16 } from './bytes';
  */
 
 /** Первый байт любого кадра основного протокола. */
-const HEADER = 0x01;
+export const HEADER = 0x01;
 
 /** Маркер последнего кадра в многокадровом ответе. */
-const TERMINATOR = 0xfd;
+export const TERMINATOR = 0xfd;
 
 /** Режим: чтение, запись или самостоятельный отчёт устройства. */
 export const Mode = {

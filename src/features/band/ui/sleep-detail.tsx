@@ -1,9 +1,10 @@
 import { StyleSheet, View } from 'react-native';
 
 import { space } from '@/shared/theme';
-import { Card, ProgressBar, Stack, StatTile, SummaryRow, Text } from '@/shared/ui';
+import { Card, EmptyState, ProgressBar, Stack, StatTile, SummaryRow, Text } from '@/shared/ui';
 
-import type { BandState } from '../model/use-band';
+import type { BandState } from '../model/band-state';
+import { clock, duration } from '../model/format';
 
 import { Hypnogram } from './hypnogram';
 
@@ -21,9 +22,10 @@ export function SleepDetail({ state }: { state: BandState }) {
 
   if (!night) {
     return (
-      <Card variant="sunken">
-        <Text tone="muted">Ни одной ночи пока не записано.</Text>
-      </Card>
+      <EmptyState
+        title="Ночей пока нет"
+        description="Устройство размечает сон само, когда его носят ночью."
+      />
     );
   }
 
@@ -118,15 +120,6 @@ export function SleepDetail({ state }: { state: BandState }) {
 
 function label(stage: string): string {
   return stage.charAt(0).toUpperCase() + stage.slice(1);
-}
-
-function duration(minutes: number): string {
-  if (minutes < 60) return `${minutes}m`;
-  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
-}
-
-function clock(at: Date): string {
-  return at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 const styles = StyleSheet.create({
