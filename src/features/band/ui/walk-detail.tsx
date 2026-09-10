@@ -34,8 +34,8 @@ export function WalkDetail({ state }: { state: BandState }) {
   if (!walk) {
     return (
       <EmptyState
-        title="Шагов за сегодня нет"
-        description="Они появятся, как только браслет их насчитает."
+        title="No steps today"
+        description="They appear as soon as the band counts them."
       />
     );
   }
@@ -44,7 +44,7 @@ export function WalkDetail({ state }: { state: BandState }) {
     <Stack gap="md">
       <Card variant="sunken">
         <Stack gap="sm">
-          <Text variant="subtitle">Шаги по часам</Text>
+          <Text variant="subtitle">Steps by hour</Text>
           <BarChart
             markEmpty
             values={hours}
@@ -52,20 +52,20 @@ export function WalkDetail({ state }: { state: BandState }) {
             axis={['00:00', '24:00']}
           />
           <View style={styles.tiles}>
-            <StatTile label="Шаги" value={String(state.summary?.totals.steps ?? walk.steps)} />
+            <StatTile label="STEPS" value={String(state.summary?.totals.steps ?? walk.steps)} />
             <StatTile
-              label="Дистанция"
+              label="DISTANCE"
               value={kilometres(state.summary?.totals.distance ?? walk.distance)}
               unit="km"
             />
           </View>
           <View style={styles.tiles}>
             <StatTile
-              label="Калории"
+              label="CALORIES"
               value={String(state.summary?.totals.calories ?? walk.calories)}
-              unit="ккал"
+              unit="kcal"
             />
-            <StatTile label="Активность" value={`${walk.activeMinutes} мин`} />
+            <StatTile label="ACTIVE" value={`${walk.activeMinutes} min`} />
           </View>
         </Stack>
       </Card>
@@ -73,17 +73,17 @@ export function WalkDetail({ state }: { state: BandState }) {
       {cadence.length > 1 ? (
         <Card variant="sunken">
           <Stack gap="sm">
-            <Text variant="subtitle">Каденс при ходьбе</Text>
+            <Text variant="subtitle">Walking cadence</Text>
             <LineChart values={thin(cadence, 160)} tone="success" height={120} />
             <View style={styles.tiles}>
               <StatTile
-                label="Среднее"
+                label="AVG"
                 value={String(walk.cadenceAverage)}
-                unit="шаг/мин"
-                note={`пик ${walk.cadencePeak}`}
+                unit="spm"
+                note={`peak ${walk.cadencePeak}`}
               />
               <StatTile
-                label="Длина шага"
+                label="STEP"
                 value={walk.stride === null ? '—' : walk.stride.toFixed(2)}
                 unit="m"
               />
@@ -110,7 +110,7 @@ export function WalkDetail({ state }: { state: BandState }) {
                 <SummaryRow
                   key={bout.from.getTime()}
                   title={`${clock(bout.from)} — ${clock(bout.to)}`}
-                  subtitle={`${bout.minutes} мин · ${bout.cadence} шаг/мин · ${bout.speed.toFixed(1)} км/ч`}
+                  subtitle={`${bout.minutes} min · ${bout.cadence} spm · ${bout.speed.toFixed(1)} km/h`}
                   value={`${bout.steps}`}
                   divider={index > 0}
                 />

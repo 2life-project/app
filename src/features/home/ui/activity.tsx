@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
+import { vitalsOf, type BandReadings } from '@/shared/domain';
 import { shortDay } from '@/shared/lib/day';
 import { to } from '@/shared/nav';
 import { space } from '@/shared/theme';
@@ -10,6 +11,7 @@ import {
   DatePager,
   InfoCard,
   LinkCard,
+  ListRow,
   SectionCaption,
   SectionSummary,
   Stack,
@@ -24,8 +26,9 @@ import { activityOf } from '../model/activity';
  * Активность дня. Истории нагрузки в ответе Главной нет — графики периода
  * живут на экране показателя, туда и ведёт ссылка внизу.
  */
-export function Activity({ home }: { home: HomeData }) {
-  const view = activityOf(home);
+export function Activity({ home, band }: { home: HomeData; band: BandReadings | null }) {
+  const view = activityOf(home, band);
+  const vitals = vitalsOf(band);
 
   if (!view) {
     return (
@@ -50,6 +53,12 @@ export function Activity({ home }: { home: HomeData }) {
           action={{ label: 'Device', onPress: () => router.push(to.device()) }}
         />
       )}
+
+      {view.bandNote ? (
+        <Text variant="bodySmall" tone="muted">
+          {view.bandNote}
+        </Text>
+      ) : null}
 
       <SectionSummary
         title="Activity"
@@ -76,6 +85,26 @@ export function Activity({ home }: { home: HomeData }) {
           </View>
         </Stack>
       </Card>
+
+      {/* То, чего сервер не считает: пульс покоя, ночь, вариабельность. Эти
+          числа не спорят с оценкой движения — они про другое. */}
+      {vitals.length > 0 ? (
+        <Stack gap="sm">
+          <SectionCaption>MEASURED ON YOUR WRIST</SectionCaption>
+          <Card>
+            <Stack gap="xs">
+              {vitals.map((vital) => (
+                <ListRow
+                  key={vital.id}
+                  title={vital.title}
+                  subtitle={vital.note}
+                  trailing={vital.value}
+                />
+              ))}
+            </Stack>
+          </Card>
+        </Stack>
+      ) : null}
 
       <InfoCard
         title="How the score is built"

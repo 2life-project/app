@@ -63,7 +63,10 @@ export function usePairedBand(): PairedBand | null {
   );
 }
 
-/** Есть ли вообще браслет. Экранам, которым не нужен сам браслет, хватает этого. */
-export function useBandConnected(): boolean {
+/**
+ * Привязан ли браслет к телефону. Это не «на связи»: связь рвётся и
+ * восстанавливается сама, а привязка живёт до тех пор, пока её не сняли.
+ */
+export function useBandPaired(): boolean {
   return usePairedBand() !== null;
 }

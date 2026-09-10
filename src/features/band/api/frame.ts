@@ -57,6 +57,29 @@ export function encodeReadAll(cmd: number): Uint8Array {
   return Uint8Array.from([HEADER, cmd, Mode.read, Mode.read]);
 }
 
+/**
+ * Наш ли это ответ.
+ *
+ * Команда и режим обязаны совпасть: устройство шлёт свои отчёты той же группой,
+ * отличаясь только режимом (`ac` против `aa`), и без этой проверки живой отчёт
+ * о пульсе попадал бы в середину истории как её кадр.
+ *
+ * А вот поле совпадает не всегда. На запрос «все поля группы» (`FIELD = AA`)
+ * часть групп отвечает кадром с тем же `AA`, а часть — своим первым полем:
+ * на `01 A3 AA AA` приходит `01 A3 AA 01 04 …`. Требовать точного совпадения
+ * значит не узнать собственный ответ: он уходил в отчёты, запрос висел до
+ * истечения времени, а очередь команд всё это время стояла — и следом сыпалось
+ * всё остальное чтение.
+ */
+export function isReplyTo(
+  data: Uint8Array,
+  expect: { cmd: number; mode: number; field: number },
+): boolean {
+  if (decode(data) === null) return false;
+  if (byteAt(data, 1) !== expect.cmd || byteAt(data, 2) !== expect.mode) return false;
+  return expect.field === Mode.read || byteAt(data, 3) === expect.field;
+}
+
 export type Frame = {
   cmd: number;
   mode: ModeValue;

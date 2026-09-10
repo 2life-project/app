@@ -188,9 +188,9 @@ export function stressPoints(days: readonly StressDay[], from: Date): Point[] {
  * звучали в разделе по-разному, а половина строк осталась непереведённой.
  */
 export function readingsCaption(count: number): string {
-  if (count === 0) return 'нет данных';
-  if (count === 1) return '1 замер за сегодня';
-  return `${count} замеров за сегодня`;
+  if (count === 0) return 'no data';
+  if (count === 1) return '1 reading today';
+  return `${count} readings today`;
 }
 
 /** Последний известный пульс покоя: он приходит не в каждом слоте. */

@@ -30,8 +30,8 @@ export function SleepCard({
 
   if (!night) {
     return (
-      <WidgetCard variant="sunken" title="Сон">
-        <BandEmpty reading={reading} text="Ни одной ночи пока не записано" />
+      <WidgetCard variant="sunken" title="Sleep">
+        <BandEmpty reading={reading} text="No night recorded yet" />
       </WidgetCard>
     );
   }
@@ -44,8 +44,8 @@ export function SleepCard({
     <Card variant="sunken">
       <Stack gap="md">
         <View style={styles.header}>
-          <Text variant="subtitle">Сон</Text>
-          <ActionLink label="Подробнее" chevron onPress={onOpen} />
+          <Text variant="subtitle">Sleep</Text>
+          <ActionLink label="Details" chevron onPress={onOpen} />
         </View>
 
         <Text variant="caption" tone="muted">

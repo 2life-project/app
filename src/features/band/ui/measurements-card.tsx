@@ -15,25 +15,25 @@ import { seriesOf, type Point } from '../model/day-metrics';
  */
 export function MeasurementsCard({ state, onOpen }: { state: BandState; onOpen: () => void }) {
   const rows = [
-    row('Кислород', unit(pick(state, 'bloodOxygen'), '%')),
-    row('ВСР', unit(pick(state, 'hrv'), ' ms')),
-    row('Давление', pressure(state)),
-    row('Настроение', unit(pick(state, 'mood'), '')),
-    row('Сахар', unit(last(seriesOf(state.today, (s) => s.bloodSugar)), ' mmol/L')),
+    row('Blood oxygen', unit(pick(state, 'bloodOxygen'), '%')),
+    row('HRV', unit(pick(state, 'hrv'), ' ms')),
+    row('Blood pressure', pressure(state)),
+    row('Mood', unit(pick(state, 'mood'), '')),
+    row('Blood sugar', unit(last(seriesOf(state.today, (s) => s.bloodSugar)), ' mmol/L')),
   ];
 
   return (
     <Card variant="sunken">
       <Stack gap="sm">
         <View style={styles.header}>
-          <Text variant="subtitle">Замеры</Text>
-          <ActionLink label="История" chevron onPress={onOpen} />
+          <Text variant="subtitle">Readings</Text>
+          <ActionLink label="History" chevron onPress={onOpen} />
         </View>
         {rows.map((item, index) => (
           <SummaryRow
             key={item.title}
             title={item.title}
-            subtitle={item.value === '—' ? 'сегодня не измерялось' : 'последний замер'}
+            subtitle={item.value === '—' ? 'not measured today' : 'last reading'}
             value={item.value}
             divider={index > 0}
           />

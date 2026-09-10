@@ -14,7 +14,8 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "1"
+      "buildNumber": "3",
+      "usePrecompiledModules": false
     },
     "android": {
       "package": "dev.blackshift.twolife",

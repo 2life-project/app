@@ -13,7 +13,7 @@ import { Text } from '@/shared/ui';
 export function BandEmpty({ reading, text }: { reading: boolean; text: string }) {
   return (
     <Text variant="bodySmall" tone="muted">
-      {reading ? 'Читаем с браслета…' : text}
+      {reading ? 'Reading the band…' : text}
     </Text>
   );
 }

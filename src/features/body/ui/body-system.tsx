@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { useQuery } from '@/core/http/use-query';
 import { logger } from '@/core/log/logger';
+import { sourceCaption, useBandReadings, vitalsOf, type Vital } from '@/shared/domain';
 import { shortDay } from '@/shared/lib/day';
 import { to } from '@/shared/nav';
 import { space } from '@/shared/theme';
@@ -17,6 +18,7 @@ import {
   InfoCard,
   LineChart,
   LinkCard,
+  ListRow,
   RadioRow,
   SectionCaption,
   SectionSummary,
@@ -30,7 +32,7 @@ import {
 import { fetchSubsystem, saveRingMetric, subsystemKey } from '../api/body';
 import type { Subsystem } from '../api/contract';
 import { RING_NOTE, subsystemView } from '../model/subsystem';
-import { NO_DATA } from '../model/systems';
+import { bandGroupOf, NO_DATA } from '../model/systems';
 
 /**
  * Единый шаблон системы тела. В макете четыре системы отличаются только
@@ -56,8 +58,25 @@ export function BodySystem({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [failed, setFailed] = useState(false);
 
+  // Показания браслета за тот же день. Они лежат на телефоне и от сети не
+  // зависят: сервер молчит — они всё равно есть.
+  const band = useBandReadings(date);
+  const group = bandGroupOf(section);
+  const vitals = group === null ? [] : vitalsOf(band, group);
+
   const data = query.data;
-  if (!data) return <Stack gap="md">{fallback}</Stack>;
+  if (!data) {
+    // Сервер не ответил, но рука мерила. Показать «загружается» поверх готовых
+    // чисел значит спрятать единственное, что у человека сейчас есть.
+    return vitals.length > 0 ? (
+      <Stack gap="md">
+        <BandVitals caption={sourceCaption(band)} vitals={vitals} />
+        {fallback}
+      </Stack>
+    ) : (
+      <Stack gap="md">{fallback}</Stack>
+    );
+  }
 
   const view = subsystemView(data);
   // Пусто — это когда ни у одного показателя системы нет значения. Рисовать
@@ -75,7 +94,9 @@ export function BodySystem({
         </Card>
       ) : null}
 
-      {empty ? (
+      {vitals.length > 0 ? <BandVitals caption={sourceCaption(band)} vitals={vitals} /> : null}
+
+      {empty && vitals.length === 0 ? (
         <>
           <EmptyPanel icon="watch" title={NO_DATA.title} text={NO_DATA.text} />
           <Button label={NO_DATA.connect} onPress={() => router.push(to.device())} />
@@ -171,6 +192,27 @@ export function BodySystem({
           </Text>
         </Stack>
       </Sheet>
+    </Stack>
+  );
+}
+
+/** Что браслет измерил сам по этой системе. Источник подписан: рядом стоят числа сервера. */
+function BandVitals({ caption, vitals }: { caption: string; vitals: readonly Vital[] }) {
+  return (
+    <Stack gap="sm">
+      <SectionCaption>{caption}</SectionCaption>
+      <Card>
+        <Stack gap="xs">
+          {vitals.map((vital) => (
+            <ListRow
+              key={vital.id}
+              title={vital.title}
+              subtitle={vital.note}
+              trailing={vital.value}
+            />
+          ))}
+        </Stack>
+      </Card>
     </Stack>
   );
 }

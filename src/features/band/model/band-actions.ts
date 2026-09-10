@@ -1,10 +1,12 @@
 import { useCallback, type MutableRefObject } from 'react';
 
 import { logger } from '@/core/log/logger';
+import type { BodyProfile } from '@/shared/domain';
 
 import { Band, removeSaved, savedRecordings, syncRecordings } from '../api';
 
 import type { BandState } from './band-state';
+import { sendProfile } from './profile-sync';
 import { startSession } from './workout-session';
 import { clearOpenSession, rememberWorkout, saveOpenSession, toRecord } from './workout-store';
 
@@ -21,8 +23,6 @@ type Options = {
   deviceId?: string;
   /** Зеркало состояния: финиш читает занятие вне рендера. */
   stateRef: MutableRefObject<BandState>;
-  /** Каким видом спорта помечать занятие. */
-  sport: number;
 };
 
 /**
@@ -31,15 +31,7 @@ type Options = {
  * Вынесены из состояния намеренно — состояние отвечает за связь и данные, а
  * здесь только действия, и каждое из них тихо ничего не делает, если связи нет.
  */
-export function useBandActions({
-  bandRef,
-  adopt,
-  patch,
-  refresh,
-  deviceId,
-  stateRef,
-  sport,
-}: Options) {
+export function useBandActions({ bandRef, adopt, patch, refresh, deviceId, stateRef }: Options) {
   const withBand = useCallback(
     (action: (active: Band) => Promise<void>) => async () => {
       const active = bandRef.current;
@@ -117,31 +109,54 @@ export function useBandActions({
   );
 
   /**
+   * Отправить профиль тела на устройство.
+   *
+   * Отдельным действием, а не только при подключении: человек правит рост или
+   * вес при живой связи, и ждать переподключения ради этого незачем. Без связи
+   * ничего не делаем — профиль уже сохранён на телефоне и уедет при следующем
+   * подключении.
+   */
+  const saveProfile = useCallback(
+    async (profile: BodyProfile) => {
+      const active = bandRef.current;
+      // Без связи это не отказ: профиль лежит на телефоне и уедет при
+      // следующем подключении. А вот отказ живого устройства — отказ.
+      if (!active) return;
+      patch({ profileSent: await sendProfile(active, profile) });
+    },
+    [bandRef, patch],
+  );
+
+  /**
    * Начать занятие. Считать его будет браслет, а копить — мы: устройство
    * присылает секунду за секундой и после финиша ничего не сохраняет.
    */
-  const startWorkout = useCallback(async () => {
-    const active = bandRef.current;
-    if (!active) return;
+  const startWorkout = useCallback(
+    async (sport: number) => {
+      const active = bandRef.current;
+      if (!active) return;
 
-    // Занятие уже идёт — второй старт затёр бы накопленное. После обрыва связи
-    // сессия остаётся в памяти, и повторное нажатие теряло бы час ряда пульса.
-    if (stateRef.current.session) return;
+      // Занятие уже идёт — второй старт затёр бы накопленное. После обрыва
+      // связи сессия остаётся в памяти, и повторное нажатие теряло бы час ряда
+      // пульса.
+      if (stateRef.current.session) return;
 
-    // Сессия заводится до команды: устройство начинает слать кадры сразу, и
-    // те, что придут раньше, иначе просто выбрасываются.
-    const session = startSession(sport);
-    patch({ session });
-    await saveOpenSession(session);
+      // Сессия заводится до команды: устройство начинает слать кадры сразу, и
+      // те, что придут раньше, иначе просто выбрасываются.
+      const session = startSession(sport);
+      patch({ session });
+      await saveOpenSession(session);
 
-    try {
-      await active.workouts.start(sport);
-    } catch (error) {
-      logger.error('band: тренировка не начата', { reason: String(error) });
-      patch({ session: undefined, problem: 'workout-failed' });
-      await clearOpenSession();
-    }
-  }, [bandRef, patch, sport, stateRef]);
+      try {
+        await active.workouts.start(sport);
+      } catch (error) {
+        logger.error('band: тренировка не начата', { reason: String(error) });
+        patch({ session: undefined, problem: 'workout-failed' });
+        await clearOpenSession();
+      }
+    },
+    [bandRef, patch, stateRef],
+  );
 
   /**
    * Завершить занятие.
@@ -189,6 +204,7 @@ export function useBandActions({
     stopRecording,
     pullRecordings,
     removeRecording,
+    saveProfile,
     startWorkout,
     stopWorkout,
   };

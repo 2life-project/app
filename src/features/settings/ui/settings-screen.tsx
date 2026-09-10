@@ -4,7 +4,14 @@ import { StyleSheet, View } from 'react-native';
 
 import { signOut, useSession } from '@/core/auth';
 import { useQuery } from '@/core/http/use-query';
-import { setPairedBand } from '@/shared/domain';
+import {
+  clearBandReadings,
+  clearBodyProfile,
+  setPairedBand,
+  useBandReadings,
+  usePairedBand,
+} from '@/shared/domain';
+import { useToday } from '@/shared/lib/day';
 import { clearStore, usePersistentState } from '@/shared/lib/store';
 import { to } from '@/shared/nav';
 import { radius, space, theme } from '@/shared/theme';
@@ -28,6 +35,7 @@ import { fetchProfile } from '../api/settings';
 import { displayName, initials, memberSince } from '../model/profile';
 import {
   ADD_DEVICE,
+  bandRow,
   RESET,
   RESET_CONFIRM,
   SETTINGS_CHOICES,
@@ -55,6 +63,11 @@ export function SettingsScreen() {
   const [choice, setChoice] = useState<string | null>(null);
   const [picked, setPicked] = usePersistentState<Record<string, string>>('settings', {});
   const [confirm, setConfirm] = useState<string | null>(null);
+
+  // Свой браслет — живой строкой поверх макетного списка: его состояние
+  // приложение знает точно, в отличие от остальных источников.
+  const { date } = useToday();
+  const band = bandRow(usePairedBand(), useBandReadings(date));
 
   const open = (row: SettingsRow) => {
     if (row.opens === 'device') router.push(to.device());
@@ -97,7 +110,11 @@ export function SettingsScreen() {
           </View>
         </Card>
 
-        <Section caption="DEVICES" rows={[...DEVICES, ADD_DEVICE]} onOpen={open} />
+        <Section
+          caption="DEVICES"
+          rows={band ? [band, ...DEVICES, ADD_DEVICE] : [...DEVICES, ADD_DEVICE]}
+          onOpen={open}
+        />
         <Section caption="APP" rows={APP_ROWS} onOpen={open} />
         <Section caption="DATA" rows={DATA_ROWS} onOpen={open} />
         <Section caption="ACCOUNT" rows={[SIGN_OUT, RESET]} onOpen={open} />
@@ -165,7 +182,14 @@ export function SettingsScreen() {
             label="Reset"
             tone="warning"
             onPress={() => {
-              void clearStore().then(() => setPairedBand(null));
+              // Диск чистит `clearStore` по общему префиксу, но доменные
+              // сущности живут ещё и в памяти: без этих вызовов экраны
+              // показывали бы стёртые профиль и показания до перезапуска.
+              void clearStore().then(() => {
+                setPairedBand(null);
+                clearBodyProfile();
+                clearBandReadings();
+              });
               setConfirm(null);
             }}
           />

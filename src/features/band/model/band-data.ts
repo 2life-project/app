@@ -2,11 +2,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { logger } from '@/core/log/logger';
 
-import type { Band, Workout } from '../api';
-import { savedRecordings } from '../api';
+import type { Band, FeatureName, Workout } from '../api';
+import { Feature, savedRecordings, supports } from '../api';
 
 import type { BandState } from './band-state';
 import { startOfToday } from './day-metrics';
+import { dayKey, loadDay, needsRead, recentDays, rememberDay } from './history-store';
+import { reviveDates } from './revive-dates';
 import { loadWorkouts } from './workout-store';
 
 /**
@@ -32,8 +34,9 @@ const KEY = '2life:band-snapshot.2';
  * молча при каждом новом поле.
  */
 const KEEP = [
-  'battery',
-  'firmware',
+  'info',
+  'clockSkew',
+  'supported',
   'live',
   'summary',
   'measurement',
@@ -49,19 +52,12 @@ const KEEP = [
 
 type Snapshot = Pick<BandState, (typeof KEEP)[number]>;
 
-const ISO = /^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/;
-
-/** JSON не знает дат: без восстановления время замера приезжает строкой. */
-function revive(_key: string, value: unknown): unknown {
-  return typeof value === 'string' && ISO.test(value) ? new Date(value) : value;
-}
-
 export async function loadSnapshot(): Promise<Snapshot | null> {
   try {
     const raw = await AsyncStorage.getItem(KEY);
     if (raw === null) return null;
 
-    const snapshot = JSON.parse(raw, revive) as Snapshot;
+    const snapshot = JSON.parse(raw, reviveDates) as Snapshot;
 
     // Снимок мог пролежать до следующего дня. Показывать вчерашние минуты как
     // сегодняшние нельзя: карточки складывают их в дневные шаги и пульс, и
@@ -115,9 +111,13 @@ export async function loadEverything(
   const week = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
   await step('info', async () => {
-    const info = await band.info();
-    patch({ battery: info.battery?.level, firmware: info.firmware });
+    patch({ info: await band.info(), clockSkew: band.clockSkewSeconds });
   });
+
+  // Маски возможностей устройство отдало при подключении. Без них экран
+  // предлагал бы настраивать то, чего в этой прошивке нет: неподдержанную
+  // команду браслет подтверждает пустым эхом, неотличимым от успеха.
+  patch({ supported: supportedFeatures(band) });
   await step('сводка дня', async () => patch({ summary: await band.daySummary() }));
   await step('записи', async () => patch({ recordings: await band.recorder.list() }));
   await step('память', async () =>
@@ -148,7 +148,22 @@ export async function loadEverything(
 
   // История последней: она забирается кадр за кадром и идёт дольше всего
   // остального вместе взятого. Впереди неё числа успели бы устареть.
-  await step('история', async () => patch({ today: await band.history(startOfToday(now), now) }));
+  await step('история', async () => {
+    const today = await band.history(startOfToday(now), now);
+    patch({ today });
+    // Сразу в архив, без повторного чтения: сутки уже в руках, а второй заход
+    // за теми же минутами — это ещё сотня кадров по радио и заряд браслета.
+    await rememberDay(dayKey(now), today);
+  });
+}
+
+/** Какие возможности взведены в масках этого устройства. */
+export function supportedFeatures(band: Band): FeatureName[] {
+  const capabilities = band.features;
+  if (!capabilities) return [];
+
+  const names = Object.keys(Feature) as FeatureName[];
+  return names.filter((name) => supports(capabilities, name));
 }
 
 /** Один шаг чтения. Провал одного не отменяет остальные, но виден в логе. */
@@ -158,4 +173,46 @@ async function step(what: string, run: () => Promise<void>): Promise<void> {
   } catch (failure) {
     logger.warn('band: не прочиталось', { what, reason: String(failure) });
   }
+}
+
+/**
+ * Дочитать сутки, которые устройство ещё помнит, а телефон уже нет.
+ *
+ * Отдельно от `loadEverything` и после него: это единственное чтение, которое
+ * нужно не экрану, а архиву. Идёт оно долго — по кадру на минуту, — и человек
+ * всё это время смотрит на уже показанные числа, а не на «читаем…».
+ *
+ * По одним суткам за раз: у браслета одна очередь команд, и параллельные
+ * запросы истории перемешали бы ответы.
+ */
+export async function backfillHistory(band: Band): Promise<string[]> {
+  const filled: string[] = [];
+  // Сегодняшние сутки уже прочитаны и уложены при обновлении раздела — здесь
+  // они дали бы второй проход по тем же минутам.
+  const today = dayKey();
+
+  for (const day of recentDays()) {
+    if (day === today) continue;
+    const stored = await loadDay(day);
+    if (!needsRead(day, stored)) continue;
+
+    const [year, month, date] = day.split('-').map(Number);
+    if (!year || !month || !date) continue;
+
+    const from = new Date(year, month - 1, date);
+    // Сутки могут ещё идти: тогда конец окна — сейчас, а не полночь впереди.
+    const end = new Date(year, month - 1, date + 1);
+    const to = end > new Date() ? new Date() : end;
+
+    try {
+      await rememberDay(day, await band.history(from, to));
+      filled.push(day);
+    } catch (failure) {
+      // Один непрочитанный день не отменяет остальные: связь могла оборваться
+      // на середине, и следующий заход дочитает то, что не успело.
+      logger.warn('band: сутки не дочитались', { day, reason: String(failure) });
+    }
+  }
+
+  return filled;
 }

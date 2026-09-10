@@ -3,7 +3,7 @@ import { BleError, BleErrorCode, type Device, type Subscription } from 'react-na
 import { logger } from '@/core/log/logger';
 
 import { byteAt, fromBase64, hex, toBase64 } from './bytes';
-import { FrameAssembler, decode } from './frame';
+import { FrameAssembler, isReplyTo } from './frame';
 import { BAND_GATT_SERVICE } from './names';
 
 /** Сервис и характеристики рабочего канала браслета. */
@@ -118,8 +118,9 @@ export class BandTransport {
   /**
    * Отправить запрос и дождаться собранного ответа.
    *
-   * Совпадение ищем по команде и полю, а не по порядку: пока идёт наш ответ,
-   * устройство продолжает слать свои отчёты, и они не должны попасть в тело.
+   * Совпадение ищем по команде, режиму и полю, а не по порядку: пока идёт наш
+   * ответ, устройство продолжает слать свои отчёты, и они не должны попасть в
+   * тело. Правило целиком — в `isReplyTo`.
    */
   request(
     frame: Uint8Array,
@@ -128,19 +129,11 @@ export class BandTransport {
     const cmd = expect?.cmd ?? byteAt(frame, 1);
     const field = expect?.field ?? byteAt(frame, 3);
 
-    // Режим входит в сопоставление наравне с командой и полем: устройство шлёт
-    // свои отчёты той же группой и тем же полем, отличаясь только режимом
-    // (`ac` против `aa`), и без этой проверки живой отчёт о пульсе попадал бы
-    // в середину истории как её кадр.
     const mode = expect?.mode ?? byteAt(frame, 2);
 
     return this.exchange(
       frame,
-      (data) =>
-        decode(data) !== null &&
-        byteAt(data, 1) === cmd &&
-        byteAt(data, 2) === mode &&
-        byteAt(data, 3) === field,
+      (data) => isReplyTo(data, { cmd, mode, field }),
       new FrameAssembler(),
       `0x${cmd.toString(16)}/0x${mode.toString(16)}/0x${field.toString(16)}`,
     );

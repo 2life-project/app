@@ -13,12 +13,12 @@ import { WorkoutsDetail } from './workouts-detail';
 export type DetailKind = 'heart' | 'walk' | 'sleep' | 'stress' | 'measurements' | 'workouts' | null;
 
 const TITLES: Record<Exclude<DetailKind, null>, string> = {
-  heart: 'Пульс',
-  walk: 'Ходьба',
-  sleep: 'Сон',
-  stress: 'Стресс',
-  measurements: 'Замеры',
-  workouts: 'Активность',
+  heart: 'Heart rate',
+  walk: 'Walking',
+  sleep: 'Sleep',
+  stress: 'Stress',
+  measurements: 'Readings',
+  workouts: 'Activity',
 };
 
 /**

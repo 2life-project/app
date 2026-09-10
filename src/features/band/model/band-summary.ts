@@ -32,6 +32,7 @@ export function summaryOfBand(state: BandState): Summary {
   const stress = stressPoints(state.stress, startOfToday());
   const oxygen = state.measurement?.bloodOxygen ?? state.live?.bloodOxygen;
   const distance = state.summary?.totals.distance ?? walk?.distance ?? 0;
+  const steps = state.summary?.totals.steps ?? walk?.steps;
 
   // Последняя сессия, а не сумма за неделю: сложенные ночи не значат ничего.
   const sleepMinutes = state.sleep[state.sleep.length - 1]?.asleep ?? 0;
@@ -55,7 +56,9 @@ export function summaryOfBand(state: BandState): Summary {
         // само, и брать число оттуда, а расстояние из истории значит показать
         // две цифры, которые между собой не сходятся.
         subtitle: distance === 0 ? 'no movement yet' : `${kilometres(distance)} km`,
-        value: String(state.summary?.totals.steps ?? walk?.steps ?? 0),
+        // Непрочитанный день — прочерк, а не ноль: «0 шагов» человек читает как
+        // измеренный факт, хотя браслета в этот день просто не слушали.
+        value: steps === undefined ? '—' : String(steps),
       },
       {
         id: 'sleep',
@@ -108,8 +111,9 @@ function toneOf(current: number | undefined): 'success' | 'warning' | 'danger' |
  */
 function captionOf(state: BandState): string {
   const parts = [state.stage === 'connected' ? 'LIVE' : 'LAST KNOWN'];
-  if (state.battery !== undefined) parts.push(`${state.battery}%`);
-  if (state.firmware) parts.push(state.firmware);
+  const battery = state.info?.battery?.level;
+  if (battery !== undefined) parts.push(`${battery}%`);
+  if (state.info?.firmware) parts.push(state.info.firmware);
   if (state.worn === true && state.stage === 'connected') parts.push('WORN');
   return parts.join(' · ');
 }

@@ -17,10 +17,10 @@ import { clock, duration } from '../model/format';
 
 /** Порядок дорожек сверху вниз: от бодрствования к самому глубокому сну. */
 const LANES: readonly { label: string; stage: SleepStageOnly }[] = [
-  { label: 'Пробуждения', stage: 'awake' },
+  { label: 'Awake', stage: 'awake' },
   { label: 'REM', stage: 'rem' },
-  { label: 'Лёгкий', stage: 'light' },
-  { label: 'Глубокий', stage: 'deep' },
+  { label: 'Light', stage: 'light' },
+  { label: 'Deep', stage: 'deep' },
 ];
 
 /** Цвет углубляется вместе со стадией: глубокий сон — самый плотный тон. */

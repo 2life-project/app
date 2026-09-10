@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { logger } from '@/core/log/logger';
 
+import { serial } from './serial';
 import { averageHeartRate, type WorkoutSession } from './workout-session';
 
 /**
@@ -64,7 +65,13 @@ export async function loadWorkouts(): Promise<RecordedWorkout[]> {
  * тренировки нет больше нигде, устройство её не хранит. Показать человеку
  * сохранённое занятие, которого нет на диске, — худшее из возможных поведений.
  */
-export async function rememberWorkout(record: RecordedWorkout): Promise<RecordedWorkout[]> {
+export function rememberWorkout(record: RecordedWorkout): Promise<RecordedWorkout[]> {
+  // Через очередь: чтение-дополнение-запись внахлёст теряет занятие целиком,
+  // а второй копии у него нет — устройство тренировок не хранит.
+  return serial(() => writeWorkout(record));
+}
+
+async function writeWorkout(record: RecordedWorkout): Promise<RecordedWorkout[]> {
   const next = [...(await loadWorkouts()), record].slice(-KEEP);
   await AsyncStorage.setItem(KEY, JSON.stringify(next));
   return next;
@@ -98,6 +105,18 @@ export async function loadOpenSession(): Promise<WorkoutSession | undefined> {
     logger.warn('band: незавершённая тренировка не прочиталась', { failure });
     return undefined;
   }
+}
+
+/**
+ * Забыть все записанные занятия.
+ *
+ * Единственная их копия лежит здесь: устройство тренировок не хранит. Поэтому
+ * стирается это только вместе с человеком — при выходе из аккаунта.
+ */
+export async function clearWorkouts(): Promise<void> {
+  await AsyncStorage.multiRemove([KEY, OPEN_KEY]).catch((failure: unknown) =>
+    logger.warn('band: тренировки не стёрлись', { failure }),
+  );
 }
 
 export async function clearOpenSession(): Promise<void> {

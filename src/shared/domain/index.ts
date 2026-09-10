@@ -1,4 +1,36 @@
-export { setPairedBand, useBandConnected, usePairedBand, type PairedBand } from './connection';
+// Побочный эффект импорта: подписка на выход из аккаунта, стирающая личные
+// данные. Подключается здесь, потому что это единственное место, через которое
+// домен видят все.
+import './on-sign-out';
+
+export {
+  ageOf,
+  clearBodyProfile,
+  EMPTY_PROFILE,
+  isComplete,
+  LIMITS,
+  runStepOf,
+  setBodyProfile,
+  syncBodyProfile,
+  useBodyProfile,
+  walkStepOf,
+  within,
+  type BodyProfile,
+  type Sex,
+  type Hand,
+} from './body-profile';
+export {
+  clearBandReadings,
+  sourceCaption,
+  readingsNote,
+  setBandReadings,
+  useBandReadings,
+  vitalsOf,
+  type BandReadings,
+  type Vital,
+  type VitalGroup,
+} from './band-readings';
+export { setPairedBand, useBandPaired, usePairedBand, type PairedBand } from './connection';
 export {
   availability,
   coverageRatio,

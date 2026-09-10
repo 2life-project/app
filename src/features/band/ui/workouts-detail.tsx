@@ -21,8 +21,8 @@ export function WorkoutsDetail({
   if (recorded.length === 0 && states.length === 0) {
     return (
       <EmptyState
-        title="Ничего не размечено"
-        description="Браслет размечает заходы движения сам, без кнопки старта. За последние сутки он не распознал ни одного."
+        title="Nothing marked"
+        description="The band marks movement bouts on its own, with no start button. It recognised none in the last day."
       />
     );
   }
@@ -32,7 +32,7 @@ export function WorkoutsDetail({
       {states.length === 0 ? null : (
         <Card variant="sunken">
           <Stack gap="sm">
-            <Text variant="subtitle">Распознанные заходы</Text>
+            <Text variant="subtitle">Marked bouts</Text>
             {/* Вид движения прошивка не различает: во всех наблюдениях тип
                 равен единице. Подписывать его словом значит выдумывать. */}
             {states.map((item) => (
@@ -42,7 +42,7 @@ export function WorkoutsDetail({
                 justify="space-between">
                 <Text variant="bodySmall">{stamp(item.at)}</Text>
                 <Text variant="bodySmall" tone="muted">
-                  {item.minutes} мин · поток {item.stream}
+                  {item.minutes} min · stream {item.stream}
                 </Text>
               </Stack>
             ))}
@@ -53,13 +53,13 @@ export function WorkoutsDetail({
       {recorded.length === 0 ? null : (
         <Card variant="sunken">
           <Stack gap="sm">
-            <Text variant="subtitle">Тренировки</Text>
+            <Text variant="subtitle">Workouts</Text>
             {/* Хранятся на телефоне: браслет их не сохраняет. */}
             {[...recorded].reverse().map((item) => (
               <Stack key={item.startedAt} direction="row" justify="space-between">
                 <Text variant="bodySmall">{stamp(new Date(item.startedAt))}</Text>
                 <Text variant="bodySmall" tone="muted">
-                  {Math.round(item.seconds / 60)} мин · {item.distance} м · {item.calories} ккал
+                  {Math.round(item.seconds / 60)} min · {item.distance} m · {item.calories} kcal
                 </Text>
               </Stack>
             ))}

@@ -41,12 +41,12 @@ export function WalkCard({
     <Card variant="sunken">
       <Stack gap="sm">
         <View style={styles.header}>
-          <Text variant="subtitle">Ходьба</Text>
-          <ActionLink label="Подробнее" chevron onPress={onOpen} disabled={!walk} />
+          <Text variant="subtitle">Walking</Text>
+          <ActionLink label="Details" chevron onPress={onOpen} disabled={!walk} />
         </View>
 
         {walk === null ? (
-          <BandEmpty reading={reading} text="Шагов за сегодня пока нет" />
+          <BandEmpty reading={reading} text="No steps today yet" />
         ) : (
           <>
             <View style={styles.value}>
@@ -65,25 +65,25 @@ export function WalkCard({
 
             <View style={styles.tiles}>
               <StatTile
-                label="Каденс"
+                label="CADENCE"
                 value={String(walk.cadenceAverage)}
-                unit="шаг/мин"
-                note={`пик ${walk.cadencePeak}`}
+                unit="spm"
+                note={`peak ${walk.cadencePeak}`}
               />
               <StatTile
-                label="Скорость"
+                label="PACE"
                 value={walk.speedAverage === null ? '—' : walk.speedAverage.toFixed(1)}
                 unit="km/h"
-                note={walk.speedPeak === null ? undefined : `пик ${walk.speedPeak.toFixed(1)}`}
+                note={walk.speedPeak === null ? undefined : `peak ${walk.speedPeak.toFixed(1)}`}
               />
             </View>
             <View style={styles.tiles}>
               <StatTile
-                label="Длина шага"
+                label="STEP"
                 value={walk.stride === null ? '—' : walk.stride.toFixed(2)}
                 unit="m"
               />
-              <StatTile label="Активность" value={`${walk.activeMinutes} мин`} />
+              <StatTile label="ACTIVE" value={`${walk.activeMinutes} min`} />
             </View>
           </>
         )}

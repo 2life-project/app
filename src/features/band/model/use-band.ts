@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { logger } from '@/core/log/logger';
-import { setPairedBand, usePairedBand } from '@/shared/domain';
+import { clearBandReadings, setPairedBand, syncBodyProfile, usePairedBand } from '@/shared/domain';
 
 import {
   Band,
@@ -16,11 +16,24 @@ import {
 } from '../api';
 
 import { useBandActions } from './band-actions';
-import { clearSnapshot, loadEverything, loadSnapshot, saveSnapshot } from './band-data';
+import {
+  backfillHistory,
+  clearSnapshot,
+  loadEverything,
+  loadSnapshot,
+  saveSnapshot,
+} from './band-data';
 import { INITIAL, type BandState } from './band-state';
+import { clearHistory } from './history-store';
+import { sendProfile } from './profile-sync';
+import { publishReadings } from './publish-readings';
+import { useAlarms } from './use-alarms';
 import { useBandEvents } from './use-band-events';
 import { useForeground } from './use-foreground';
 import { useOpenSession } from './use-open-session';
+import { useReconnect } from './use-reconnect';
+import { useService } from './use-service';
+import { useDeviceSettings } from './use-settings';
 import { clearOpenSession, rememberWorkout, toRecord } from './workout-store';
 
 /**
@@ -36,8 +49,8 @@ export type BandStage = 'idle' | 'scanning' | 'connecting' | 'connected' | 'fail
 /** Как часто обновлять сводку дня при открытом разделе. */
 const LIVE_POLL_MS = 30_000;
 
-/** Каким видом спорта помечать занятие: ES100 видов движения не различает. */
-const DEFAULT_SPORT = 1;
+/** Сколько связь должна продержаться, чтобы считаться устойчивой. */
+const STABLE_CONNECTION_MS = 60_000;
 
 export function useBand() {
   const paired = usePairedBand();
@@ -45,6 +58,21 @@ export function useBand() {
   const [state, setState] = useState<BandState>(INITIAL);
   const band = useRef<Band | null>(null);
   const stopScan = useRef<(() => void) | null>(null);
+  /**
+   * Какая по счёту попытка переподключения идёт.
+   *
+   * Сбрасывается не любой удачей, а только устоявшейся связью: при мигающем
+   * соединении «подключился — через секунду оборвался» счёт иначе обнулялся
+   * каждым циклом, пауза навсегда оставалась минимальной, и каждый круг тянул
+   * полное чтение устройства — десятки обменов по радио на его же заряде.
+   */
+  const retry = useRef(0);
+  /** Когда поднялась текущая связь: по ней видно, была она устойчивой или мигнула. */
+  const connectedSince = useRef<number | null>(null);
+  /** Профиль, который уже принят устройством: второй раз то же самое не шлём. */
+  const sentProfile = useRef<string | null>(null);
+  /** Человек отключился сам — тогда обратно его не тащим. */
+  const manual = useRef(false);
   /** Зеркало состояния: снимок на диск пишется вне рендера, из обработчиков. */
   const latest = useRef<BandState>(INITIAL);
 
@@ -61,7 +89,12 @@ export function useBand() {
   // начинаться с пустых графиков только потому, что связь ещё не поднялась.
   useEffect(() => {
     void loadSnapshot().then((snapshot) => {
-      if (snapshot) patch(snapshot);
+      if (!snapshot) return;
+      patch(snapshot);
+      // Публикуем сам снимок, а не зеркало состояния: зеркало обновляется
+      // внутри `setState`, то есть уже после этой микрозадачи, и здесь оно
+      // ещё пустое — на Главную уезжали бы пустые показания поверх настоящих.
+      publishReadings({ ...INITIAL, ...snapshot });
     });
   }, [patch]);
 
@@ -106,6 +139,9 @@ export function useBand() {
     try {
       await loadEverything(active, patch);
       saveSnapshot(latest.current);
+      // Итоги дня — остальному приложению. Здесь, а не на каждом живом отчёте:
+      // отчёты приходят каждые десять секунд, а минутные итоги между ними те же.
+      publishReadings(latest.current);
     } finally {
       patch({ busy: false });
     }
@@ -162,11 +198,17 @@ export function useBand() {
   const connect = useCallback(
     async (device: FoundBand) => {
       stopScan.current?.();
-      patch({ stage: 'connecting', device: { id: device.id, name: device.name } });
+      manual.current = false;
+      patch({
+        stage: 'connecting',
+        step: 'opening',
+        device: { id: device.id, name: device.name },
+      });
 
       try {
         const connected = await Band.connect(device.id);
         adopt(connected);
+        patch({ step: 'configuring' });
 
         // Пульс раз в минуту: это минимум, который принимает прошивка, и с ним
         // живые отчёты приходят каждые десять секунд.
@@ -177,23 +219,63 @@ export function useBand() {
         // устройству, а не аккаунту, и переподключаться после каждого входа
         // человек не должен.
         setPairedBand({ id: device.id, name: device.name, pairedAt: new Date().toISOString() });
-        patch({ stage: 'connected' });
+
+        // Счёт попыток обнуляет только связь, которая продержалась: короткая
+        // предыдущая сессия означает, что устройство мигает, и пауза должна
+        // продолжать расти, а не начинаться заново.
+        const lasted =
+          connectedSince.current === null ? Infinity : Date.now() - connectedSince.current;
+        if (lasted > STABLE_CONNECTION_MS) retry.current = 0;
+        connectedSince.current = Date.now();
+
+        patch({ stage: 'connected', step: 'reading', retrying: false, problem: undefined });
+
+        // Профиль уезжает при каждом подключении, а не только при первом.
+        // Прочитать, что сейчас записано в устройстве, нечем — команды чтения
+        // профиля в протоколе нет, — а разойтись они могут: браслет сбрасывают
+        // к заводским, вес человек меняет на другом экране. Без ожидания: связь
+        // уже установлена, и держать на этом обмене экран незачем.
+        // Профиль уезжает при первом подключении и после правок, а не на
+        // каждом реконнекте: в плохом покрытии их десятки за час, и каждый
+        // стоил бы запроса к серверу и записи по радио ради тех же чисел.
+        void syncBodyProfile().then(async (profile) => {
+          const wanted = JSON.stringify(profile);
+          if (sentProfile.current === wanted) return;
+
+          const sent = await sendProfile(connected, profile);
+          if (sent) sentProfile.current = wanted;
+          patch({ profileSent: sent });
+        });
+
         await refresh();
+
+        // Дочитать сутки, которые устройство ещё помнит, а телефон уже нет.
+        // После `refresh`, а не вместо: экран к этому моменту уже полон, а
+        // архив набивается молча — по кадру на минуту, это долго.
+        patch({ step: undefined });
+
+        void backfillHistory(connected);
       } catch (error) {
         logger.warn('band: подключение не удалось', { reason: String(error) });
-        patch({ stage: 'failed', problem: 'connect-failed' });
+        patch({ stage: 'failed', step: undefined, problem: 'connect-failed' });
       }
     },
     [adopt, patch, refresh],
   );
 
   const disconnect = useCallback(async () => {
+    // Отключение по кнопке: обратно не тащим, иначе кнопка ничего не значит.
+    manual.current = true;
     await band.current?.disconnect();
-    band.current = null;
+    // Через тот же вход, что и берём: прямое присваивание ссылки оставляло
+    // поднятым флаг «связь занята экраном», и фоновая выгрузка после первого
+    // же отключения не срабатывала больше никогда — а память диктофона
+    // кончается за пятнадцать часов записи.
+    adopt(null);
     // Данные и привязка остаются: отключение — это разрыв связи, а не отказ от
     // браслета. Забыть его — отдельное действие.
-    patch({ stage: 'idle', found: [], problem: undefined });
-  }, [patch]);
+    patch({ stage: 'idle', found: [], problem: undefined, retrying: false });
+  }, [adopt, patch]);
 
   /**
    * Забыть браслет: отвязать на устройстве, разорвать связь и стереть память
@@ -226,28 +308,31 @@ export function useBand() {
 
     setPairedBand(null);
     clearSnapshot();
+    clearBandReadings();
+    // Архив суток уходит вместе с браслетом: иначе история старого устройства
+    // подмешается к новому, а разделить их будет уже нечем.
+    await clearHistory().catch(() => undefined);
     latest.current = INITIAL;
     setState(INITIAL);
   }, [paired]);
 
-  // Запомненный браслет поднимается сам: человек привязал его один раз, и
-  // нажимать «искать» при каждом запуске незачем. Промах уводит в 'failed', и
-  // на экране появляется кнопка повтора — молча в поиске зависать нельзя.
-  const attempted = useRef<string | null>(null);
+  // Связь возвращается сама: правило пауз и условия попыток — в своём файле,
+  // потому что это отдельная забота, а не часть чтения данных.
+  useReconnect({
+    paired,
+    stage: state.stage,
+    foreground,
+    attempt: retry,
+    manual,
+    patch,
+    connect,
+  });
 
-  // Возврат на экран — повод попробовать снова. Без сброса одна неудачная
-  // попытка при запуске оставляла браслет неподключённым до перезапуска
-  // приложения: экран уже смонтирован, а второй попытки не будет никогда.
-  useEffect(() => {
-    if (foreground) attempted.current = null;
-  }, [foreground]);
-
-  useEffect(() => {
-    if (!paired || band.current) return;
-    if (attempted.current === paired.id) return;
-    attempted.current = paired.id;
-    void connect({ id: paired.id, name: paired.name, rssi: 0 });
-  }, [connect, paired]);
+  // Будильники держат своё состояние: список читается по требованию, и тянуть
+  // двадцать обменов по радио в общее состояние раздела незачем.
+  const alarms = useAlarms(band);
+  const settings = useDeviceSettings(band);
+  const service = useService(band);
 
   const actions = useBandActions({
     bandRef: band,
@@ -256,7 +341,6 @@ export function useBand() {
     refresh,
     deviceId: state.device?.id,
     stateRef: latest,
-    sport: DEFAULT_SPORT,
   });
 
   return {
@@ -267,6 +351,9 @@ export function useBand() {
     forget,
     paired,
     refresh,
+    alarms,
+    settings,
+    service,
     ...actions,
   };
 }

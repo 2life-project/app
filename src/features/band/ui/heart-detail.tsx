@@ -45,8 +45,8 @@ export function HeartDetail({ state }: { state: BandState }) {
   if (!summary) {
     return (
       <EmptyState
-        title="Пульса за сегодня нет"
-        description="Браслет меряет его по расписанию и во время занятия. Нажмите «Замерить» на разделе, чтобы снять сейчас."
+        title="No heart rate today"
+        description="The band measures it on a schedule and during a workout. Use “Take a reading” to get one now."
       />
     );
   }
@@ -55,18 +55,18 @@ export function HeartDetail({ state }: { state: BandState }) {
     <Stack gap="md">
       <Card variant="sunken">
         <Stack gap="sm">
-          <Text variant="subtitle">За день</Text>
+          <Text variant="subtitle">Across the day</Text>
           <LineChart values={thin(points, 200)} tone="danger" height={140} />
           <View style={styles.tiles}>
-            <StatTile label="Минимум" value={String(summary.min)} unit="уд/мин" />
-            <StatTile label="Среднее" value={String(summary.average)} unit="уд/мин" />
+            <StatTile label="MIN" value={String(summary.min)} unit="bpm" />
+            <StatTile label="AVG" value={String(summary.average)} unit="bpm" />
           </View>
           <View style={styles.tiles}>
-            <StatTile label="Максимум" value={String(summary.max)} unit="уд/мин" />
+            <StatTile label="MAX" value={String(summary.max)} unit="bpm" />
             <StatTile
-              label="Покой"
+              label="RESTING"
               value={resting === undefined ? '—' : String(resting)}
-              unit="уд/мин"
+              unit="bpm"
             />
           </View>
         </Stack>
@@ -74,7 +74,7 @@ export function HeartDetail({ state }: { state: BandState }) {
 
       <Card variant="sunken">
         <Stack gap="sm">
-          <Text variant="subtitle">По часам</Text>
+          <Text variant="subtitle">By hour</Text>
           <BarChart
             markEmpty
             values={hours.map((hour) => hour.value)}
@@ -85,14 +85,14 @@ export function HeartDetail({ state }: { state: BandState }) {
           {peak ? (
             <>
               <SummaryRow
-                title="Самый спокойный час"
-                subtitle={`замеров: ${peak.low.count}`}
-                value={`${hourLabel(peak.low.hour)} · ${peak.low.value} уд/мин`}
+                title="Calmest hour"
+                subtitle={`${peak.low.count} readings`}
+                value={`${hourLabel(peak.low.hour)} · ${peak.low.value} bpm`}
               />
               <SummaryRow
-                title="Самый нагруженный час"
-                subtitle={`замеров: ${peak.high.count}`}
-                value={`${hourLabel(peak.high.hour)} · ${peak.high.value} уд/мин`}
+                title="Busiest hour"
+                subtitle={`${peak.high.count} readings`}
+                value={`${hourLabel(peak.high.hour)} · ${peak.high.value} bpm`}
                 divider
               />
             </>
@@ -102,7 +102,7 @@ export function HeartDetail({ state }: { state: BandState }) {
 
       <Card variant="sunken">
         <Stack gap="sm">
-          <Text variant="subtitle">Зоны</Text>
+          <Text variant="subtitle">Zones</Text>
           <ZoneBars zones={zonesOf(points, HEART_RATE_ZONES)} all />
           <Text variant="caption" tone="muted">
             Доля сегодняшних замеров, попавших в каждый диапазон.
@@ -112,7 +112,7 @@ export function HeartDetail({ state }: { state: BandState }) {
 
       <Card variant="sunken">
         <Stack gap="sm">
-          <Text variant="subtitle">Последние замеры</Text>
+          <Text variant="subtitle">Latest readings</Text>
           {[...points]
             .slice(-RECENT)
             .reverse()
@@ -120,7 +120,7 @@ export function HeartDetail({ state }: { state: BandState }) {
               <SummaryRow
                 key={point.at.getTime()}
                 title={clock(point.at)}
-                value={`${point.value} уд/мин`}
+                value={`${point.value} bpm`}
                 divider={index > 0}
               />
             ))}
