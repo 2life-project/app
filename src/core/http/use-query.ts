@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { logger } from '@/core/log/logger';
+
 import { HttpError } from './error';
 
 /**
@@ -56,15 +58,23 @@ export function useQuery<T>(
     if (key === null) return;
     const controller = new AbortController();
 
+    // След запросов — половина расследования падения на чужом телефоне: по нему
+    // видно, какие ответы экран успел получить до того, как перестал рисоваться.
+    logger.debug('Запрос', { key });
+
     loadRef
       .current(controller.signal)
       .then((data) => {
+        logger.debug('Ответ', { key });
         if (!controller.signal.aborted) setSettled({ key, attempt, data, error: null });
       })
       .catch((error: unknown) => {
         // Отмена — это уход с экрана, а не сбой: показывать по ней ошибку
-        // значит мигать красным на каждом переходе.
-        if (!controller.signal.aborted) setSettled({ key, attempt, data: null, error });
+        // значит мигать красным на каждом переходе. В след она тоже не идёт —
+        // при тринадцати запросах на входе один переход съедал бы треть следа.
+        if (controller.signal.aborted) return;
+        logger.debug('Отказ', { key, error });
+        setSettled({ key, attempt, data: null, error });
       });
 
     return () => controller.abort();

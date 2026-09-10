@@ -27,11 +27,21 @@ const KNOWN_TONES: Record<string, StatusTone | undefined> = {
   steady: undefined,
 };
 
+/**
+ * Слово пишется в лог один раз за запуск. Функция зовётся из отрисовки, то есть
+ * на каждый рендер каждого кольца: без этого одно незнакомое слово вытесняло бы
+ * из следа логов всё остальное, а нового оно после первого раза не сообщает.
+ */
+const reported = new Set<string>();
+
 export function serverTone(tone: string | null | undefined): StatusTone | undefined {
   if (!tone) return undefined;
   if (tone in KNOWN_TONES) return KNOWN_TONES[tone];
 
   // Так словарь сервера и обнаруживается: в разработке видно, что пришло.
-  logger.debug('Неизвестный тон от сервера', { tone });
+  if (!reported.has(tone)) {
+    reported.add(tone);
+    logger.debug('Неизвестный тон от сервера', { tone });
+  }
   return undefined;
 }

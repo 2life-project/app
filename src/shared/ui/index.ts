@@ -10,6 +10,7 @@ export { ContextMenu, type ContextMenuItem, type ContextMenuProps } from './cont
 export { DatePager, type DatePagerProps } from './date-pager';
 export { EmptyPanel, type EmptyPanelProps } from './empty-panel';
 export { EmptyState, type EmptyStateProps } from './empty-state';
+export { ErrorBoundary, FatalGuard } from './error-boundary';
 export { Field, type FieldProps } from './field';
 export {
   GLASS_BUTTON_SIZE,

@@ -3,11 +3,30 @@ module.exports = {
   // Для разового прогона watchman ничего не ускоряет, а сломанный или отсутствующий
   // (CI, песочницы) роняет запуск. Jest обходит дерево сам.
   watchman: false,
+  // Хранилище на диске подменяется памятью: без него не тестируется ничего,
+  // что помнит состояние между запусками.
+  setupFiles: ['<rootDir>/jest.setup.ts'],
   // Рабочие копии других веток лежат внутри репозитория, и Jest обходит их
   // как свои. Тесты соседней ветки к текущей отношения не имеют, а её
   // `node_modules` ещё и подменяют модули на ходу.
-  setupFiles: ['<rootDir>/jest.setup.ts'],
-  testPathIgnorePatterns: ['/node_modules/', '/.claude/worktrees/'],
-  modulePathIgnorePatterns: ['/.claude/worktrees/'],
+  //
+  // Путь считается от корня прогона, а не абсолютным куском: без `<rootDir>`
+  // правило выкашивало и сам прогон изнутри рабочей копии — там этот кусок
+  // есть в каждом пути, и Jest не находил ни одного теста.
+  //
+  // Нативные проекты генерируются `make prebuild` и в репозиторий не входят,
+  // но Jest обходит и их: внутри `ios/Pods/hermes-engine` лежат чужие тесты
+  // движка, и прогон превращается в четыре сотни падений на пустом месте.
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '<rootDir>/.claude/worktrees/',
+    '<rootDir>/ios/',
+    '<rootDir>/android/',
+  ],
+  modulePathIgnorePatterns: [
+    '<rootDir>/.claude/worktrees/',
+    '<rootDir>/ios/',
+    '<rootDir>/android/',
+  ],
   collectCoverageFrom: ['src/**/*.{ts,tsx}', '!src/**/*.d.ts', '!src/app/**'],
 };
