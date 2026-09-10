@@ -100,8 +100,7 @@ type CustomWidgetData = HomeData['widgets'][number];
  * сервер приносит их значения тем же конвертом, что и все остальные.
  *
  * Пока сервер не прислал ни рецепта, ни значений, карточка честно об этом
- * говорит: сохранять рецепт ячейки бэкенду пока некуда (`docs/backend-gaps.md`,
- * пункт 8), и виджет остаётся пустым до конца этой пары ручек.
+ * говорит: значения считаются на его стороне при следующей сборке ленты.
  */
 export function CustomWidget({ widget }: { widget: CustomWidgetData }) {
   const view = customWidgetOf(widget.data);
@@ -118,7 +117,7 @@ export function CustomWidget({ widget }: { widget: CustomWidgetData }) {
   const first = metrics[0];
 
   return (
-    <WidgetCard title={recipe.title}>
+    <WidgetCard title={recipe.title ?? WIDGET_TITLES.custom ?? 'Custom widget'}>
       {recipe.kind === 'line' ? <LineChart values={seriesOf(first)} /> : null}
       {recipe.kind === 'bar' ? <BarChart values={seriesOf(first)} /> : null}
 

@@ -88,18 +88,18 @@ export function ringsOf(data: HomeData | null): readonly RingView[] {
       tone: serverTone(nutrition?.insight.tone),
     },
     {
-      // Шкала movement-оценки в контракте не названа, поэтому дуги нет:
-      // 12 из скольки — знает только сервер, и он этого пока не сказал.
+      // Долю дуги считает сервер против своей шкалы оценки. Без оценки дуги
+      // нет: отсутствие данных не превращается в нулевую оценку.
       id: 'strain',
       label: 'STRAIN',
-      fill: null,
+      fill: movement?.ring.percent ?? null,
       valueLabel: text(movement?.score, 'score'),
       tone: serverTone(movement?.band),
     },
     {
       id: 'wellbeing',
       label: 'WELLBEING',
-      fill: null,
+      fill: wellbeing?.ring.percent ?? null,
       valueLabel: text(wellbeing?.score, 'score'),
       tone: serverTone(wellbeing?.recommendation.tone),
     },
@@ -125,7 +125,7 @@ export function moveOf(data: HomeData): SystemView {
   return {
     title: 'Movement',
     ring: {
-      value: null,
+      value: movement?.ring.percent ?? null,
       valueLabel: text(movement?.score, 'score'),
       tone: serverTone(movement?.band),
     },

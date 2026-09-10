@@ -32,6 +32,18 @@ export {
 } from './band-readings';
 export { setPairedBand, useBandPaired, usePairedBand, type PairedBand } from './connection';
 export {
+  createEvent,
+  eventKey,
+  fetchEvent,
+  LAYERS,
+  type CreatedEvent,
+  type EventInput,
+  type EventValue,
+  type JournalEvent,
+  type Layer,
+  type NewEvent,
+} from './event';
+export {
   availability,
   coverageRatio,
   isStale,

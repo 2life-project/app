@@ -1,4 +1,5 @@
 import { request } from '@/core/http/client';
+import { createEvent } from '@/shared/domain';
 import { requestId } from '@/shared/lib/id';
 
 /**
@@ -81,19 +82,11 @@ export function saveCheckin(
 }
 
 /** Заметка дня. Своего поля у чек-ина нет — она уходит событием журнала. */
-export function createNote(
-  text: string,
-  startAt: string,
-  timeZone: string,
-): Promise<{ id: string; date: string }> {
-  return request<{ id: string; date: string }>('/api/v2/journal/events', {
-    method: 'POST',
-    body: {
-      requestId: requestId(),
-      title: 'Note from the check-in',
-      startAt,
-      timezone: timeZone,
-      event: { kind: 'note', text, tags: [] },
-    },
+export function createNote(text: string, startAt: string, timeZone: string): Promise<unknown> {
+  return createEvent({
+    title: 'Note from the check-in',
+    startAt,
+    timezone: timeZone,
+    event: { kind: 'note', text, tags: [] },
   });
 }

@@ -15,8 +15,8 @@ const KINDS = new Set<WidgetRecipe['kind']>(['metric', 'line', 'bar', 'list']);
 
 function isRecipe(value: unknown): value is WidgetRecipe {
   if (typeof value !== 'object' || value === null) return false;
-  const { title, kind } = value as { title?: unknown; kind?: unknown };
-  return typeof title === 'string' && KINDS.has(kind as WidgetRecipe['kind']);
+  const { kind, metrics } = value as { kind?: unknown; metrics?: unknown };
+  return KINDS.has(kind as WidgetRecipe['kind']) && Array.isArray(metrics);
 }
 
 export function customWidgetOf(data: unknown): CustomWidgetView | null {

@@ -9,6 +9,8 @@ import { fetchHomeLayout, fetchWidgetCatalog, saveHomeLayout } from '../api/home
 import { cellsOf } from '../model/feed';
 import { WIDGET_TITLES, WIDGETS_NOTE } from '../model/widgets';
 
+import { ComposeWidget } from './compose-widget';
+
 export const WidgetsScreenOptions = { headerShown: false };
 
 /**
@@ -116,6 +118,8 @@ export function WidgetsScreen() {
             </Stack>
           </Card>
         )}
+
+        <ComposeWidget current={current} onSaved={setSaved} />
 
         <InfoCard title="How this works" text={WIDGETS_NOTE} />
       </Stack>

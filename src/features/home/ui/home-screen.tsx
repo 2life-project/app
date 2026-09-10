@@ -86,7 +86,7 @@ export function HomeScreen() {
         <Overview key="o" state={state} decisions={decisions} />,
         <Activity key="a" home={state.home} band={band} />,
         <Nutrition key="n" home={state.home} />,
-        <Supplements key="s" home={state.home} />,
+        <Supplements key="s" home={state.home} onChanged={home.refresh} />,
         <Wellbeing key="w" home={state.home} date={date} timeZone={timeZone} />,
       ]
     : HOME_SECTIONS.map((section) =>

@@ -3,10 +3,10 @@ import type { MetricAggregation, MetricValue } from '@/shared/domain';
 /**
  * Формы ответов `/api/v2` для Главной — ровно как в контракте, без домысла.
  *
- * Массивы, которые во всех выданных примерах пришли пустыми (`plan.items`,
- * `goals.data`, `streams`, `signals`, `meals`, `symptoms`, `notes`), оставлены
- * `unknown[]`. Придумать им поля значит договориться с собой вместо сервера:
- * такой «контракт» разойдётся молча и разберётся уже на устройстве.
+ * Массивы, которые контракт не описывает (`goals.data`, `streams`, `signals`,
+ * `meals`, `symptoms`, `notes`), оставлены `unknown[]`. Придумать им поля
+ * значит договориться с собой вместо сервера: такой «контракт» разойдётся
+ * молча и разберётся уже на устройстве.
  */
 
 export type Surface = 'web' | 'mobile';
@@ -28,7 +28,8 @@ export type WidgetType =
   | 'custom';
 
 export type WidgetRecipe = {
-  title: string;
+  /** Названия у рецепта в контракте нет: сборщик отдаёт только вид и показатели. */
+  title?: string;
   kind: 'metric' | 'line' | 'bar' | 'list';
   metrics: readonly {
     key: string;
@@ -62,6 +63,21 @@ export type HomeLayout = {
  * превращает всю Главную в экран ошибки.
  */
 export type Section<T> = { status: string; data: T | null; error: unknown };
+
+/**
+ * Дуга кольца. Долю считает сервер и сам называет её основание — шкалу
+ * оценки. Максимум шкалы не равен дневной цели: это доля от шкалы, и
+ * придумывать ей цель нельзя.
+ */
+export type Ring = {
+  metric: 'wellbeing' | 'movement';
+  value: number | null;
+  unit: string;
+  status: string;
+  /** Доля 0…1 или `null`, когда оценки нет. Отсутствие — не ноль. */
+  percent: number | null;
+  percentBasis: { kind: string; minimum: number; maximum: number } | null;
+};
 
 export type HomeHeader = {
   date: string;
@@ -98,6 +114,7 @@ export type MovementData = {
   };
   weightedExerciseMinutes: number | null;
   sources: readonly unknown[];
+  ring: Ring;
 };
 
 export type NutritionAmounts = {
@@ -151,6 +168,34 @@ export type WellbeingData = {
     hasSymptoms: boolean;
     symptomCount: number;
   }[];
+  ring: Ring;
+};
+
+/**
+ * Пункт объединённого плана дня. Три вида различаются не полем `kind` — его
+ * словарь контракт не закрывает, — а тем, на что пункт ссылается: задача
+ * календаря, правило протокола или приём добавки. У приёма есть готовое
+ * действие для отметки; остальные отмечаются в своих разделах.
+ */
+export type PlanItem = {
+  id: string;
+  kind: string;
+  status: string;
+  /** Миллисекунды; у приёма без точного времени — `null` и подпись словами. */
+  startAt: number | null;
+  expectedTime?: string | null;
+  domain: string;
+  source: string;
+  href: string;
+  reference:
+    | { taskId: string }
+    | { protocolId: string; ruleId: string; date: string }
+    | { entryId: string; projected: boolean };
+  action?: {
+    method: string;
+    url: string;
+    body: { status: string; date: string };
+  };
 };
 
 export type HomeData = {
@@ -170,7 +215,7 @@ export type HomeData = {
     nutrition: Section<NutritionData>;
     wellbeing: Section<WellbeingData>;
   };
-  plan: { items: readonly unknown[]; done: number; total: number; errors: readonly unknown[] };
+  plan: { items: readonly PlanItem[]; done: number; total: number; errors: readonly unknown[] };
   goals: Section<readonly unknown[]>;
   streams: readonly unknown[];
   signals: readonly unknown[];

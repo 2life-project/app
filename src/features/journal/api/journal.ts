@@ -7,6 +7,16 @@ import type { CalendarEvent, CalendarEvents, CalendarMonth, Layer } from './cont
 
 const SCHEMA = '2';
 
+/** Предел страницы событий — максимум, который принимает сервер. */
+const PAGE = '200';
+
+/**
+ * Сколько страниц дочитывать. Пятьдесят страниц по двести — десять тысяч
+ * событий за период; больше за неделю не бывает, а без предела курсор,
+ * который сервер по ошибке вернул бы тем же, крутил бы запросы вечно.
+ */
+const MAX_PAGES = 50;
+
 function query(params: Record<string, string>): string {
   return new URLSearchParams(params).toString();
 }
@@ -36,21 +46,45 @@ export function eventsKey(start: string, end: string, timeZone: string, layers: 
   return `events:${start}:${end}:${timeZone}:${layers}`;
 }
 
-export function fetchEvents(
+/**
+ * События периода — все страницы. Первая страница — не весь день: сервер
+ * режет ответ по двести событий и даёт курсор на следующую. Счётчики при
+ * этом относятся ко всему периоду и приходят на каждой странице одинаковыми.
+ */
+export async function fetchEvents(
   start: string,
   end: string,
   timeZone: string,
   layers: readonly Layer[],
   signal?: AbortSignal,
 ): Promise<CalendarEvents> {
-  const path = `/api/v2/calendar/events?${query({
+  const base = {
     schemaVersion: SCHEMA,
     start,
     end,
     timezone: timeZone,
     layers: layers.join(','),
-  })}`;
-  return request<CalendarEvents>(path, { signal });
+    limit: PAGE,
+  };
+
+  let first: CalendarEvents | null = null;
+  const events: CalendarEvent[] = [];
+  let cursor: string | null = null;
+
+  for (let page = 0; page < MAX_PAGES; page += 1) {
+    const params = cursor === null ? base : { ...base, cursor };
+    const chunk: CalendarEvents = await request<CalendarEvents>(
+      `/api/v2/calendar/events?${query(params)}`,
+      { signal },
+    );
+    first ??= chunk;
+    events.push(...chunk.events);
+    cursor = chunk.nextCursor;
+    if (cursor === null) break;
+  }
+
+  // Первая страница не может отсутствовать: цикл делает хотя бы один запрос.
+  return { ...(first as CalendarEvents), events, nextCursor: null };
 }
 
 /**
@@ -64,18 +98,5 @@ export function markDone(event: CalendarEvent, done: boolean): Promise<CalendarE
   });
 }
 
-export function eventKey(id: string, timeZone: string): string {
-  return `event:${id}:${timeZone}`;
-}
-
-/** Подробности события: то, чего нет в списке — текст заметки, метки, источник. */
-export function fetchEvent(
-  id: string,
-  timeZone: string,
-  signal?: AbortSignal,
-): Promise<CalendarEvent> {
-  return request<CalendarEvent>(
-    `/api/v2/journal/events/${encodeURIComponent(id)}?${query({ timezone: timeZone })}`,
-    { signal },
-  );
-}
+/** Подробности одного события живут в домене: их читает и Главная. */
+export { eventKey, fetchEvent } from '@/shared/domain';

@@ -1,12 +1,16 @@
 import { router } from 'expo-router';
+import { useState } from 'react';
 
+import { logger } from '@/core/log/logger';
 import { shortDay } from '@/shared/lib/day';
 import { to } from '@/shared/nav';
 import {
   Button,
+  CheckCircle,
   DatePager,
   InfoCard,
   LinkCard,
+  ListRow,
   SectionCaption,
   SectionSummary,
   Stack,
@@ -14,16 +18,36 @@ import {
   WidgetCard,
 } from '@/shared/ui';
 
-import type { HomeData } from '../api/contract';
+import type { HomeData, PlanItem } from '../api/contract';
+import { markPlanItem } from '../api/home';
+import { intakesOf, planRowsOf } from '../model/plan';
 import { COURSE_HINT, WHY_COURSES } from '../model/supplements';
 
 /**
- * Приёмы дня едут пунктами плана, и их состав контракт пока не раскрывает.
- * Поэтому раздел показывает то, что в ответе действительно есть — счёт по
- * плану, — и ведёт в курсы, а не рисует строки, которых не получал.
+ * Приёмы дня приходят пунктами объединённого плана; у каждого — готовое
+ * действие для отметки. Раздел показывает их строками и отмечает через это
+ * действие, а не собирает адрес отметки сам.
  */
-export function Supplements({ home }: { home: HomeData }) {
+export function Supplements({ home, onChanged }: { home: HomeData; onChanged: () => void }) {
   const { done, total } = home.plan;
+  const intakes = intakesOf(home.plan.items);
+  const rows = planRowsOf(intakes);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  const mark = (item: PlanItem, taken: boolean) => {
+    setBusy(item.id);
+    setFailed(false);
+    markPlanItem(item, taken ? 'taken' : 'pending')
+      .then(onChanged)
+      .catch((failure: unknown) => {
+        // Отказ обязан быть виден: молча отскочившая галочка выглядит как
+        // «кнопка не работает», и причины на экране нет.
+        logger.error('Приём не отметился', { id: item.id, failure });
+        setFailed(true);
+      })
+      .finally(() => setBusy(null));
+  };
 
   return (
     <Stack gap="md">
@@ -46,18 +70,38 @@ export function Supplements({ home }: { home: HomeData }) {
       />
 
       <WidgetCard
-        title="Courses today"
+        title="Doses today"
+        caption={rows.length > 0 ? String(rows.length) : undefined}
         action={{
           label: 'All courses',
           chevron: true,
           onPress: () => router.push(to.course('all')),
         }}>
         <Stack gap="sm">
-          <Text tone="muted">
-            {total > 0
-              ? 'Today’s doses are part of the plan — open the courses to mark them.'
-              : 'No doses are planned for today.'}
-          </Text>
+          {failed ? <Text tone="danger">The mark did not save. Try again.</Text> : null}
+
+          {rows.map((row, index) => {
+            const item = intakes[index];
+            return (
+              <ListRow
+                key={row.id}
+                leading={
+                  <CheckCircle
+                    checked={row.done}
+                    // Пока отметка идёт, вторая не уходит: две подряд
+                    // записали бы приём дважды.
+                    onPress={item && busy === null ? () => mark(item, !row.done) : undefined}
+                  />
+                }
+                title={row.title}
+                subtitle={row.time}
+                done={row.done}
+              />
+            );
+          })}
+
+          {rows.length === 0 ? <Text tone="muted">No doses are planned for today.</Text> : null}
+
           <Button
             label="+ Add a course"
             variant="dashed"

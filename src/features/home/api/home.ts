@@ -6,8 +6,10 @@ import type {
   HomeData,
   HomeLayout,
   LayoutCell,
+  PlanItem,
   Surface,
   WidgetCatalog,
+  WidgetRecipe,
 } from './contract';
 
 /**
@@ -62,6 +64,41 @@ export function saveHomeLayout(
 
 export function fetchWidgetCatalog(signal?: AbortSignal): Promise<WidgetCatalog> {
   return request<WidgetCatalog>('/api/v2/widgets/catalog', { signal });
+}
+
+/**
+ * Собрать рецепт виджета по описанию словами. Сервер отвечает черновиком и
+ * раскладку не трогает: рецепт становится виджетом только после того, как
+ * человек его подтвердил и ячейка сохранена в раскладке.
+ */
+export function composeWidget(prompt: string): Promise<{ recipe: WidgetRecipe; saved: boolean }> {
+  return request<{ recipe: WidgetRecipe; saved: boolean }>('/api/v2/widgets/compose', {
+    method: 'POST',
+    body: { prompt },
+  });
+}
+
+/**
+ * Отметить приём добавки. Адрес, метод и тело даёт сам пункт плана: сервер
+ * называет действие, а клиент его выполняет, не собирая адрес по памяти.
+ * Пункты без действия отмечаются в своих разделах — их здесь не трогают.
+ */
+export function markPlanItem(
+  item: PlanItem,
+  status: 'taken' | 'skipped' | 'pending',
+): Promise<unknown> {
+  const action = item.action;
+  if (!action) return Promise.reject(new Error(`plan item ${item.id} has no action`));
+
+  return request(pathOf(action.url), {
+    method: action.method,
+    body: { ...action.body, status },
+  });
+}
+
+/** Адрес действия может прийти полным: клиент ходит только на свой сервер. */
+function pathOf(url: string): string {
+  return url.startsWith('/') ? url : new URL(url).pathname + new URL(url).search;
 }
 
 export function fetchDecisions(signal?: AbortSignal): Promise<{ items: readonly Decision[] }> {

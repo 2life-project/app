@@ -27,10 +27,14 @@ describe('detailText и detailTags', () => {
   });
 
   it('чужая форма detail не роняет экран и не выдумывает содержимое', () => {
+    // Форма `detail` у каждого вида своя, и тип описывает только ожидаемое.
+    // Здесь нарочно чужое: читатели обязаны пережить его на устройстве.
+    const foreign = (detail: unknown) => event({ detail: detail as CalendarEvent['detail'] });
+
     expect(detailText(event({ detail: null }))).toBeNull();
-    expect(detailText(event({ detail: { text: 42 } }))).toBeNull();
+    expect(detailText(foreign({ text: 42 }))).toBeNull();
     expect(detailText(event({ detail: { text: '' } }))).toBeNull();
-    expect(detailTags(event({ detail: { tags: 'rest' } }))).toEqual([]);
-    expect(detailTags(event({ detail: { tags: [1, 'rest'] } }))).toEqual(['rest']);
+    expect(detailTags(foreign({ tags: 'rest' }))).toEqual([]);
+    expect(detailTags(foreign({ tags: [1, 'rest'] }))).toEqual(['rest']);
   });
 });
