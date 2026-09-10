@@ -41,6 +41,13 @@ describe('fittingCount', () => {
   it('пустая очередь — пустая пачка', () => {
     expect(fittingCount([], LIMITS)).toBe(0);
   });
+
+  // Приёмник меряет пачку в байтах. Длина строки считает кириллицу за один
+  // символ, а в UTF-8 это два байта — пачка вышла бы вдвое больше предела.
+  it('меряет объём в байтах, а не в символах', () => {
+    const cyrillic = { ...record(1), payload: { filler: 'ю'.repeat(120) } };
+    expect(fittingCount([cyrillic, record(1)], LIMITS)).toBe(1);
+  });
 });
 
 describe('mergeCoverage', () => {

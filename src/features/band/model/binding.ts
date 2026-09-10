@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { currentUser } from '@/core/auth';
+import { HttpError } from '@/core/http/client';
 import { logger } from '@/core/log/logger';
 import { requestId } from '@/shared/lib/id';
 
@@ -35,6 +36,12 @@ export type Binding = {
    * склеивать их с последующими нельзя.
    */
   epoch: string | null;
+  /**
+   * Когда привязка заведена. По ней выбирается действующая, если у аккаунта
+   * их несколько — после перепривязки устройства: порядок ключей хранилища
+   * ничего не гарантирует, а сутки и записи должны уехать в последнюю.
+   */
+  boundAt: string;
 };
 
 /**
@@ -78,7 +85,8 @@ export async function storedBinding(account: string, mac: string): Promise<Bindi
     const raw = await AsyncStorage.getItem(keyOf(account, mac));
     return raw === null ? null : (JSON.parse(raw) as Binding);
   } catch (failure) {
-    logger.warn('band: привязка не прочиталась', { failure });
+    // Без привязки отправка молча стоит, поэтому это ошибка, а не шум.
+    logger.error('band: привязка не прочиталась', { failure });
     return null;
   }
 }
@@ -142,14 +150,20 @@ export async function ensureBinding(
       limits: registered.limits,
       clientInstanceId: instance,
       epoch,
+      boundAt: new Date().toISOString(),
     };
 
     await AsyncStorage.setItem(keyOf(account, mac), JSON.stringify(binding));
     return binding;
   } catch (failure) {
-    // Сервер недоступен — очередь просто ждёт. Данные при этом не теряются:
-    // они уже в ней, а регистрация повторится при следующем чтении.
-    logger.warn('band: регистрация на сервере не прошла', { reason: String(failure) });
+    // Очередь просто ждёт: данные уже в ней, регистрация повторится при
+    // следующем чтении. Отказ сервера уже записан клиентом; сетевой — нет, а
+    // в релизе виден только `error`.
+    if (failure instanceof HttpError) {
+      logger.warn('band: регистрация на сервере не прошла', { status: failure.status });
+    } else {
+      logger.error('band: регистрация не дошла до сервера', { reason: String(failure) });
+    }
     return null;
   }
 }
@@ -161,7 +175,9 @@ export async function ensureBinding(
  * копия устарела, и следующее подключение обязано спросить его заново.
  */
 export async function dropStoredBinding(account: string, mac: string): Promise<void> {
-  await AsyncStorage.removeItem(keyOf(account, mac)).catch(() => undefined);
+  await AsyncStorage.removeItem(keyOf(account, mac)).catch((failure: unknown) =>
+    logger.error('band: устаревшая привязка не стёрлась', { failure }),
+  );
 }
 
 /**
@@ -172,19 +188,28 @@ export async function dropStoredBinding(account: string, mac: string): Promise<v
  */
 export async function bindingsOfAccount(account: string): Promise<Binding[]> {
   const prefix = `${BINDING_PREFIX}${account}:`;
-  const keys = (await AsyncStorage.getAllKeys().catch(() => [])).filter((key) =>
-    key.startsWith(prefix),
-  );
-
   const bindings: Binding[] = [];
-  for (const [, raw] of await AsyncStorage.multiGet(keys).catch(() => [])) {
-    try {
+
+  try {
+    const keys = (await AsyncStorage.getAllKeys()).filter((key) => key.startsWith(prefix));
+    for (const [, raw] of await AsyncStorage.multiGet(keys)) {
       if (raw !== null) bindings.push(JSON.parse(raw) as Binding);
-    } catch (failure) {
-      logger.warn('band: привязка не разобралась', { failure });
     }
+  } catch (failure) {
+    // Без списка привязок отправка молча стоит — это ошибка хранилища, не шум.
+    logger.error('band: привязки не прочитались', { failure });
   }
   return bindings;
+}
+
+/**
+ * Действующая привязка аккаунта — последняя заведённая. Браслет у человека
+ * один, но после перепривязки устройства на диске их может оказаться две, и
+ * дочитанные сутки с записями обязаны уехать в новую.
+ */
+export async function latestBinding(account: string): Promise<Binding | null> {
+  const bindings = await bindingsOfAccount(account);
+  return bindings.sort((a, b) => (b.boundAt ?? '').localeCompare(a.boundAt ?? ''))[0] ?? null;
 }
 
 /**
@@ -225,5 +250,7 @@ export async function releaseBinding(mac: string | undefined): Promise<void> {
     );
   }
 
-  await AsyncStorage.removeItem(keyOf(account, mac)).catch(() => undefined);
+  await AsyncStorage.removeItem(keyOf(account, mac)).catch((failure: unknown) =>
+    logger.error('band: привязка не стёрлась', { failure }),
+  );
 }

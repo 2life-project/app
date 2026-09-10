@@ -12,6 +12,7 @@ import {
   clockWasReset,
   dropStoredBinding,
   ensureBinding,
+  latestBinding,
   releaseBinding,
   type Binding,
 } from './binding';
@@ -21,6 +22,7 @@ import {
   enqueue,
   halveDelivery,
   nextDelivery,
+  requeue,
   settle,
   unfreezeDelivery,
   type Delivery,
@@ -112,9 +114,7 @@ export async function publishDays(
   clockSkewSeconds: number | null,
 ): Promise<void> {
   const account = currentUser()?.sub;
-  // Первая и единственная: браслет у аккаунта один, привязка хранится одним
-  // значением, и второго устройства этот экран не знает.
-  const binding = account ? (await bindingsOfAccount(account))[0] : undefined;
+  const binding = account ? await latestBinding(account) : null;
   if (!account || !binding || days.length === 0) return;
 
   for (const day of days) {
@@ -175,13 +175,21 @@ async function drain(account: string, binding: Binding): Promise<void> {
     moduleVersion: env.appVersion,
     timezone: deviceTimeZone(),
   };
+  const sent: Delivery[] = [];
 
   for (let round = 0; round < MAX_BATCHES; round += 1) {
     const delivery = await nextDelivery(account, binding.bandId, binding.limits, envelope);
-    if (!delivery) return;
+    if (!delivery) break;
 
-    if (!(await deliver(account, binding, delivery))) return;
+    if (!(await deliver(account, binding, delivery))) break;
+    sent.push(delivery);
   }
+
+  // Результат разбора приходит позже приёма и на очередь не влияет: пачки уже
+  // приняты. Спрашиваем о нём после захода и разом, чтобы не удлинять сам
+  // заход: заход ждёт сеть, а это — нет.
+  if (sent.length > 0)
+    void Promise.all(sent.map((delivery) => reportIssues(account, binding, delivery)));
 }
 
 /** Отправить одну пачку. `false` — дальше в этот заход идти нельзя. */
@@ -200,10 +208,6 @@ async function deliver(account: string, binding: Binding, delivery: Delivery): P
     });
 
     await settle(account, binding.bandId);
-    // Результат разбора приходит позже приёма и на очередь не влияет: пачка
-    // уже принята. Но молчать о нём нельзя — так и выясняется, что данные
-    // доезжают, а показателями не становятся.
-    void reportIssues(binding.bandId, delivery.deliveryId);
     return true;
   } catch (failure) {
     return await recover(account, binding, failure);
@@ -216,13 +220,14 @@ async function recover(account: string, binding: Binding, failure: unknown): Pro
 
   // Слишком большая пачка режется пополам: предел объявляет сервер, и наш
   // подсчёт мог разойтись с его — например, на длинной ночи со стадиями.
-  if (status === 413) return halveDelivery(account, binding.bandId);
-
-  // Пачка не проходит проверку транспорта. Дробим её, пока не останется одна
-  // запись: тогда виновата она, и держать из-за неё всю очередь нельзя.
-  if (status === 422) {
+  // Одна запись, которая больше предела, не уедет никогда — и держать из-за
+  // неё всю очередь нельзя: отбрасываем громко, как и непроходящую проверку.
+  if (status === 413 || status === 422) {
     if (await halveDelivery(account, binding.bandId)) return true;
-    logger.error('band: запись отвергнута приёмником и отброшена', { reason: String(failure) });
+    logger.error('band: запись отвергнута приёмником и отброшена', {
+      status,
+      reason: String(failure),
+    });
     await settle(account, binding.bandId);
     return true;
   }
@@ -242,25 +247,52 @@ async function recover(account: string, binding: Binding, failure: unknown): Pro
     return false;
   }
 
-  // Нет доступа, нет сети, база недоступна. Ничего из этого не лечится
-  // повтором прямо сейчас: очередь ждёт следующего захода как есть.
-  logger.warn('band: пачка не ушла', { status, reason: String(failure) });
+  // Нет доступа, база недоступна — сервер ответил, и клиент этот ответ уже
+  // записал. Нет сети или таймаут — ответа не было, и без записи здесь отказ
+  // в релизе невидим. Очередь в обоих случаях ждёт следующего захода как есть.
+  if (status !== 0) logger.warn('band: пачка не принята', { status });
+  else logger.error('band: пачка не дошла до сервера', { reason: String(failure) });
   return false;
 }
 
-async function reportIssues(bandId: string, deliveryId: string): Promise<void> {
+/**
+ * Что приёмник сделал с принятым.
+ *
+ * Разбор идёт на его стороне после приёма; квитанция говорит, какие записи
+ * стали показателями, а какие — нет. Временные отказы отправляются заново,
+ * остальные пишутся в лог: так и выясняется, что данные доезжают, а
+ * показателями не становятся.
+ */
+async function reportIssues(account: string, binding: Binding, delivery: Delivery): Promise<void> {
   try {
-    const receipt = await fetchReceipt(bandId, deliveryId);
-    const problems = receipt.records.filter((record) => record.issues.length > 0);
-    if (problems.length === 0) return;
+    const receipt = await fetchReceipt(binding.bandId, delivery.deliveryId);
+    const troubled = receipt.records.filter((record) => record.issues.length > 0);
+    if (troubled.length === 0) return;
 
-    logger.warn('band: разбор пачки с оговорками', {
+    const failed = troubled.filter((record) => record.mappingStatus === 'failed');
+    const retryable = new Set(
+      failed
+        .filter((record) => record.issues.some((issue) => issue.retryable))
+        .map((record) => record.eventId),
+    );
+    const again = delivery.records.filter((record) => retryable.has(record.eventId));
+    if (again.length > 0)
+      await requeue(account, binding.bandId, again, delivery.envelope.deviceEpoch);
+
+    const codes = [
+      ...new Set(troubled.flatMap((record) => record.issues.map((issue) => issue.code))),
+    ];
+    const level = failed.length > retryable.size ? 'error' : 'warn';
+    logger[level]('band: разбор пачки с оговорками', {
       status: receipt.processingStatus,
-      records: problems.length,
-      codes: [...new Set(problems.flatMap((record) => record.issues.map((issue) => issue.code)))],
+      records: troubled.length,
+      failed: failed.length,
+      retried: again.length,
+      codes,
     });
   } catch (failure) {
-    logger.warn('band: результат разбора не прочитался', { reason: String(failure) });
+    if (failure instanceof HttpError) return;
+    logger.error('band: результат разбора не прочитался', { reason: String(failure) });
   }
 }
 

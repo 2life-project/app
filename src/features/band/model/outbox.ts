@@ -8,7 +8,14 @@ import type { BandLimits, BandStream, Coverage, IngestionRecord, TimeQuality } f
 import { uuidFrom } from '../api';
 
 import { dayKey } from './history-store';
-import { capped, fittingCount, isSnapshot, mergeCoverage, pruneSeen } from './outbox-pack';
+import {
+  capped,
+  coverageKey,
+  fittingCount,
+  isSnapshot,
+  mergeCoverage,
+  pruneSeen,
+} from './outbox-pack';
 import { serial } from './serial';
 
 /**
@@ -24,6 +31,13 @@ import { serial } from './serial';
  */
 
 const PREFIX = '2life:band-outbox.1:';
+
+/**
+ * Сколько раз запись, которую приёмник не смог разобрать «временно»,
+ * отправляется заново. Дальше причина уже не временная, и держать запись в
+ * очереди значит гонять её вечно.
+ */
+const MAX_ATTEMPTS = 3;
 
 /**
  * Заготовка записи: что произошло и когда. Идентификатор и порядковый номер
@@ -50,6 +64,7 @@ export type Draft = {
  * Запись в очереди помнит эпоху часов, под которой её прочитали. В пачке эпоха
  * одна на всех — она в конверте, — поэтому пачка режется на границе эпох:
  * данные, снятые до сброса часов устройства, нельзя выдать за снятые после.
+ * Наружу эпоха не уходит.
  */
 type PendingRecord = IngestionRecord & { epoch: string | null };
 
@@ -60,11 +75,11 @@ type Stored = {
   /**
    * Замороженная пачка: отправленная хоть раз, она обязана повторяться слово
    * в слово. Изменённая пачка с прежним `deliveryId` отклоняется как конфликт,
-   * поэтому замораживается не только состав записей, но и весь конверт —
+   * поэтому замораживается всё: состав записей, окна покрытия и конверт —
    * версия привязки, версия модуля, пояс и эпоха часов. Пересчитать их к
    * моменту повтора значит отправить другую пачку под старым именем.
    */
-  delivery: { id: string; records: number; envelope: Envelope } | null;
+  delivery: { id: string; records: number; coverage: Coverage[]; envelope: Envelope } | null;
   /**
    * Докуда каждый поток уже поставлен в очередь, по суткам:
    * `поток|YYYY-MM-DD` → время последнего события в миллисекундах.
@@ -74,6 +89,12 @@ type Stored = {
    * бы их целиком как «старые».
    */
   seen: Record<string, number>;
+  /**
+   * Сколько раз запись уже уезжала заново: `eventId` → счёт. Отдельно от
+   * самой записи, потому что на время пути её в очереди нет, а наружу счёт
+   * уходить не должен.
+   */
+  retries?: Record<string, number>;
 };
 
 /** Функция, а не константа: массивы внутри не должны быть общими между чтениями. */
@@ -84,11 +105,17 @@ function keyOf(account: string, bandId: string): string {
 }
 
 async function load(account: string, bandId: string): Promise<Stored> {
+  const key = keyOf(account, bandId);
+  let raw: string | null = null;
   try {
-    const raw = await AsyncStorage.getItem(keyOf(account, bandId));
+    raw = await AsyncStorage.getItem(key);
     return raw === null ? empty() : { ...empty(), ...(JSON.parse(raw) as Stored) };
   } catch (failure) {
-    logger.warn('band: очередь отправки не прочиталась', { failure });
+    // Битую очередь нельзя затереть следующей записью молча: в ней лежит то,
+    // чего на браслете уже нет. Откладываем её под соседний ключ — для
+    // разбора — и начинаем заново, громко.
+    logger.error('band: очередь отправки не прочиталась, отложена', { failure });
+    if (raw !== null) await AsyncStorage.setItem(`${key}:broken`, raw).catch(() => undefined);
     return empty();
   }
 }
@@ -111,7 +138,8 @@ export type EnqueueOptions = {
  * Повторное чтение тех же суток — обычный случай: раздел обновляют кнопкой, и
  * история за сегодня приходит целиком каждый раз. Заново уезжает только то,
  * чего в очереди ещё не было, иначе каждое обновление гнало бы на сервер весь
- * день поминутно.
+ * день поминутно. Ничего нового — ничего не пишем: очередь весит до мегабайта,
+ * и переписывать её ради того же содержимого незачем.
  */
 export function enqueue(
   account: string,
@@ -159,13 +187,60 @@ export function enqueue(
       seen[slot] = Math.max(seen[slot] ?? 0, at);
     }
 
+    const coverage = mergeCoverage(stored.coverage, options.coverage ?? []);
+    const unchanged = sequence === stored.sequence && coverage.length === stored.coverage.length;
+    if (unchanged) return;
+
     await save(account, bandId, {
       sequence,
       pending: capped(pending, frozen),
-      coverage: mergeCoverage(stored.coverage, options.coverage ?? []),
+      coverage,
       delivery: stored.delivery,
       seen,
     });
+  });
+}
+
+/**
+ * Вернуть в очередь записи, которые приёмник принял, но разобрать не смог по
+ * временной причине. Идентичность прежняя — событие то же; порядковый номер
+ * новый — это новая отправка. После нескольких кругов запись отбрасывается:
+ * причина, которая не проходит трижды, временной уже не является.
+ */
+export function requeue(
+  account: string,
+  bandId: string,
+  records: readonly IngestionRecord[],
+  epoch: string | null,
+): Promise<void> {
+  return serial(async () => {
+    const stored = await load(account, bandId);
+    const retries: Record<string, number> = {};
+    let { sequence } = stored;
+    const pending = [...stored.pending];
+
+    for (const record of records) {
+      const tries = (stored.retries?.[record.eventId] ?? 0) + 1;
+      if (tries >= MAX_ATTEMPTS) {
+        logger.error('band: запись не разбирается приёмником, отброшена', {
+          stream: record.stream,
+          eventId: record.eventId,
+        });
+        continue;
+      }
+      sequence += 1;
+      pending.push({ ...record, sequence, epoch });
+      retries[record.eventId] = tries;
+    }
+
+    if (sequence === stored.sequence) return;
+    // Счёт держим только по записям, которые ещё в очереди: остальным он не
+    // понадобится, а карта иначе росла бы без предела.
+    for (const item of pending) {
+      const known = stored.retries?.[item.eventId];
+      if (known !== undefined && retries[item.eventId] === undefined) retries[item.eventId] = known;
+    }
+    await save(account, bandId, { ...stored, sequence, pending, retries });
   });
 }
 
@@ -213,30 +288,41 @@ export function nextDelivery(
     const delivery = stored.delivery ?? {
       id: requestId(),
       records: count,
+      coverage: stored.coverage,
       envelope: { ...envelope, deviceEpoch: head.epoch },
     };
     if (!stored.delivery) await save(account, bandId, { ...stored, delivery });
 
     return {
       deliveryId: delivery.id,
-      // Конверт замороженной пачки — тот, с которым её отправили в первый раз.
+      // Конверт и окна замороженной пачки — те, с которыми её отправили в
+      // первый раз. Служебные поля очереди наружу не уходят.
       envelope: delivery.envelope,
-      records: stored.pending.slice(0, delivery.records).map(({ epoch: _, ...record }) => record),
-      coverage: stored.coverage,
+      records: stored.pending
+        .slice(0, delivery.records)
+        .map(({ epoch: _epoch, ...record }) => record),
+      coverage: delivery.coverage,
     };
   });
 }
 
-/** Пачка принята: убрать её из очереди вместе с уехавшими окнами покрытия. */
+/**
+ * Пачка принята: убрать её из очереди вместе с уехавшими окнами покрытия.
+ *
+ * Только с уехавшими. Пока пачка была в пути, дочитывание суток могло
+ * добавить своё окно — оно ещё не отправлялось и обязано дождаться следующей.
+ */
 export function settle(account: string, bandId: string): Promise<void> {
   return serial(async () => {
     const stored = await load(account, bandId);
-    if (!stored.delivery) return;
+    const frozen = stored.delivery;
+    if (!frozen) return;
 
+    const sent = new Set(frozen.coverage.map(coverageKey));
     await save(account, bandId, {
       ...stored,
-      pending: stored.pending.slice(stored.delivery.records),
-      coverage: [],
+      pending: stored.pending.slice(frozen.records),
+      coverage: stored.coverage.filter((window) => !sent.has(coverageKey(window))),
       delivery: null,
     });
   });
@@ -278,8 +364,12 @@ export function unfreezeDelivery(account: string, bandId: string): Promise<void>
  *
  * Вызывается, когда человек отвязал браслет: накопленное принадлежало прежней
  * привязке, и молча отправлять его под новой версией нельзя — приёмник об этом
- * предупреждает прямо.
+ * предупреждает прямо. Поэтому и неудача здесь — ошибка, а не шум.
  */
 export function clearOutbox(account: string, bandId: string): Promise<void> {
-  return serial(() => AsyncStorage.removeItem(keyOf(account, bandId)).catch(() => undefined));
+  return serial(() =>
+    AsyncStorage.removeItem(keyOf(account, bandId)).catch((failure: unknown) =>
+      logger.error('band: очередь отправки не стёрлась', { failure }),
+    ),
+  );
 }

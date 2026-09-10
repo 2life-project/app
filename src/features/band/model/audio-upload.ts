@@ -1,4 +1,5 @@
 import { currentUser } from '@/core/auth';
+import { HttpError } from '@/core/http/client';
 import { logger } from '@/core/log/logger';
 import { deviceTimeZone } from '@/shared/lib/day';
 
@@ -8,8 +9,8 @@ import {
   fetchRecording,
   hashRecording,
   markUploaded,
+  partFile,
   pendingUploads,
-  readPart,
   recordingBytes,
   uploadPart,
   uuidFrom,
@@ -17,7 +18,7 @@ import {
   type SavedRecording,
 } from '../api';
 
-import { bindingsOfAccount, type Binding } from './binding';
+import { latestBinding, type Binding } from './binding';
 
 /**
  * Выгрузка голосовых записей.
@@ -45,20 +46,28 @@ export async function uploadRecordings(): Promise<void> {
   const account = currentUser()?.sub;
   if (!account || running) return;
 
-  // Файл записи не помнит, с какого браслета он пришёл, — а браслет у аккаунта
-  // один: привязка на телефоне хранится одним значением.
-  const binding = (await bindingsOfAccount(account))[0];
+  // Файл записи не помнит, с какого браслета он пришёл; действующая привязка
+  // аккаунта — последняя заведённая.
+  const binding = await latestBinding(account);
   if (!binding) return;
 
   running = true;
   try {
-    for (const recording of pendingUploads().slice(0, PER_RUN)) {
+    // Старые первыми: иначе при постоянном притоке новых записей старые не
+    // уехали бы никогда — за заход берётся одна.
+    const queue = pendingUploads().sort((a, b) => a.session - b.session);
+    for (const recording of queue.slice(0, PER_RUN)) {
       await send(binding, recording);
     }
   } catch (failure) {
-    // Сеть, недоступное хранилище, отказ приёмника — всё это норма для фона.
-    // Файл остаётся на телефоне непомеченным и уедет в следующий заход.
-    logger.warn('band: запись не выгрузилась', { reason: String(failure) });
+    // Файл остаётся на телефоне непомеченным и уедет в следующий заход. Отказ
+    // сервера уже записан клиентом; сетевой — нет, а в релизе виден только
+    // `error`.
+    if (failure instanceof HttpError) {
+      logger.warn('band: запись не принята сервером', { status: failure.status });
+    } else {
+      logger.error('band: запись не дошла до сервера', { reason: String(failure) });
+    }
   } finally {
     running = false;
   }
@@ -76,7 +85,7 @@ async function send(binding: Binding, recording: SavedRecording): Promise<void> 
     return;
   }
 
-  const sha256 = hashRecording(recording.session);
+  const sha256 = await hashRecording(recording.session);
   if (sha256 === null) return;
 
   let remote = await claimRecording(binding.bandId, {
@@ -101,7 +110,8 @@ async function send(binding: Binding, recording: SavedRecording): Promise<void> 
     return;
   }
 
-  await pushParts(recording.session, bytes, remote);
+  // Сборка без всех частей дала бы файл, который никогда не сойдётся по хешу.
+  if (!(await pushParts(recording.session, bytes, remote))) return;
   remote = await completeUpload(remote.id);
 
   // Сборка и проверка файла идут фоновым заданием сервера. Ждём его недолго:
@@ -112,25 +122,56 @@ async function send(binding: Binding, recording: SavedRecording): Promise<void> 
     remote = await fetchRecording(remote.id);
   }
 
-  if (remote.audioStored) markUploaded(recording.session);
-  else logger.info('band: запись принята, проверка ещё идёт', { session: recording.session });
+  if (remote.audioStored) {
+    markUploaded(recording.session);
+  } else if (remote.error) {
+    // Сервер назвал причину: файл не сошёлся по хешу, размеру или формату.
+    // Это не «ещё проверяет» — это отказ, и его надо видеть.
+    logger.error('band: сервер не принял запись', { session: recording.session, ...remote.error });
+  } else {
+    logger.warn('band: запись принята, проверка ещё идёт', { session: recording.session });
+  }
 }
 
-/** Дослать недостающие части. Уже принятые сервер перечисляет сам. */
-async function pushParts(session: number, bytes: number, remote: RemoteRecording): Promise<void> {
+/**
+ * Дослать недостающие части. Уже принятые сервер перечисляет сам — и не
+ * только номером: часть, оборванная на прошлой попытке, значится с другим
+ * размером, а заменить уже записанную приёмник не даёт. Такой файл дослать
+ * нельзя, и это ошибка, а не пропуск.
+ */
+async function pushParts(
+  session: number,
+  bytes: number,
+  remote: RemoteRecording,
+): Promise<boolean> {
   const size = remote.partBytes;
-  const stored = new Set(remote.parts.map((part) => part.partNumber));
   const total = Math.ceil(bytes / size);
+  const stored = new Map(remote.parts.map((part) => [part.partNumber, part.bytes]));
 
   for (let part = 0; part < total; part += 1) {
-    if (stored.has(part)) continue;
+    const expected = Math.min(size, bytes - part * size);
+    const got = stored.get(part);
+    if (got === expected) continue;
+    if (got !== undefined) {
+      logger.error('band: часть записи на сервере другого размера', {
+        session,
+        part,
+        got,
+        expected,
+      });
+      return false;
+    }
 
-    const offset = part * size;
-    const chunk = readPart(session, offset, Math.min(size, bytes - offset));
-    if (chunk === null) return;
+    const prepared = partFile(session, part, size);
+    if (!prepared) return false;
 
-    await uploadPart(remote.id, part, chunk);
+    try {
+      await uploadPart(remote.id, part, prepared.file);
+    } finally {
+      if (prepared.temporary) prepared.file.delete();
+    }
   }
+  return true;
 }
 
 function pause(ms: number): Promise<void> {

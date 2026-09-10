@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { currentUser } from '@/core/auth';
 import { logger } from '@/core/log/logger';
 
 import { Band } from './band';
@@ -31,6 +32,10 @@ type SyncResult = { fetched: number; freed: number };
  * открытии приложения система окна не выдаёт, а забрать надо.
  */
 export async function syncRecordings(deviceId: string): Promise<SyncResult> {
+  // Записи принадлежат аккаунту, и без него им нет места на телефоне. Забрать
+  // файл с устройства и стереть его там — значило бы потерять запись совсем.
+  if (!currentUser()) return { fetched: 0, freed: 0 };
+
   const band = await Band.connect(deviceId);
 
   try {

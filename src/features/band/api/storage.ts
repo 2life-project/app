@@ -1,5 +1,6 @@
 import { Directory, File, Paths } from 'expo-file-system';
 
+import { currentUser } from '@/core/auth';
 import { logger } from '@/core/log/logger';
 
 import { toOgg, durationSeconds } from './audio';
@@ -14,9 +15,16 @@ import { Sha256 } from './sha256';
  *
  * Имя файла — время начала записи, оно же её идентификатор на устройстве. Так
  * список на телефоне и список на браслете сходятся без отдельной таблицы.
+ *
+ * Папка — своя у каждого аккаунта. Записи принадлежат тому, кто их наговорил:
+ * телефоном пользуются двое, и файлы первого не должны ни показываться
+ * второму, ни уехать на сервер под его именем.
  */
 
 const FOLDER = 'band-recordings';
+
+/** Части файла для отправки: временные, живут ровно один запрос. */
+const PARTS = 'band-parts';
 
 export type SavedRecording = {
   session: number;
@@ -45,10 +53,34 @@ export type RecordingMark = {
   offsetSeconds: number;
 };
 
-function folder(): Directory {
-  const directory = new Directory(Paths.document, FOLDER);
-  if (!directory.exists) directory.create({ intermediates: true });
+/** Папка записей текущего аккаунта. `null` — никто не вошёл, записей нет. */
+function folder(): Directory | null {
+  const account = currentUser()?.sub;
+  if (!account) return null;
+
+  const directory = new Directory(Paths.document, FOLDER, account);
+  if (!directory.exists) {
+    directory.create({ intermediates: true });
+    adoptLegacy(directory);
+  }
   return directory;
+}
+
+/**
+ * Записи, сохранённые до того, как папки стали именными, лежат в корне. Чьи
+ * они, узнать уже нельзя; терять их — хуже: на браслете их давно нет. Они
+ * достаются первому, кто вошёл после обновления, — один раз.
+ */
+function adoptLegacy(target: Directory): void {
+  const root = new Directory(Paths.document, FOLDER);
+  for (const entry of root.list()) {
+    if (!(entry instanceof File)) continue;
+    try {
+      entry.move(new File(target, entry.name));
+    } catch (failure) {
+      logger.error('band: старая запись не перенеслась в папку аккаунта', { failure });
+    }
+  }
 }
 
 /**
@@ -81,13 +113,18 @@ function parseName(name: string): { session: number; rawBytes: number; uploaded:
  * его в Ogg — так файл сразу играется и принимается сервисами распознавания.
  */
 export function saveRecording(session: number, raw: Uint8Array): SavedRecording {
+  const home = folder();
+  // Без аккаунта записи некуда положить — а вызывающий обязан проверить это
+  // до того, как заберёт файл с устройства.
+  if (!home) throw new Error('band: записи некуда сохранить — никто не вошёл');
+
   // Имя несёт длину потока, поэтому докачанная заново запись легла бы вторым
   // файлом рядом с первым: `fileOf` вернул бы любой из них, отметка об отправке
   // легла бы на один, а второй уехал бы на сервер ещё раз.
   const previous = fileOf(session);
   if (previous) previous.delete();
 
-  const file = new File(folder(), nameOf(session, raw.length, false));
+  const file = new File(home, nameOf(session, raw.length, false));
   if (!file.exists) file.create();
   file.write(toOgg(raw));
 
@@ -107,7 +144,7 @@ export function saveRecording(session: number, raw: Uint8Array): SavedRecording 
 export function savedRecordings(): SavedRecording[] {
   const items: SavedRecording[] = [];
 
-  for (const entry of folder().list()) {
+  for (const entry of folder()?.list() ?? []) {
     if (!(entry instanceof File)) continue;
     const parsed = parseName(entry.name);
     if (!parsed) continue;
@@ -143,23 +180,26 @@ export function pendingUploads(): SavedRecording[] {
  * держать их в памяти нельзя: приложение закроют, а метка — единственное, что
  * человек в этой записи отметил сам.
  */
-function marksFile(session: number): File {
-  return new File(folder(), `${session}.marks.json`);
+function marksFile(session: number): File | null {
+  const home = folder();
+  return home ? new File(home, `${session}.marks.json`) : null;
 }
 
 export function rememberMark(session: number, mark: RecordingMark): void {
+  const file = marksFile(session);
+  if (!file) return;
+
   const marks = marksOf(session).filter((item) => item.index !== mark.index);
   marks.push(mark);
   marks.sort((a, b) => a.offsetSeconds - b.offsetSeconds);
 
-  const file = marksFile(session);
   if (!file.exists) file.create();
   file.write(JSON.stringify(marks));
 }
 
 export function marksOf(session: number): RecordingMark[] {
   const file = marksFile(session);
-  if (!file.exists) return [];
+  if (!file?.exists) return [];
 
   try {
     const parsed: unknown = JSON.parse(file.textSync());
@@ -175,7 +215,7 @@ export function marksOf(session: number): RecordingMark[] {
  * исходного потока, и вызывающий её не знает.
  */
 function fileOf(session: number): File | null {
-  for (const entry of folder().list()) {
+  for (const entry of folder()?.list() ?? []) {
     if (!(entry instanceof File)) continue;
     if (parseName(entry.name)?.session === session) return entry;
   }
@@ -188,19 +228,14 @@ export function markUploaded(session: number): void {
   const parsed = source ? parseName(source.name) : null;
   if (!source || !parsed || parsed.uploaded) return;
 
-  source.move(new File(folder(), nameOf(session, parsed.rawBytes, true)));
+  source.move(new File(source.parentDirectory, nameOf(session, parsed.rawBytes, true)));
 }
 
 export function removeSaved(session: number): void {
   fileOf(session)?.delete();
 
   const marks = marksFile(session);
-  if (marks.exists) marks.delete();
-}
-
-/** Сколько места записи занимают на диске. */
-export function usedBytes(): number {
-  return savedRecordings().reduce((total, item) => total + item.uploadBytes, 0);
+  if (marks?.exists) marks.delete();
 }
 
 /** Размер файла на диске. `null` — записи уже нет. */
@@ -211,13 +246,16 @@ export function recordingBytes(session: number): number | null {
 /**
  * Хеш файла записи — тот, по которому приёмник проверит присланное.
  *
- * Считается потоком, кусками: час записи весит семь мегабайт, а память
- * диктофона держит пятнадцать часов. Читать такой файл в память целиком ради
- * одного числа нельзя — на телефоне это падение, а не медленный код.
+ * Считается потоком, кусками, и между кусками отдаёт поток интерфейсу: час
+ * записи весит семь мегабайт, а память диктофона держит пятнадцать часов.
+ * Читать такой файл в память целиком нельзя — это падение, — а считать его
+ * одним куском значит заморозить экран на секунды сразу после подключения.
  */
-const HASH_CHUNK = 1 << 20;
+const HASH_CHUNK = 256 << 10;
 
-export function hashRecording(session: number): string | null {
+const breathe = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+export async function hashRecording(session: number): Promise<string | null> {
   const file = fileOf(session);
   if (!file) return null;
 
@@ -228,34 +266,53 @@ export function hashRecording(session: number): string | null {
       const chunk = handle.readBytes(HASH_CHUNK);
       if (chunk.length === 0) break;
       hash.update(chunk);
+      await breathe();
     }
     return hash.digest();
   } catch (error) {
-    logger.warn('band: запись не прочиталась для хеша', { session, reason: String(error) });
+    // Без хеша запись не уедет никогда, и это надо видеть.
+    logger.error('band: запись не прочиталась для хеша', { session, reason: String(error) });
     return null;
   } finally {
     handle.close();
   }
 }
 
-/**
- * Кусок файла для отправки. Приёмник принимает запись частями и умеет
- * докачку, поэтому читается ровно запрошенный отрезок, а не файл целиком.
- */
-export function readPart(
-  session: number,
-  offset: number,
-  length: number,
-): Uint8Array<ArrayBuffer> | null {
-  const file = fileOf(session);
-  if (!file) return null;
+/** Файл, который уедет одной частью: сама запись или её вырезанный кусок. */
+export type PartFile = { file: File; temporary: boolean };
 
-  const handle = file.open();
+/**
+ * Часть файла для отправки.
+ *
+ * Приёмник принимает запись частями и умеет докачку, а отправляет части
+ * нативная загрузка — файлом, не байтами через мост. Запись, которая целиком
+ * помещается в часть, уезжает как есть; длинная режется на временные файлы,
+ * и каждый живёт ровно один запрос — убирает его вызывающий.
+ */
+export function partFile(session: number, partNumber: number, partBytes: number): PartFile | null {
+  const source = fileOf(session);
+  if (!source) return null;
+  if (source.size <= partBytes) return { file: source, temporary: false };
+
+  const parts = new Directory(Paths.cache, PARTS);
+  if (!parts.exists) parts.create({ intermediates: true });
+  const part = new File(parts, `${session}.${partNumber}.part`);
+
+  const handle = source.open();
   try {
-    handle.offset = offset;
-    return handle.readBytes(length);
+    handle.offset = partNumber * partBytes;
+    const bytes = handle.readBytes(Math.min(partBytes, source.size - partNumber * partBytes));
+    if (part.exists) part.delete();
+    part.create();
+    part.write(bytes);
+    return { file: part, temporary: true };
   } catch (error) {
-    logger.warn('band: часть записи не прочиталась', { session, reason: String(error) });
+    // Пропущенная часть — это неполный файл на сервере, и молчать тут нельзя.
+    logger.error('band: часть записи не подготовилась', {
+      session,
+      partNumber,
+      reason: String(error),
+    });
     return null;
   } finally {
     handle.close();

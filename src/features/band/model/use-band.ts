@@ -1,41 +1,27 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { logger } from '@/core/log/logger';
-import { clearBandReadings, setPairedBand, syncBodyProfile, usePairedBand } from '@/shared/domain';
+import { setPairedBand, syncBodyProfile, usePairedBand } from '@/shared/domain';
 
-import {
-  Band,
-  type FoundBand,
-  connectedBands,
-  dropConnection,
-  mergeFound,
-  scanForBands,
-  sortByProximity,
-} from '../api';
+import { Band, type FoundBand, mergeFound, scanForBands } from '../api';
 
 import { uploadRecordings } from './audio-upload';
-import { startBackgroundSync, stopBackgroundSync } from './background';
+import { startBackgroundSync } from './background';
 import { useBandActions } from './band-actions';
-import {
-  backfillHistory,
-  clearSnapshot,
-  loadEverything,
-  loadSnapshot,
-  saveSnapshot,
-} from './band-data';
+import { backfillHistory, loadEverything, saveSnapshot } from './band-data';
 import { INITIAL, type BandState } from './band-state';
-import { clearHistory } from './history-store';
+import { forgetBand } from './forget-band';
 import { sendProfile } from './profile-sync';
 import { publishReadings } from './publish-readings';
-import { publishDays, publishToServer, releaseServerBinding } from './upload';
+import { publishDays, publishToServer } from './upload';
 import { useAlarms } from './use-alarms';
+import { useBandBoot, useLivePoll } from './use-band-boot';
 import { useBandEvents } from './use-band-events';
 import { useForeground } from './use-foreground';
 import { useOpenSession } from './use-open-session';
 import { useReconnect } from './use-reconnect';
 import { useService } from './use-service';
 import { useDeviceSettings } from './use-settings';
-import { clearOpenSession, rememberWorkout, toRecord } from './workout-store';
 
 /**
  * Состояние работы с браслетом: поиск, подключение и всё, что устройство отдаёт.
@@ -46,9 +32,6 @@ import { clearOpenSession, rememberWorkout, toRecord } from './workout-store';
  */
 
 export type BandStage = 'idle' | 'scanning' | 'connecting' | 'connected' | 'failed';
-
-/** Как часто обновлять сводку дня при открытом разделе. */
-const LIVE_POLL_MS = 30_000;
 
 /** Сколько связь должна продержаться, чтобы считаться устойчивой. */
 const STABLE_CONNECTION_MS = 60_000;
@@ -85,29 +68,7 @@ export function useBand() {
     });
   }, []);
 
-  // Показания с прошлого запуска — сразу, не дожидаясь Bluetooth. Они лежат на
-  // диске телефона и от сессии в аккаунте не зависят: раздел не должен
-  // начинаться с пустых графиков только потому, что связь ещё не поднялась.
-  useEffect(() => {
-    void loadSnapshot().then((snapshot) => {
-      if (!snapshot) return;
-      patch(snapshot);
-      // Публикуем сам снимок, а не зеркало состояния: зеркало обновляется
-      // внутри `setState`, то есть уже после этой микрозадачи, и здесь оно
-      // ещё пустое — на Главную уезжали бы пустые показания поверх настоящих.
-      publishReadings({ ...INITIAL, ...snapshot });
-    });
-  }, [patch]);
-
-  // Браслет мог остаться на связи с телефоном — от прошлого запуска, от
-  // системы, от приложения вендора. В эфире такого не найти: подключённое
-  // устройство перестаёт рекламировать себя, и поиск молчал бы вечно.
-  useEffect(() => {
-    if (paired) return;
-    void connectedBands().then((bands) => {
-      if (bands.length > 0) patch({ found: sortByProximity(bands) });
-    });
-  }, [paired, patch]);
+  useBandBoot(paired, patch);
 
   useEffect(() => {
     return () => {
@@ -173,34 +134,7 @@ export function useBand() {
 
   useOpenSession(state.session, patch);
 
-  // Пока раздел открыт, сводка дня подтягивается сама: шаги и калории живой
-  // отчёт не несёт, а смотреть на цифры получасовой давности при подключённом
-  // браслете незачем.
-  useEffect(() => {
-    // В фоне опрос бессмысленен: система придерживает радио, а первый же промах
-    // уводил связь в 'idle' — приложение возвращалось уже отключённым.
-    if (state.stage !== 'connected' || !foreground) return;
-
-    const timer = setInterval(() => {
-      void band.current
-        ?.daySummary()
-        .then((summary) => patch({ summary }))
-        .catch((failure: unknown) => {
-          // Сама по себе связь не восстановится, а опрос будет ходить в неё до
-          // ухода с экрана — по строке в лог каждые полминуты, пока человек
-          // смотрит на «подключено», которого нет.
-          logger.error('band: связь потеряна на опросе', { reason: String(failure) });
-          // Закрыть соединение обязательно: без этого подписки и открытый
-          // канал остаются висеть, а браслет считает себя занятым и в эфире
-          // больше не появляется.
-          void band.current?.disconnect().catch(() => undefined);
-          adopt(null);
-          patch({ stage: 'idle' });
-        });
-    }, LIVE_POLL_MS);
-
-    return () => clearInterval(timer);
-  }, [adopt, foreground, patch, state.stage]);
+  useLivePoll({ stage: state.stage, foreground, bandRef: band, adopt, patch });
 
   const connect = useCallback(
     async (device: FoundBand) => {
@@ -263,9 +197,11 @@ export function useBand() {
 
         // Дочитанные сутки уезжают следом: в состоянии раздела их нет, и
         // без этого они остались бы только на телефоне.
-        void backfillHistory(connected).then((days) =>
-          publishDays(days, connected.clockSkewSeconds),
-        );
+        void backfillHistory(connected)
+          .then((days) => publishDays(days, connected.clockSkewSeconds))
+          .catch((failure: unknown) =>
+            logger.error('band: дочитанные сутки не отправились', { failure }),
+          );
       } catch (error) {
         logger.warn('band: подключение не удалось', { reason: String(error) });
         patch({ stage: 'failed', step: undefined, problem: 'connect-failed' });
@@ -288,46 +224,10 @@ export function useBand() {
     patch({ stage: 'idle', found: [], problem: undefined, retrying: false });
   }, [adopt, patch]);
 
-  /**
-   * Забыть браслет: отвязать на устройстве, разорвать связь и стереть память
-   * телефона. Порядок важен — снять привязку можно только пока связь жива, а
-   * после разрыва браслет уже недоступен.
-   */
   const forget = useCallback(async () => {
-    const active = band.current;
-    const deviceId = latest.current.device?.id ?? paired?.id;
+    await forgetBand({ bandRef: band, latest, pairedId: paired?.id });
+    // Раздел начинается заново: ни связи, ни зеркала, ни состояния.
     band.current = null;
-
-    if (active) {
-      try {
-        await active.admin.unbind();
-      } catch (error) {
-        logger.warn('band: устройство не отвязалось', { reason: String(error) });
-      }
-      await active.disconnect().catch(() => undefined);
-    }
-
-    // Связь могли держать и без нас: другой экран, прошлый запуск, система.
-    if (deviceId) await dropConnection(deviceId);
-    await stopBackgroundSync();
-
-    // Серверу говорим до того, как забудем адрес: после очистки состояния
-    // сказать будет уже нечем, а накопленная очередь принадлежала этой
-    // привязке — под новой её отправлять нельзя.
-    await releaseServerBinding(latest.current.info?.mac);
-
-    // Занятие могло идти прямо сейчас. Копии на устройстве нет, поэтому
-    // дописываем его перед тем, как стереть всё остальное.
-    const open = latest.current.session;
-    if (open) await rememberWorkout(toRecord(open)).catch(() => undefined);
-    await clearOpenSession();
-
-    setPairedBand(null);
-    clearSnapshot();
-    clearBandReadings();
-    // Архив суток уходит вместе с браслетом: иначе история старого устройства
-    // подмешается к новому, а разделить их будет уже нечем.
-    await clearHistory().catch(() => undefined);
     latest.current = INITIAL;
     setState(INITIAL);
   }, [paired]);

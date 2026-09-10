@@ -40,15 +40,14 @@ export {
   markUploaded,
   pendingUploads,
   hashRecording,
-  readPart,
+  partFile,
   recordingBytes,
   removeSaved,
   saveRecording,
   savedRecordings,
   savedSessions,
-  usedBytes,
 } from './storage';
-export type { RecordingMark, SavedRecording } from './storage';
+export type { PartFile, RecordingMark, SavedRecording } from './storage';
 export { marksOf, rememberMark } from './storage';
 export { holdBand, holdsBand, setSyncDevice, syncDevice, syncRecordings } from './sync';
 export { WearHand, type MotionGoal, type UserProfile } from './profile';
@@ -74,4 +73,4 @@ export type {
   RemoteRecording,
   TimeQuality,
 } from './backend';
-export { Sha256, sha256, uuidFrom } from './sha256';
+export { uuidFrom } from './sha256';

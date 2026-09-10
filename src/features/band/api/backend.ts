@@ -1,6 +1,9 @@
+import { UploadType, type File } from 'expo-file-system';
+
 import { authToken, refreshSession } from '@/core/auth';
 import { env } from '@/core/config/env';
 import { HttpError, request, type JsonValue } from '@/core/http/client';
+import { logger } from '@/core/log/logger';
 
 /**
  * Контракт приёмника данных браслета: ровно те поля, которыми обменивается
@@ -152,7 +155,8 @@ export type RemoteRecording = {
   transcriptVersion: number;
   voiceMemoId: string | null;
   actionsStatus: string;
-  error: string | null;
+  /** Почему проверка или разбор не прошли — кодом, с признаком временности. */
+  error: { code: string; retryable: boolean; stage: string } | null;
   partBytes: number;
   parts: StoredPart[];
 };
@@ -205,55 +209,57 @@ export function fetchRecording(recordingId: string): Promise<RemoteRecording> {
 }
 
 /**
- * Часть аудиофайла — мимо общего клиента.
+ * Часть аудиофайла — мимо общего клиента, нативной загрузкой файла.
  *
- * У того тело только JSON и пятнадцать секунд на запрос: восемь мегабайт по
- * сотовой сети в это окно не укладываются, а `JSON.stringify` от байтов
- * отправил бы строку с индексами вместо звука. Поэтому здесь свой запрос со
- * своим сроком — и тот же обмен ключа при просрочке, что у общего клиента.
+ * У общего клиента тело только JSON и пятнадцать секунд на запрос: восемь
+ * мегабайт по сотовой сети в это окно не укладываются. Байты через `fetch`
+ * тоже не годятся: мост кодирует их в base64 на потоке интерфейса. Поэтому
+ * часть уезжает файлом через `expo-file-system` — нативной сессией, которая
+ * переживает уход приложения в фон. Обмен ключа при просрочке — тот же, что
+ * у общего клиента: у нативной загрузки своего нет.
  */
-const PART_TIMEOUT_MS = 180_000;
-
 export async function uploadPart(
   recordingId: string,
   partNumber: number,
-  bytes: Uint8Array<ArrayBuffer>,
+  file: File,
 ): Promise<StoredPart> {
   const path = `/api/v2/band-recordings/${recordingId}/parts/${partNumber}`;
-  const response = await sendPart(path, bytes);
+  const result = await sendPart(path, file);
 
-  if (response.status === 401 && (await refreshSession())) {
-    return unwrapPart(path, await sendPart(path, bytes));
+  if (result.status === 401 && (await refreshSession())) {
+    return unwrapPart(path, await sendPart(path, file));
   }
-  return unwrapPart(path, response);
+  return unwrapPart(path, result);
 }
 
-function sendPart(path: string, bytes: Uint8Array<ArrayBuffer>): Promise<Response> {
+function sendPart(path: string, file: File): Promise<{ status: number; body: string }> {
   const token = authToken();
 
-  return fetch(`${env.apiUrl}${path}`, {
-    method: 'PUT',
-    signal: AbortSignal.timeout(PART_TIMEOUT_MS),
+  return file.upload(`${env.apiUrl}${path}`, {
+    httpMethod: 'PUT',
+    // Приёмник ждёт сами байты: ни multipart, ни base64, ни JSON-обёртки.
+    uploadType: UploadType.BINARY_CONTENT,
+    mimeType: 'application/octet-stream',
     headers: {
       Accept: 'application/json',
       'Content-Type': 'application/octet-stream',
       ...(token === null ? {} : { Authorization: `Bearer ${token}` }),
     },
-    // Приёмник ждёт сами байты: ни multipart, ни base64, ни JSON-обёртки.
-    body: bytes,
   });
 }
 
-async function unwrapPart(path: string, response: Response): Promise<StoredPart> {
-  const text = await response.text().catch(() => '');
+function unwrapPart(path: string, result: { status: number; body: string }): StoredPart {
   let payload: unknown = null;
-
   try {
-    payload = text === '' ? null : JSON.parse(text);
+    payload = result.body === '' ? null : JSON.parse(result.body);
   } catch {
-    payload = text;
+    payload = result.body;
   }
 
-  if (!response.ok) throw new HttpError(response.status, payload);
+  if (result.status < 200 || result.status >= 300) {
+    // Как у общего клиента: отказ приёмника обязан быть виден в релизе.
+    logger.error('band: часть записи не принята', { path, status: result.status });
+    throw new HttpError(result.status, payload);
+  }
   return payload as StoredPart;
 }

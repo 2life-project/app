@@ -1,6 +1,7 @@
 import * as BackgroundTask from 'expo-background-task';
 import * as TaskManager from 'expo-task-manager';
 
+import { currentUser, restoreSession } from '@/core/auth';
 import { logger } from '@/core/log/logger';
 
 import { holdsBand, setSyncDevice, syncDevice, syncRecordings } from '../api';
@@ -25,6 +26,11 @@ import { flushOutbox } from './upload';
 const TASK = 'band-sync';
 
 TaskManager.defineTask(TASK, async () => {
+  // Процесс могла поднять система ради этой задачи — без корня приложения и
+  // без сессии. Записи и очередь принадлежат аккаунту, поэтому сначала
+  // выясняем, кто вошёл; без ключа на диске делать здесь нечего.
+  if (!currentUser()) await restoreSession();
+
   // Связь держит экран: браслет допускает одно соединение, и подключение
   // поверх оставило бы экран с мёртвым транспортом посреди чтения.
   if (!holdsBand()) await pullFromBand();
@@ -46,8 +52,9 @@ async function pullFromBand(): Promise<void> {
   } catch (error) {
     // Браслет вне зоны — обычное дело в фоне. Но сюда же попадают испорченный
     // кадр и отказ прошивки, а место на устройстве кончается за пятнадцать
-    // часов записи: прятать это ниже уровня видимости нельзя.
-    logger.warn('band: фоновая выгрузка не удалась', { reason: String(error) });
+    // часов записи: прятать это ниже уровня видимости нельзя, а в релизе
+    // виден только `error`.
+    logger.error('band: фоновая выгрузка не удалась', { reason: String(error) });
   }
 }
 

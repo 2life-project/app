@@ -7,6 +7,7 @@ import {
   enqueue,
   halveDelivery,
   nextDelivery,
+  requeue,
   settle,
   unfreezeDelivery,
   type Draft,
@@ -198,5 +199,77 @@ describe('разные аккаунты', () => {
     await enqueue(ACCOUNT, BAND, [minute('2026-09-10T09:00:00.000Z', 10)], KNOWN);
 
     expect(await nextDelivery('user-2', BAND, LIMITS, ENVELOPE)).toBeNull();
+  });
+});
+
+describe('окна покрытия', () => {
+  const window = (day: string) => ({
+    stream: 'activity_samples' as const,
+    from: `${day}T00:00:00.000Z`,
+    to: `${day}T23:59:00.000Z`,
+    complete: true,
+  });
+
+  // Пока пачка в пути, дочитывание суток кладёт своё окно. Подтверждение
+  // пачки обязано снять только уехавшие окна — иначе новое пропадает, и
+  // сервер никогда не узнает, что эти сутки прочитаны целиком.
+  it('подтверждение снимает только уехавшие окна', async () => {
+    await enqueue(ACCOUNT, BAND, [minute('2026-09-10T09:00:00.000Z', 10)], {
+      ...KNOWN,
+      coverage: [window('2026-09-10')],
+    });
+    const first = await nextDelivery(ACCOUNT, BAND, LIMITS, ENVELOPE);
+    expect(first?.coverage).toHaveLength(1);
+
+    await enqueue(ACCOUNT, BAND, [minute('2026-09-09T09:00:00.000Z', 20)], {
+      ...KNOWN,
+      coverage: [window('2026-09-09')],
+    });
+    await settle(ACCOUNT, BAND);
+
+    const next = await nextDelivery(ACCOUNT, BAND, LIMITS, ENVELOPE);
+    expect(next?.coverage).toEqual([window('2026-09-09')]);
+  });
+});
+
+describe('повторная отправка', () => {
+  it('возвращает запись в очередь под тем же именем, но новым номером', async () => {
+    await enqueue(ACCOUNT, BAND, [minute('2026-09-10T09:00:00.000Z', 10)], KNOWN);
+    const first = await nextDelivery(ACCOUNT, BAND, LIMITS, ENVELOPE);
+    await settle(ACCOUNT, BAND);
+
+    await requeue(ACCOUNT, BAND, first?.records ?? [], 'epoch-1');
+    const again = await nextDelivery(ACCOUNT, BAND, LIMITS, ENVELOPE);
+
+    expect(again?.records[0]?.eventId).toBe(first?.records[0]?.eventId);
+    expect(again?.records[0]?.sequence).toBeGreaterThan(first?.records[0]?.sequence ?? 0);
+  });
+
+  // Причина, которая не проходит трижды, временной не является: гонять
+  // запись вечно — значит никогда не отправить то, что стоит за ней.
+  it('после трёх кругов запись отбрасывается', async () => {
+    await enqueue(ACCOUNT, BAND, [minute('2026-09-10T09:00:00.000Z', 10)], KNOWN);
+    let delivery = await nextDelivery(ACCOUNT, BAND, LIMITS, ENVELOPE);
+
+    for (let round = 0; round < 3; round += 1) {
+      await settle(ACCOUNT, BAND);
+      await requeue(ACCOUNT, BAND, delivery?.records ?? [], null);
+      delivery = await nextDelivery(ACCOUNT, BAND, LIMITS, ENVELOPE);
+    }
+
+    expect(delivery).toBeNull();
+  });
+});
+
+describe('битая очередь', () => {
+  // На браслете этих суток уже нет: затереть их пустотой молча нельзя.
+  it('откладывается под соседний ключ, а не затирается', async () => {
+    const key = `2life:band-outbox.1:${ACCOUNT}:${BAND}`;
+    await AsyncStorage.setItem(key, '{not json');
+
+    await enqueue(ACCOUNT, BAND, [minute('2026-09-10T09:00:00.000Z', 10)], KNOWN);
+
+    expect(await AsyncStorage.getItem(`${key}:broken`)).toBe('{not json');
+    expect((await nextDelivery(ACCOUNT, BAND, LIMITS, ENVELOPE))?.records).toHaveLength(1);
   });
 });

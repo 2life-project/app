@@ -61,14 +61,20 @@ export function pruneSeen(seen: Record<string, number>, now: Date): Record<strin
   return Object.fromEntries(Object.entries(seen).filter(([, at]) => at >= edge));
 }
 
+/** Личность окна покрытия: поток и его границы. */
+export function coverageKey(window: Coverage): string {
+  return `${window.stream}|${window.from}|${window.to}`;
+}
+
 /** Окна покрытия складываются без повторов: одно и то же окно уедет один раз. */
 export function mergeCoverage(stored: readonly Coverage[], added: readonly Coverage[]): Coverage[] {
   const merged = new Map<string, Coverage>();
-  for (const window of [...stored, ...added]) {
-    merged.set(`${window.stream}|${window.from}|${window.to}`, window);
-  }
+  for (const window of [...stored, ...added]) merged.set(coverageKey(window), window);
   return [...merged.values()];
 }
+
+/** Размер в байтах UTF-8 — так его считает приёмник. Длина строки врёт на кириллице вдвое. */
+const BYTES = new TextEncoder();
 
 /**
  * Сколько записей с головы очереди влезает в одну пачку.
@@ -85,7 +91,7 @@ export function fittingCount(pending: readonly IngestionRecord[], limits: BandLi
 
   for (const record of pending) {
     if (count >= limits.maxRecordsPerBatch) break;
-    const size = JSON.stringify(record).length + 1;
+    const size = BYTES.encode(JSON.stringify(record)).length + 1;
 
     if (size > limits.maxRecordBytes) {
       // Такая запись не уедет никогда и заткнёт очередь собой. Берём её в
