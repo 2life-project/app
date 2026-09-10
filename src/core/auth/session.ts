@@ -80,6 +80,18 @@ export function authToken(): string | null {
   return access;
 }
 
+/**
+ * Кто вошёл, вне React.
+ *
+ * Нужен там, где данные складываются в очередь на отправку: она принадлежит
+ * account'у, а не телефону, и после смены человека старую очередь отправлять
+ * от имени нового нельзя. Хук для этого не годится — очередь наполняется из
+ * обработчиков и фоновой задачи, где React не работает.
+ */
+export function currentUser(): SessionUser | null {
+  return state.status === 'signed' ? state.user : null;
+}
+
 export function useSession(): SessionState {
   return useSyncExternalStore(
     (listener) => {

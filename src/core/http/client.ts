@@ -13,7 +13,7 @@ const TIMEOUT_MS = 15_000;
  * `undefined`, а типы контракта описывают такие поля как опциональные —
  * запрещать их значило бы требовать `as` на каждом теле запроса.
  */
-type JsonValue =
+export type JsonValue =
   | string
   | number
   | boolean

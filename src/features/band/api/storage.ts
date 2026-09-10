@@ -3,6 +3,7 @@ import { Directory, File, Paths } from 'expo-file-system';
 import { logger } from '@/core/log/logger';
 
 import { toOgg, durationSeconds } from './audio';
+import { Sha256 } from './sha256';
 
 /**
  * Записи с браслета на телефоне.
@@ -202,19 +203,61 @@ export function usedBytes(): number {
   return savedRecordings().reduce((total, item) => total + item.uploadBytes, 0);
 }
 
-/**
- * Прочитать файл для отправки. Возвращает undefined, если файла нет: запись
- * могли удалить между составлением очереди и отправкой.
- */
-export async function readRecording(session: number): Promise<Uint8Array | undefined> {
-  const file = fileOf(session);
-  if (file) {
-    try {
-      return new Uint8Array(await file.arrayBuffer());
-    } catch (error) {
-      logger.warn('band: не удалось прочитать запись', { session, reason: String(error) });
-    }
-  }
+/** Размер файла на диске. `null` — записи уже нет. */
+export function recordingBytes(session: number): number | null {
+  return fileOf(session)?.size ?? null;
+}
 
-  return undefined;
+/**
+ * Хеш файла записи — тот, по которому приёмник проверит присланное.
+ *
+ * Считается потоком, кусками: час записи весит семь мегабайт, а память
+ * диктофона держит пятнадцать часов. Читать такой файл в память целиком ради
+ * одного числа нельзя — на телефоне это падение, а не медленный код.
+ */
+const HASH_CHUNK = 1 << 20;
+
+export function hashRecording(session: number): string | null {
+  const file = fileOf(session);
+  if (!file) return null;
+
+  const handle = file.open();
+  try {
+    const hash = new Sha256();
+    for (;;) {
+      const chunk = handle.readBytes(HASH_CHUNK);
+      if (chunk.length === 0) break;
+      hash.update(chunk);
+    }
+    return hash.digest();
+  } catch (error) {
+    logger.warn('band: запись не прочиталась для хеша', { session, reason: String(error) });
+    return null;
+  } finally {
+    handle.close();
+  }
+}
+
+/**
+ * Кусок файла для отправки. Приёмник принимает запись частями и умеет
+ * докачку, поэтому читается ровно запрошенный отрезок, а не файл целиком.
+ */
+export function readPart(
+  session: number,
+  offset: number,
+  length: number,
+): Uint8Array<ArrayBuffer> | null {
+  const file = fileOf(session);
+  if (!file) return null;
+
+  const handle = file.open();
+  try {
+    handle.offset = offset;
+    return handle.readBytes(length);
+  } catch (error) {
+    logger.warn('band: часть записи не прочиталась', { session, reason: String(error) });
+    return null;
+  } finally {
+    handle.close();
+  }
 }

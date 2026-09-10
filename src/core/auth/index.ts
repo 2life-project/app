@@ -1,6 +1,7 @@
 export {
   onSignOut,
   authToken,
+  currentUser,
   refreshSession,
   register,
   restoreSession,

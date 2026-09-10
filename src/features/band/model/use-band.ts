@@ -11,10 +11,10 @@ import {
   mergeFound,
   scanForBands,
   sortByProximity,
-  startBackgroundSync,
-  stopBackgroundSync,
 } from '../api';
 
+import { uploadRecordings } from './audio-upload';
+import { startBackgroundSync, stopBackgroundSync } from './background';
 import { useBandActions } from './band-actions';
 import {
   backfillHistory,
@@ -27,6 +27,7 @@ import { INITIAL, type BandState } from './band-state';
 import { clearHistory } from './history-store';
 import { sendProfile } from './profile-sync';
 import { publishReadings } from './publish-readings';
+import { publishDays, publishToServer, releaseServerBinding } from './upload';
 import { useAlarms } from './use-alarms';
 import { useBandEvents } from './use-band-events';
 import { useForeground } from './use-foreground';
@@ -142,6 +143,12 @@ export function useBand() {
       // Итоги дня — остальному приложению. Здесь, а не на каждом живом отчёте:
       // отчёты приходят каждые десять секунд, а минутные итоги между ними те же.
       publishReadings(latest.current);
+
+      // Отправка — без ожидания. Она ходит в сеть, а этот же `refresh`
+      // стоит на пути подключения: дождись мы ответа сервера, человек
+      // столько же секунд смотрел бы на «читаем…» из-за чужой сети.
+      void publishToServer(latest.current);
+      void uploadRecordings();
     } finally {
       patch({ busy: false });
     }
@@ -254,7 +261,11 @@ export function useBand() {
         // архив набивается молча — по кадру на минуту, это долго.
         patch({ step: undefined });
 
-        void backfillHistory(connected);
+        // Дочитанные сутки уезжают следом: в состоянии раздела их нет, и
+        // без этого они остались бы только на телефоне.
+        void backfillHistory(connected).then((days) =>
+          publishDays(days, connected.clockSkewSeconds),
+        );
       } catch (error) {
         logger.warn('band: подключение не удалось', { reason: String(error) });
         patch({ stage: 'failed', step: undefined, problem: 'connect-failed' });
@@ -299,6 +310,11 @@ export function useBand() {
     // Связь могли держать и без нас: другой экран, прошлый запуск, система.
     if (deviceId) await dropConnection(deviceId);
     await stopBackgroundSync();
+
+    // Серверу говорим до того, как забудем адрес: после очистки состояния
+    // сказать будет уже нечем, а накопленная очередь принадлежала этой
+    // привязке — под новой её отправлять нельзя.
+    await releaseServerBinding(latest.current.info?.mac);
 
     // Занятие могло идти прямо сейчас. Копии на устройстве нет, поэтому
     // дописываем его перед тем, как стереть всё остальное.
