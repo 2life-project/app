@@ -23,11 +23,14 @@ export function LoginScreen() {
       action={AUTH.continue.in}
       footer={
         <Stack gap="lg">
-          <Button
-            label={AUTH.switchTo.in}
-            variant="plain"
-            onPress={() => router.push(to.register())}
-          />
+          <Stack gap="sm">
+            <Button
+              label={AUTH.switchTo.in}
+              variant="plain"
+              onPress={() => router.push(to.register())}
+            />
+            <Button label={AUTH.forgot} variant="plain" onPress={() => router.push(to.reset())} />
+          </Stack>
 
           <View style={styles.divider}>
             <View style={styles.line} />

@@ -18,6 +18,10 @@ import { AUTH } from './copy';
 const MESSAGES: Record<string, string> = {
   invalid_credentials: AUTH.wrongPair,
   invalid_username: AUTH.badUsername,
+  email_not_set: AUTH.reset.noEmail,
+  invalid_or_expired_code: AUTH.reset.badCode,
+  recovery_unavailable: AUTH.reset.unavailable,
+  auth_unavailable: AUTH.reset.unavailable,
 };
 
 export function authMessage(failure: unknown, fallback: string): string {

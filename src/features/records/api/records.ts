@@ -4,6 +4,8 @@ import type {
   Biochemistry,
   DocumentRow,
   Examinations,
+  GeneticsReport,
+  GeneticsSummary,
   MarkerHistory,
   MarkerOverview,
   MarkerTrend,
@@ -35,4 +37,16 @@ export function fetchMarkerTrend(key: string, signal?: AbortSignal): Promise<Mar
 
 export function fetchMarkerHistory(key: string, signal?: AbortSignal): Promise<MarkerHistory> {
   return request<MarkerHistory>(`${marker(key)}/history`, { signal });
+}
+
+export function fetchGeneticsSummary(signal?: AbortSignal): Promise<GeneticsSummary> {
+  return request<GeneticsSummary>('/api/genetics/summary', { signal });
+}
+
+export function fetchGeneticsReport(
+  uploadId: string,
+  signal?: AbortSignal,
+): Promise<GeneticsReport> {
+  const query = new URLSearchParams({ uploadId }).toString();
+  return request<GeneticsReport>(`/api/genetics/genuser?${query}`, { signal });
 }

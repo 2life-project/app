@@ -163,6 +163,39 @@ export async function signOut(): Promise<void> {
 }
 
 /**
+ * Восстановление пароля: код на почту, проверка кода, новый пароль.
+ *
+ * Аккаунт называется логином либо почтой — сервер ждёт ровно одно из двух и
+ * шлёт письмо только на адрес, уже сохранённый у найденного аккаунта. Ответ
+ * на неизвестный аккаунт нейтральный: по нему нельзя узнать, есть ли такой.
+ */
+function resetAccount(account: string): Record<string, string> {
+  const trimmed = account.trim();
+  return trimmed.includes('@') ? { email: trimmed } : { username: trimmed };
+}
+
+export async function requestPasswordReset(account: string): Promise<void> {
+  await post('/api/v2/auth/password-reset/request', resetAccount(account));
+}
+
+export async function validateResetCode(account: string, code: string): Promise<void> {
+  await post('/api/v2/auth/password-reset/validate', { ...resetAccount(account), code });
+}
+
+/** Меняет пароль и гасит все сессии обновления: старые телефоны выйдут сами. */
+export async function confirmPasswordReset(
+  account: string,
+  code: string,
+  newPassword: string,
+): Promise<void> {
+  await post('/api/v2/auth/password-reset/confirm', {
+    ...resetAccount(account),
+    code,
+    newPassword,
+  });
+}
+
+/**
  * Обменять ключ обновления на новый ключ доступа. Возвращает, удалось ли:
  * вызывающий по этому решает, повторять ли запрос или показывать вход.
  */
@@ -223,7 +256,7 @@ async function post<T>(path: string, body: Record<string, string>): Promise<T> {
   // ошибки, а текст сервера в интерфейсе запрещён.
   if (!response.ok) {
     const body: unknown = await response.text().catch(() => null);
-    logger.warn('Вход не прошёл', { path, status: response.status });
+    logger.warn('Запрос авторизации не прошёл', { path, status: response.status });
     throw new HttpError(response.status, body);
   }
   return (response.status === 204 ? null : await response.json()) as T;

@@ -5,16 +5,8 @@ import type { Tone } from '@/shared/theme';
 
 type IconName = keyof typeof Feather.glyphMap;
 
-/**
- * Содержимое настроек из макета. Устройства и значения приедут с сервера —
- * пока это тот же состав и те же формулировки, что в эталоне.
- */
-export const PROFILE = {
-  initials: 'AN',
-  name: 'Anatoly',
-  since: 'with 2Life since March 2026',
-  plan: '2LIFE+',
-} as const;
+/** Подпись подписки. Статус приходит в ключе доступа — отдельной ручки нет. */
+export const PLAN_LABEL = '2LIFE+';
 
 export type Row = {
   id: string;
@@ -52,47 +44,6 @@ export function bandRow(paired: PairedBand | null, readings: BandReadings | null
     connected: readings?.live === true,
   };
 }
-
-export const DEVICES: readonly Row[] = [
-  {
-    id: 'whoop',
-    icon: 'watch',
-    tone: 'success',
-    title: 'Whoop',
-    subtitle: 'HRV, training load, resting HR · today, 07:42',
-    connected: true,
-  },
-  {
-    id: 'oura',
-    icon: 'circle',
-    tone: 'accent',
-    title: 'Oura',
-    subtitle: 'Sleep, temperature · today, 06:58',
-    connected: true,
-  },
-  {
-    id: 'withings',
-    icon: 'cloud',
-    title: 'Withings',
-    subtitle: 'Body composition, weight, pressure · today, 06:15',
-    connected: true,
-  },
-  {
-    id: 'polar',
-    icon: 'clock',
-    tone: 'warning',
-    title: 'Polar',
-    subtitle: 'Sleep, training · yesterday, 22:10',
-    connected: true,
-  },
-  {
-    id: 'health',
-    icon: 'heart',
-    title: 'Apple Health',
-    subtitle: 'Connected',
-    connected: true,
-  },
-];
 
 export const ADD_DEVICE: Row = {
   id: 'add',
@@ -182,11 +133,13 @@ export const SETTINGS_CHOICES: Record<
 > = {
   add: {
     title: 'Add a device',
+    // Экран есть только у своего браслета. Чужой трекер подключается через
+    // OAuth в вебе: сессии веб-приложения у телефона нет.
     options: [
       { id: 'band', title: '2Life band', subtitle: 'battery, sensors and voice notes live here' },
-      { id: 'whoop', title: 'Whoop', subtitle: 'through your Whoop account' },
-      { id: 'oura', title: 'Oura', subtitle: 'through your Oura account' },
-      { id: 'withings', title: 'Withings', subtitle: 'scales and pressure cuff' },
+      { id: 'whoop', title: 'Whoop', subtitle: 'connect in the web app' },
+      { id: 'oura', title: 'Oura', subtitle: 'connect in the web app' },
+      { id: 'withings', title: 'Withings', subtitle: 'connect in the web app' },
     ],
   },
   notifications: {

@@ -32,6 +32,7 @@ import {
 } from '@/shared/ui';
 
 import { fetchProfile } from '../api/settings';
+import { fetchLanguage, fetchSources, saveLanguage, type Locale } from '../api/sources';
 import { displayName, initials, memberSince } from '../model/profile';
 import {
   ADD_DEVICE,
@@ -42,12 +43,12 @@ import {
   SIGN_OUT_CONFIRM,
   APP_ROWS,
   DATA_ROWS,
-  DEVICES,
-  PROFILE,
+  PLAN_LABEL,
   SIGN_OUT,
   VERSION,
   type SettingsRow,
 } from '../model/settings';
+import { sourceRows } from '../model/sources';
 
 /**
  * Заголовок экрана стоит в содержимом, как в макете, поэтому в шапке остаётся
@@ -60,12 +61,15 @@ export const SettingsScreenOptions = { headerShown: false };
 export function SettingsScreen() {
   const session = useSession();
   const profile = useQuery('profile', (signal) => fetchProfile(signal));
+  // Состояние чужих трекеров — с сервера: подключены ли и что насчитали.
+  const sources = useQuery('sources', (signal) => fetchSources(signal));
+  // Язык хранится в аккаунте и общий с вебом; остальные выборы — на телефоне.
+  const language = useQuery('language', (signal) => fetchLanguage(signal));
   const [choice, setChoice] = useState<string | null>(null);
   const [picked, setPicked] = usePersistentState<Record<string, string>>('settings', {});
   const [confirm, setConfirm] = useState<string | null>(null);
 
-  // Свой браслет — живой строкой поверх макетного списка: его состояние
-  // приложение знает точно, в отличие от остальных источников.
+  // Свой браслет — первой строкой: его состояние приложение знает само.
   const { date } = useToday();
   const band = bandRow(usePairedBand(), useBandReadings(date));
 
@@ -81,7 +85,22 @@ export function SettingsScreen() {
   const name = displayName(profile.data?.profile ?? null, user);
   const since = memberSince(profile.data?.profile ?? null);
   /** Статус подписки приходит в самом ключе доступа — отдельной ручки нет. */
-  const plan = user?.subscriptionStatus === 'active' ? PROFILE.plan : null;
+  const plan = user?.subscriptionStatus === 'active' ? PLAN_LABEL : null;
+  const appRows = APP_ROWS.map((row) =>
+    row.id === 'language' && language.data
+      ? { ...row, value: LANGUAGE_NAMES[language.data.locale] ?? language.data.locale }
+      : row,
+  );
+
+  const pick = (row: string, option: string) => {
+    if (row === 'language') {
+      void saveLanguage(option as Locale).then(language.refresh);
+      return;
+    }
+    setPicked({ ...picked, [row]: option });
+  };
+  const selected = (row: string, fallback: string | undefined) =>
+    row === 'language' ? language.data?.locale : (picked[row] ?? fallback);
 
   return (
     <Screen>
@@ -112,10 +131,10 @@ export function SettingsScreen() {
 
         <Section
           caption="DEVICES"
-          rows={band ? [band, ...DEVICES, ADD_DEVICE] : [...DEVICES, ADD_DEVICE]}
+          rows={[...(band ? [band] : []), ...sourceRows(sources.data), ADD_DEVICE]}
           onOpen={open}
         />
-        <Section caption="APP" rows={APP_ROWS} onOpen={open} />
+        <Section caption="APP" rows={appRows} onOpen={open} />
         <Section caption="DATA" rows={DATA_ROWS} onOpen={open} />
         <Section caption="ACCOUNT" rows={[SIGN_OUT, RESET]} onOpen={open} />
 
@@ -135,16 +154,16 @@ export function SettingsScreen() {
               key={option.id}
               title={option.title}
               subtitle={option.subtitle}
-              selected={(picked[choice ?? ''] ?? sheet.options[0]?.id) === option.id}
+              selected={selected(choice ?? '', sheet.options[0]?.id) === option.id}
               onPress={() => {
                 // Экран есть только у своего браслета: чужой трекер
-                // подключается в приложении его производителя, а не у нас.
-                if (choice === 'add' && option.id === 'band') {
+                // подключается через веб-приложение, и здесь его не выбрать.
+                if (choice === 'add') {
                   setChoice(null);
-                  router.push(to.device());
+                  if (option.id === 'band') router.push(to.device());
                   return;
                 }
-                setPicked({ ...picked, [choice ?? '']: option.id });
+                pick(choice ?? '', option.id);
               }}
             />
           ))}
@@ -198,6 +217,9 @@ export function SettingsScreen() {
     </Screen>
   );
 }
+
+/** Языки — словами, а не кодом: сервер отдаёт `ru`, человек читает «Русский». */
+const LANGUAGE_NAMES: Record<string, string> = { en: 'English', ru: 'Русский' };
 
 function Section({
   caption,

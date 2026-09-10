@@ -11,6 +11,8 @@ export const to = {
   home: (): Href => '/',
   login: (): Href => '/login',
   register: (): Href => '/register',
+  /** Восстановление пароля по коду из письма. */
+  reset: (): Href => '/reset',
   journal: (): Href => '/journal',
   body: (): Href => '/body',
   records: (): Href => '/records',

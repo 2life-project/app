@@ -1,51 +1,59 @@
-import type { ProtocolBundle, Target } from '../api/contract';
+import type { ProtocolBundle, Rule, Target } from '../api/contract';
 
-import { isFinished, openTargets, protocolParts, protocolTitle } from './protocol-view';
+import { isFinished, protocolParts, ruleSchedule, ruleTitle } from './protocol-view';
 
-const bundle = (protocol: unknown, extra: Partial<ProtocolBundle> = {}): ProtocolBundle =>
-  ({ protocol, rules: [], targets: [], recommendations: [], ...extra }) as ProtocolBundle;
+const bundle = (extra: Partial<ProtocolBundle>): ProtocolBundle =>
+  ({
+    protocol: { status: 'active' },
+    rules: [],
+    targets: [],
+    recommendations: [],
+    ...extra,
+  }) as ProtocolBundle;
 
-describe('protocolTitle', () => {
-  it('берёт первое найденное название', () => {
-    expect(protocolTitle(bundle({ title: 'Липиды' }))).toBe('Липиды');
-    expect(protocolTitle(bundle({ name: 'Сон' }))).toBe('Сон');
-    expect(protocolTitle(bundle({ goal: 'Снизить ApoB' }))).toBe('Снизить ApoB');
-  });
-
-  it('без названия ставит заглушку, а не пустую строку', () => {
-    expect(protocolTitle(bundle({}))).toBe('Protocol');
-    expect(protocolTitle(bundle(null))).toBe('Protocol');
-    expect(protocolTitle(bundle({ title: '  ' }))).toBe('Protocol');
-  });
-});
+const rule = (extra: Partial<Rule>): Rule =>
+  ({ type: 'daily_training', schedule: { kind: 'daily' }, ...extra }) as Rule;
 
 describe('isFinished', () => {
-  it('завершённым считаем только знакомые слова', () => {
-    expect(isFinished(bundle({ status: 'finished' }))).toBe(true);
-    expect(isFinished(bundle({ status: 'archived' }))).toBe(true);
-    expect(isFinished(bundle({ status: 'active' }))).toBe(false);
-  });
-
-  it('незнакомый статус не убирает протокол из активных', () => {
-    expect(isFinished(bundle({ status: 'paused_by_doctor' }))).toBe(false);
-    expect(isFinished(bundle({}))).toBe(false);
+  it('завершённые и снятые — в прошлом, незнакомый статус — нет', () => {
+    expect(
+      isFinished(bundle({ protocol: { status: 'completed' } as ProtocolBundle['protocol'] })),
+    ).toBe(true);
+    expect(
+      isFinished(bundle({ protocol: { status: 'archived' } as ProtocolBundle['protocol'] })),
+    ).toBe(true);
+    expect(
+      isFinished(bundle({ protocol: { status: 'paused' } as ProtocolBundle['protocol'] })),
+    ).toBe(false);
+    expect(
+      isFinished(bundle({ protocol: { status: 'unheard_of' } as ProtocolBundle['protocol'] })),
+    ).toBe(false);
   });
 });
 
 describe('protocolParts', () => {
-  it('перечисляет только непустое', () => {
-    const full = bundle({}, { rules: [1, 2], targets: [1] } as Partial<ProtocolBundle>);
-    expect(protocolParts(full)).toBe('2 rules · 1 targets');
-  });
-
-  it('пустой протокол говорит об этом прямо', () => {
+  it('называет только то, что есть', () => {
     expect(protocolParts(bundle({}))).toBe('no details yet');
+    expect(
+      protocolParts(bundle({ rules: [rule({}), rule({})], targets: [{ id: 't' } as Target] })),
+    ).toBe('2 rules · 1 targets');
   });
 });
 
-describe('openTargets', () => {
-  it('в работе — активные', () => {
-    const targets = [{ status: 'active' }, { status: 'achieved' }] as Target[];
-    expect(openTargets(targets)).toHaveLength(1);
+describe('правило словами', () => {
+  it('расписание читается по полям, которые есть', () => {
+    expect(ruleSchedule(rule({ schedule: { kind: 'daily', time: '21:00' } }))).toBe(
+      'daily · 21:00',
+    );
+    expect(
+      ruleSchedule(rule({ schedule: { kind: 'weekly', days: [1, 3], durationMinutes: 40 } })),
+    ).toBe('days 1, 3 · 40 min');
+    expect(ruleSchedule(rule({ schedule: { kind: 'once', date: '2026-09-12' } }))).toBe(
+      '2026-09-12',
+    );
+  });
+
+  it('вид правила становится названием', () => {
+    expect(ruleTitle(rule({ type: 'supplement_plan' }))).toBe('supplement plan');
   });
 });

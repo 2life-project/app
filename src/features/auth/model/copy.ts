@@ -32,4 +32,26 @@ export const AUTH = {
   loginTaken: 'This login is already taken.',
   tooMany: (seconds: number) => `Too many attempts. Try again in ${seconds} s.`,
   disclaimer: 'The session is kept in the phone keychain and renews itself on its own.',
+  forgot: 'Forgot the password?',
+  reset: {
+    title: 'Reset the password',
+    /** Три шага: кому слать код, какой код пришёл, какой пароль поставить. */
+    subtitle: {
+      account: 'Enter your login or email — the code goes to the email on the account.',
+      code: 'Enter the six-digit code from the email. It works for an hour.',
+      password: 'Pick a new password — at least 8 characters.',
+    },
+    account: 'Login or email',
+    code: 'Code from the email',
+    newPassword: 'New password',
+    send: 'Send the code',
+    check: 'Check the code',
+    change: 'Change the password',
+    done: 'The password is changed. Sign in with the new one.',
+    back: 'Back to sign-in',
+    noEmail: 'This account has no email. Recovery needs one — ask us to add it.',
+    badCode: 'The code is wrong or has expired. Request a new one.',
+    unavailable: 'Recovery is not available right now. Try again later.',
+    failed: 'It did not go through. Try again.',
+  },
 } as const;
