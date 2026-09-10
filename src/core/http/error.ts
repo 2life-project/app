@@ -1,3 +1,5 @@
+import { logger } from '@/core/log/logger';
+
 /**
  * Ответ пришёл, но не 2xx. Отличать от сетевого сбоя — разные экраны ошибок.
  *
@@ -26,6 +28,18 @@ export function errorCode(failure: unknown): string | null {
   if (typeof body !== 'object' || body === null) return null;
   const code = (body as { error?: unknown }).error;
   return typeof code === 'string' ? code : null;
+}
+
+/**
+ * Записать отказ запроса в лог тем уровнем, каким его увидят.
+ *
+ * Ответ сервера клиент уже записал ошибкой в момент разбора; повторять его
+ * — шум. А вот отсутствие ответа — сеть, таймаут, хранилище — нигде больше
+ * не записано, и в релизе виден только `error`.
+ */
+export function reportFailure(message: string, failure: unknown): void {
+  if (failure instanceof HttpError) logger.warn(message, { status: failure.status });
+  else logger.error(message, { reason: String(failure) });
 }
 
 function safeParse(text: string): unknown {

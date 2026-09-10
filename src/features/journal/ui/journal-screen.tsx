@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useQuery } from '@/core/http/use-query';
 import { logger } from '@/core/log/logger';
+import { eventTitle, type JournalEvent } from '@/shared/domain';
 import { longDay, useToday } from '@/shared/lib/day';
 import { usePersistentState } from '@/shared/lib/store';
 import { to } from '@/shared/nav';
@@ -28,7 +29,7 @@ import {
   Toggle,
 } from '@/shared/ui';
 
-import type { CalendarEvent, Layer } from '../api/contract';
+import type { Layer } from '../api/contract';
 import { eventsKey, fetchEvents, fetchMonth, markDone, monthKey } from '../api/journal';
 import { AGENDA_DAYS, agendaEnd, firstWeekday, groupByDate, quickAddHref } from '../model/calendar';
 import {
@@ -82,8 +83,8 @@ export function JournalScreen() {
     agendaQuery.refresh();
   };
 
-  const mark = (event: CalendarEvent) => {
-    markDone(event, !isDone(event)).then(refresh, (failure: unknown) => {
+  const mark = (event: JournalEvent) => {
+    markDone(event, timeZone).then(refresh, (failure: unknown) => {
       logger.error('Отметка события не сохранилась', { id: event.id, failure });
       setFailed(true);
     });
@@ -166,7 +167,7 @@ export function JournalScreen() {
                           leading={<IconTile name={item.icon} tone="accent" size={QUICK_ICON} />}
                           title={item.title}
                           subtitle={item.subtitle}
-                          onPress={() => router.push(quickAddHref(item.id))}
+                          onPress={() => router.push(quickAddHref(item.id, day))}
                         />
                       ))}
                     </Stack>
@@ -191,7 +192,7 @@ export function JournalScreen() {
                               onPress={markable(event) ? () => mark(event) : undefined}
                             />
                           }
-                          title={event.title}
+                          title={eventTitle(event)}
                           subtitle={`${eventTime(event)} · ${event.status}`}
                           done={isDone(event)}
                           onPress={() => router.push(to.event(event.id))}
@@ -218,7 +219,7 @@ export function JournalScreen() {
                               onPress={markable(event) ? () => mark(event) : undefined}
                             />
                           }
-                          title={event.title}
+                          title={eventTitle(event)}
                           subtitle={`${eventTime(event)} · ${event.layer}`}
                           done={isDone(event)}
                           onPress={() => router.push(to.event(event.id))}

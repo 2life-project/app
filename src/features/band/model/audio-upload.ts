@@ -1,5 +1,5 @@
 import { currentUser } from '@/core/auth';
-import { HttpError } from '@/core/http/client';
+import { reportFailure } from '@/core/http/client';
 import { logger } from '@/core/log/logger';
 import { deviceTimeZone } from '@/shared/lib/day';
 
@@ -60,14 +60,8 @@ export async function uploadRecordings(): Promise<void> {
       await send(binding, recording);
     }
   } catch (failure) {
-    // Файл остаётся на телефоне непомеченным и уедет в следующий заход. Отказ
-    // сервера уже записан клиентом; сетевой — нет, а в релизе виден только
-    // `error`.
-    if (failure instanceof HttpError) {
-      logger.warn('band: запись не принята сервером', { status: failure.status });
-    } else {
-      logger.error('band: запись не дошла до сервера', { reason: String(failure) });
-    }
+    // Файл остаётся на телефоне непомеченным и уедет в следующий заход.
+    reportFailure('band: запись не выгрузилась', failure);
   } finally {
     running = false;
   }

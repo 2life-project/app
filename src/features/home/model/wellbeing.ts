@@ -18,7 +18,7 @@ export type WellbeingView = {
   factors: Tile[];
   /** Оценки за неделю без пропусков: график рисует замеры, а не нули вместо них. */
   series: number[];
-  recommendation: { title: string; text: string; actions: readonly string[] };
+  recommendation: { text: string; actions: readonly string[] };
 };
 
 export function wellbeingOf(home: HomeData): WellbeingView | null {
@@ -53,7 +53,6 @@ export function wellbeingOf(home: HomeData): WellbeingView | null {
       .map((entry) => entry.score)
       .filter((value): value is number => value !== null),
     recommendation: {
-      title: recommendation.title,
       text: recommendation.text,
       actions: recommendation.actions,
     },

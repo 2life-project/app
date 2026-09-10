@@ -17,7 +17,16 @@ export const COURSE_FORM = {
 
 export type CourseFields = { name: string; start: string; end: string };
 
-const DAY = /^\d{4}-\d{2}-\d{2}$/;
+const DAY = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/** Существует ли такой день: `2026-02-31` по форме верен, а в календаре его нет. */
+export function isDay(text: string): boolean {
+  const match = DAY.exec(text);
+  if (!match) return false;
+  const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  const date = new Date(year, month - 1, day);
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+}
 
 /**
  * Черновик из полей или `null`, если дата написана не так. Пустое поле —
@@ -26,7 +35,7 @@ const DAY = /^\d{4}-\d{2}-\d{2}$/;
 export function courseDraftOf(fields: CourseFields): CourseDraft | null {
   const start = fields.start.trim();
   const end = fields.end.trim();
-  if ((start && !DAY.test(start)) || (end && !DAY.test(end))) return null;
+  if ((start && !isDay(start)) || (end && !isDay(end))) return null;
 
   return {
     name: fields.name.trim() || null,

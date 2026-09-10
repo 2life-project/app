@@ -135,7 +135,6 @@ export type NutritionData = {
   completeness: number;
   insight: {
     macroBalance: { protein: number; fat: number; carbs: number };
-    title: string;
     text: string;
     tone: string;
   };
@@ -154,7 +153,6 @@ export type WellbeingData = {
   status: string;
   recommendation: {
     tone: string;
-    title: string;
     text: string;
     focus: string;
     rationale: string;

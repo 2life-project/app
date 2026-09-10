@@ -55,7 +55,7 @@ export function Nutrition({ home }: { home: HomeData }) {
         <MealStrip dailyGoal={view.goalCalories} />
       </WidgetCard>
 
-      <InfoCard title={view.insight.title} text={view.insight.text} />
+      <InfoCard title="What the day says" text={view.insight} />
 
       <LinkCard label="More charts" onPress={() => router.push(to.metric('calories'))} />
     </Stack>

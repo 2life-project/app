@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import { logger } from '@/core/log/logger';
+import { HttpError, reportFailure } from '@/core/http/client';
 import { requestId } from '@/shared/lib/id';
 import { Button, Card, Field, ListRow, Stack, Text } from '@/shared/ui';
 
@@ -17,7 +17,10 @@ const COPY = {
   discard: 'Discard',
   failed: 'Could not compose a widget from that. Try other words.',
   saveFailed: 'The widget did not save. Try again.',
+  stale: 'The layout changed elsewhere — it is reloaded, add the widget again.',
 } as const;
+
+const CONFLICT = 409;
 
 /**
  * Пользовательский виджет собирается в два шага, и это правило сервера, а не
@@ -28,9 +31,12 @@ const COPY = {
 export function ComposeWidget({
   current,
   onSaved,
+  onStale,
 }: {
   current: HomeLayout | null;
   onSaved: (layout: HomeLayout) => void;
+  /** Ревизия раскладки устарела: её надо перечитать, черновик остаётся. */
+  onStale: () => void;
 }) {
   const [prompt, setPrompt] = useState('');
   const [draft, setDraft] = useState<WidgetRecipe | null>(null);
@@ -46,7 +52,7 @@ export function ComposeWidget({
       const { recipe } = await composeWidget(text);
       setDraft(recipe);
     } catch (failure) {
-      logger.warn('Виджет не собрался', { failure });
+      reportFailure('Виджет не собрался', failure);
       setMessage(COPY.failed);
     } finally {
       setBusy(false);
@@ -65,8 +71,12 @@ export function ComposeWidget({
       setDraft(null);
       setPrompt('');
     } catch (failure) {
-      logger.warn('Пользовательский виджет не сохранился', { failure });
-      setMessage(COPY.saveFailed);
+      // Раскладку поменяли с другого устройства: с той же ревизией повтор
+      // упрётся снова. Перечитываем её, а черновик рецепта оставляем.
+      const stale = failure instanceof HttpError && failure.status === CONFLICT;
+      if (stale) onStale();
+      reportFailure('Пользовательский виджет не сохранился', failure);
+      setMessage(stale ? COPY.stale : COPY.saveFailed);
     } finally {
       setBusy(false);
     }

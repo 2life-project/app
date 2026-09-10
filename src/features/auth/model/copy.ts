@@ -49,6 +49,8 @@ export const AUTH = {
     change: 'Change the password',
     done: 'The password is changed. Sign in with the new one.',
     back: 'Back to sign-in',
+    stepBack: 'Back',
+    resend: 'Send the code again',
     noEmail: 'This account has no email. Recovery needs one — ask us to add it.',
     badCode: 'The code is wrong or has expired. Request a new one.',
     unavailable: 'Recovery is not available right now. Try again later.',

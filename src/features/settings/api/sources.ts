@@ -112,6 +112,12 @@ export async function fetchSources(signal?: AbortSignal): Promise<SourceStatus[]
 /** Язык интерфейса хранится в аккаунте, а не на телефоне: он общий с вебом. */
 export type Locale = 'ru' | 'en';
 
+const LOCALES: readonly string[] = ['ru', 'en'];
+
+export function isLocale(value: string): value is Locale {
+  return LOCALES.includes(value);
+}
+
 export function fetchLanguage(signal?: AbortSignal): Promise<{ locale: Locale }> {
   return request<{ locale: Locale }>('/api/settings/language', { signal });
 }

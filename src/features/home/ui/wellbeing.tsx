@@ -96,7 +96,7 @@ export function Wellbeing({
         </WidgetCard>
       ) : null}
 
-      <InfoCard title={view.recommendation.title} text={view.recommendation.text} />
+      <InfoCard title="Recommendation" text={view.recommendation.text} />
 
       {view.recommendation.actions.length > 0 ? (
         <WidgetCard title="What to do today">

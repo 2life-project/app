@@ -1,4 +1,4 @@
-import { request } from '@/core/http/client';
+import { request, searchParams } from '@/core/http/client';
 import { requestId } from '@/shared/lib/id';
 
 /**
@@ -48,7 +48,8 @@ export type JournalEvent = {
   date: string;
   layer: Layer;
   kind: string;
-  title: string;
+  /** Заголовка сервер не отдаёт: строка называется по виду — см. `eventTitle`. */
+  title?: string;
   startAt: string | null;
   endAt: string | null;
   allDay: boolean;
@@ -59,8 +60,14 @@ export type JournalEvent = {
   values: readonly EventValue[];
   detail: EventDetail | null;
   reference: { domain: string; id: string } | null;
-  action: string | null;
+  /** Готовое действие над событием, если сервер его даёт: метод, адрес, тело. */
+  action: { method: string; url: string; body: Record<string, unknown> } | null;
 };
+
+/** Как назвать событие: своим заголовком, если он есть, иначе видом словами. */
+export function eventTitle(event: Pick<JournalEvent, 'title' | 'kind'>): string {
+  return event.title?.trim() || event.kind.replace(/[_.]/g, ' ');
+}
 
 export function eventKey(id: string, timeZone: string): string {
   return `event:${id}:${timeZone}`;
@@ -72,7 +79,7 @@ export function fetchEvent(
   timeZone: string,
   signal?: AbortSignal,
 ): Promise<JournalEvent> {
-  const query = new URLSearchParams({ timezone: timeZone }).toString();
+  const query = searchParams({ timezone: timeZone });
   return request<JournalEvent>(`/api/v2/journal/events/${encodeURIComponent(id)}?${query}`, {
     signal,
   });
@@ -94,8 +101,6 @@ export type EventInput =
   | { kind: 'note'; text: string; tags?: readonly string[] };
 
 export type NewEvent = {
-  /** Заголовок сервер выводит сам; свой можно дать, но обязательно не нужно. */
-  title?: string;
   startAt: string;
   timezone: string;
   note?: string;

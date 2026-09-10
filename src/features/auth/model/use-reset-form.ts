@@ -29,16 +29,13 @@ export function useResetForm() {
   const [error, setError] = useState<string | null>(null);
   const { secondsLeft, start: startCooldown } = useCooldown();
 
-  const ready =
-    !busy &&
-    secondsLeft === 0 &&
-    (step === 'account'
-      ? account.trim() !== ''
-      : step === 'code'
-        ? CODE.test(code.trim())
-        : step === 'password'
-          ? password.trim().length >= MIN_PASSWORD
-          : false);
+  const readyByStep: Record<ResetStep, boolean> = {
+    account: account.trim() !== '',
+    code: CODE.test(code.trim()),
+    password: password.trim().length >= MIN_PASSWORD,
+    done: false,
+  };
+  const ready = !busy && secondsLeft === 0 && readyByStep[step];
 
   const edit = (set: (next: string) => void) => (next: string) => {
     set(next);
@@ -72,6 +69,34 @@ export function useResetForm() {
     }
   };
 
+  /**
+   * Шаг назад — к предыдущему полю, не с экрана: введённое остаётся, и код,
+   * который так и не пришёл, можно запросить заново, не набирая почту снова.
+   */
+  const back = () => {
+    setError(null);
+    setStep(step === 'password' ? 'code' : 'account');
+  };
+
+  /** Код заново — с того же шага: письмо могло не дойти или код истёк. */
+  const resend = async () => {
+    if (busy || secondsLeft > 0) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await requestPasswordReset(account);
+      setCode('');
+    } catch (failure) {
+      if (failure instanceof HttpError && failure.status === TOO_MANY) {
+        startCooldown(RATE_LIMIT_SECONDS);
+      } else {
+        setError(authMessage(failure, AUTH.reset.failed));
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return {
     step,
     account,
@@ -79,10 +104,13 @@ export function useResetForm() {
     password,
     busy,
     ready,
+    canResend: !busy && secondsLeft === 0,
     message: secondsLeft > 0 ? AUTH.tooMany(secondsLeft) : error,
     setAccount: edit(setAccount),
     setCode: edit(setCode),
     setPassword: edit(setPassword),
     submit,
+    back,
+    resend,
   };
 }

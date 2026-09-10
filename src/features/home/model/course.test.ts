@@ -9,8 +9,10 @@ describe('courseDraftOf', () => {
     });
   });
 
-  it('дата не по форме — черновика нет', () => {
+  it('дата не по форме или не из календаря — черновика нет', () => {
     expect(courseDraftOf({ name: 'x', start: '12.09.2026', end: '' })).toBeNull();
+    expect(courseDraftOf({ name: 'x', start: '2026-02-31', end: '' })).toBeNull();
+    expect(courseDraftOf({ name: 'x', start: '', end: '2026-13-01' })).toBeNull();
   });
 
   it('пустое имя уезжает как отсутствие имени', () => {

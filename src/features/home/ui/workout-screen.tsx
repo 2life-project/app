@@ -2,9 +2,9 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { reportFailure } from '@/core/http/client';
 import { useQuery } from '@/core/http/use-query';
-import { logger } from '@/core/log/logger';
-import { createEvent, eventKey, fetchEvent } from '@/shared/domain';
+import { createEvent, eventKey, eventTitle, fetchEvent } from '@/shared/domain';
 import { longDay, useToday } from '@/shared/lib/day';
 import { space } from '@/shared/theme';
 import {
@@ -30,9 +30,9 @@ import {
 /** Шапку рисует сам экран — как в макете, а не системная панель навигации. */
 export const WorkoutScreenOptions = { headerShown: false };
 
-/** `new` — ручное добавление, иначе записанная тренировка из журнала. */
-export function WorkoutScreen({ id }: { id: string }) {
-  if (id === 'new') return <AddWorkout />;
+/** `new` — ручное добавление (в день `date`), иначе записанная тренировка из журнала. */
+export function WorkoutScreen({ id, date }: { id: string; date?: string }) {
+  if (id === 'new') return <AddWorkout day={date} />;
   return <WorkoutDetail id={id} />;
 }
 
@@ -50,7 +50,7 @@ function WorkoutDetail({ id }: { id: string }) {
     <Screen>
       <Stack gap="md">
         <ScreenHeader
-          title={event?.title ?? 'Workout'}
+          title={event ? eventTitle(event) : 'Workout'}
           subtitle={
             event
               ? `${longDay(event.date)}${event.startAt ? ` · ${event.startAt.slice(11, 16)}` : ''}`
@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
 });
 
 /** Ручное добавление: тип, когда началась, сколько длилась. */
-function AddWorkout() {
+function AddWorkout({ day }: { day?: string }) {
   const { timeZone } = useToday();
   const [fields, setFields] = useState<WorkoutFields>({
     typeKey: WORKOUT_TYPES[0].id,
@@ -115,7 +115,7 @@ function AddWorkout() {
   };
 
   const save = async () => {
-    const input = workoutInput(fields, timeZone);
+    const input = workoutInput(fields, timeZone, day);
     if (!input) {
       setMessage(WORKOUT_FORM.invalid);
       return;
@@ -127,7 +127,7 @@ function AddWorkout() {
       router.back();
     } catch (failure) {
       // Набранное остаётся на экране: уходить при отказе значит потерять его.
-      logger.warn('Тренировка не записалась', { failure });
+      reportFailure('Тренировка не записалась', failure);
       setMessage(WORKOUT_FORM.saveFailed);
     } finally {
       setBusy(false);
@@ -137,7 +137,10 @@ function AddWorkout() {
   return (
     <Screen>
       <Stack gap="md">
-        <ScreenHeader title="Add workout" subtitle="the band missed this one" />
+        <ScreenHeader
+          title="Add workout"
+          subtitle={day ? `${longDay(day)} · the band missed this one` : 'the band missed this one'}
+        />
 
         <Card>
           <Stack gap="sm">

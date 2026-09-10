@@ -95,3 +95,18 @@ export function dayOf(at: number | string, timeZone = deviceTimeZone()): string 
   const date = new Date(at);
   return Number.isNaN(date.getTime()) ? '' : dayIn(timeZone, date);
 }
+
+/**
+ * Момент времени со смещением пояса, а не в UTC: `2026-09-10T01:00:00+03:00`.
+ *
+ * Сервер кладёт запись в день по этой отметке. В UTC час ночи по Москве —
+ * ещё вчера, и еда уезжала бы в чужие сутки относительно даты в адресе.
+ */
+export function isoWithOffset(at: Date): string {
+  const pad = (value: number) => String(Math.abs(value)).padStart(2, '0');
+  const offset = -at.getTimezoneOffset();
+  const sign = offset >= 0 ? '+' : '-';
+  const local = `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}`;
+  const time = `${pad(at.getHours())}:${pad(at.getMinutes())}:${pad(at.getSeconds())}`;
+  return `${local}T${time}${sign}${pad(Math.trunc(offset / 60))}:${pad(offset % 60)}`;
+}

@@ -1,6 +1,6 @@
 import { currentUser } from '@/core/auth';
 import { env } from '@/core/config/env';
-import { errorCode, HttpError } from '@/core/http/client';
+import { errorCode, HttpError, reportFailure } from '@/core/http/client';
 import { logger } from '@/core/log/logger';
 import { deviceTimeZone } from '@/shared/lib/day';
 
@@ -247,11 +247,9 @@ async function recover(account: string, binding: Binding, failure: unknown): Pro
     return false;
   }
 
-  // Нет доступа, база недоступна — сервер ответил, и клиент этот ответ уже
-  // записал. Нет сети или таймаут — ответа не было, и без записи здесь отказ
-  // в релизе невидим. Очередь в обоих случаях ждёт следующего захода как есть.
-  if (status !== 0) logger.warn('band: пачка не принята', { status });
-  else logger.error('band: пачка не дошла до сервера', { reason: String(failure) });
+  // Нет доступа, нет сети, база недоступна. Ничего из этого не лечится
+  // повтором прямо сейчас: очередь ждёт следующего захода как есть.
+  reportFailure('band: пачка не ушла', failure);
   return false;
 }
 
@@ -291,8 +289,7 @@ async function reportIssues(account: string, binding: Binding, delivery: Deliver
       codes,
     });
   } catch (failure) {
-    if (failure instanceof HttpError) return;
-    logger.error('band: результат разбора не прочитался', { reason: String(failure) });
+    reportFailure('band: результат разбора не прочитался', failure);
   }
 }
 

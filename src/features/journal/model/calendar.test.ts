@@ -1,4 +1,4 @@
-import type { CalendarEvent } from '../api/contract';
+import type { JournalEvent } from '@/shared/domain';
 
 import { agendaEnd, firstWeekday, groupByDate } from './calendar';
 
@@ -21,7 +21,7 @@ describe('agendaEnd', () => {
 });
 
 describe('groupByDate', () => {
-  const event = (date: string, id: string) => ({ date, id }) as CalendarEvent;
+  const event = (date: string, id: string) => ({ date, id }) as JournalEvent;
 
   it('события собираются по дням в порядке появления', () => {
     const groups = groupByDate([

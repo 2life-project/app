@@ -1,13 +1,14 @@
-import type { CalendarEvent } from '../api/contract';
+import type { JournalEvent } from '@/shared/domain';
 
 import { detailTags, detailText, markable } from './journal';
 
-const event = (extra: Partial<CalendarEvent>) => ({ status: 'planned', ...extra }) as CalendarEvent;
+const event = (extra: Partial<JournalEvent>) => ({ status: 'planned', ...extra }) as JournalEvent;
 
 describe('markable', () => {
-  it('запланированное можно отметить и снять отметку', () => {
+  it('отметить можно запланированное и пропущенное, снять отметку — нет', () => {
     expect(markable(event({ status: 'planned' }))).toBe(true);
-    expect(markable(event({ status: 'done' }))).toBe(true);
+    expect(markable(event({ status: 'skipped' }))).toBe(true);
+    expect(markable(event({ status: 'done' }))).toBe(false);
   });
 
   it('записанный факт не переключается: заметка не «не случилась»', () => {
@@ -29,7 +30,7 @@ describe('detailText и detailTags', () => {
   it('чужая форма detail не роняет экран и не выдумывает содержимое', () => {
     // Форма `detail` у каждого вида своя, и тип описывает только ожидаемое.
     // Здесь нарочно чужое: читатели обязаны пережить его на устройстве.
-    const foreign = (detail: unknown) => event({ detail: detail as CalendarEvent['detail'] });
+    const foreign = (detail: unknown) => event({ detail: detail as JournalEvent['detail'] });
 
     expect(detailText(event({ detail: null }))).toBeNull();
     expect(detailText(foreign({ text: 42 }))).toBeNull();

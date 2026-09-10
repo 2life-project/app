@@ -9,8 +9,3 @@ export function directionText(target: Target): string {
   // Незнакомое направление не толкуем: показываем цель без глагола.
   return to;
 }
-
-/** Цель ещё в работе — её и показываем. Достигнутые и снятые уходят вниз. */
-export function isOpen(target: Target): boolean {
-  return target.status === 'active';
-}

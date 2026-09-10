@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { signOut, useSession } from '@/core/auth';
+import { reportFailure } from '@/core/http/client';
 import { useQuery } from '@/core/http/use-query';
 import {
   clearBandReadings,
@@ -32,7 +33,7 @@ import {
 } from '@/shared/ui';
 
 import { fetchProfile } from '../api/settings';
-import { fetchLanguage, fetchSources, saveLanguage, type Locale } from '../api/sources';
+import { fetchLanguage, fetchSources, isLocale, saveLanguage } from '../api/sources';
 import { displayName, initials, memberSince } from '../model/profile';
 import {
   ADD_DEVICE,
@@ -66,6 +67,8 @@ export function SettingsScreen() {
   // Язык хранится в аккаунте и общий с вебом; остальные выборы — на телефоне.
   const language = useQuery('language', (signal) => fetchLanguage(signal));
   const [choice, setChoice] = useState<string | null>(null);
+  /** Строка под вариантами шита: что сделано или почему не вышло. */
+  const [notice, setNotice] = useState<string | null>(null);
   const [picked, setPicked] = usePersistentState<Record<string, string>>('settings', {});
   const [confirm, setConfirm] = useState<string | null>(null);
 
@@ -77,7 +80,10 @@ export function SettingsScreen() {
     if (row.opens === 'device') router.push(to.device());
     else if (row.opens === 'records') router.push(to.recordsIntro());
     else if (row.opens === 'confirm') setConfirm(row.id);
-    else if (row.opens === 'choice') setChoice(row.id);
+    else if (row.opens === 'choice') {
+      setNotice(null);
+      setChoice(row.id);
+    }
   };
 
   const sheet = choice ? SETTINGS_CHOICES[choice] : undefined;
@@ -94,7 +100,15 @@ export function SettingsScreen() {
 
   const pick = (row: string, option: string) => {
     if (row === 'language') {
-      void saveLanguage(option as Locale).then(language.refresh);
+      if (!isLocale(option)) return;
+      setNotice(null);
+      saveLanguage(option)
+        .then(language.refresh)
+        .catch((failure: unknown) => {
+          // Галочка не должна отскочить молча: человек решит, что выбрал.
+          reportFailure('Язык не сохранился', failure);
+          setNotice(SETTINGS_NOTICES.languageFailed);
+        });
       return;
     }
     setPicked({ ...picked, [row]: option });
@@ -156,17 +170,27 @@ export function SettingsScreen() {
               subtitle={option.subtitle}
               selected={selected(choice ?? '', sheet.options[0]?.id) === option.id}
               onPress={() => {
-                // Экран есть только у своего браслета: чужой трекер
-                // подключается через веб-приложение, и здесь его не выбрать.
+                // Экран есть только у своего браслета. Чужой трекер
+                // подключается через веб-приложение — и шит говорит это
+                // здесь же, а не закрывается молча.
                 if (choice === 'add') {
-                  setChoice(null);
-                  if (option.id === 'band') router.push(to.device());
+                  if (option.id === 'band') {
+                    setChoice(null);
+                    router.push(to.device());
+                  } else {
+                    setNotice(SETTINGS_NOTICES.connectInWeb(option.title));
+                  }
                   return;
                 }
                 pick(choice ?? '', option.id);
               }}
             />
           ))}
+          {notice ? (
+            <Text variant="bodySmall" tone="muted">
+              {notice}
+            </Text>
+          ) : null}
         </Stack>
       </Sheet>
 
@@ -220,6 +244,12 @@ export function SettingsScreen() {
 
 /** Языки — словами, а не кодом: сервер отдаёт `ru`, человек читает «Русский». */
 const LANGUAGE_NAMES: Record<string, string> = { en: 'English', ru: 'Русский' };
+
+/** Подписи под шитом. Экрана в макете нет — формулировки рабочие. */
+const SETTINGS_NOTICES = {
+  connectInWeb: (title: string) => `${title} connects in the web app — open 2Life in a browser.`,
+  languageFailed: 'The language did not save. Try again.',
+} as const;
 
 function Section({
   caption,

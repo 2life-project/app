@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import { logger } from '@/core/log/logger';
+import { reportFailure } from '@/core/http/client';
 import { Button, Field, Stack, Text } from '@/shared/ui';
 
 import type { CourseDraft } from '../api/courses';
@@ -41,7 +41,7 @@ export function CourseForm({
     } catch (failure) {
       // Введённое остаётся на экране: уходить с него при отказе значит
       // потерять набранное без единого слова.
-      logger.warn('Курс не сохранился', { failure });
+      reportFailure('Курс не сохранился', failure);
       setMessage(COURSE_FORM.saveFailed);
     } finally {
       setBusy(false);

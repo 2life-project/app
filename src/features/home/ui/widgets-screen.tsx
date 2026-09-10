@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import { HttpError, reportFailure } from '@/core/http/client';
 import { useQuery } from '@/core/http/use-query';
 import { logger } from '@/core/log/logger';
 import { Card, InfoCard, ListRow, Screen, ScreenHeader, Stack, Text, Toggle } from '@/shared/ui';
@@ -12,6 +13,8 @@ import { WIDGET_TITLES, WIDGETS_NOTE } from '../model/widgets';
 import { ComposeWidget } from './compose-widget';
 
 export const WidgetsScreenOptions = { headerShown: false };
+
+const CONFLICT = 409;
 
 /**
  * Настройка ленты Главной. Порядок и состав хранит сервер — экран правит его
@@ -67,7 +70,13 @@ export function WidgetsScreen() {
         }
       })
       .catch((failure: unknown) => {
-        logger.warn('Раскладка не сохранилась', { type, on, failure });
+        // С устаревшей ревизией повтор упрётся снова: перечитываем раскладку,
+        // и своя запись больше не свежее прочитанной.
+        if (failure instanceof HttpError && failure.status === CONFLICT) {
+          setSaved(null);
+          layout.refresh();
+        }
+        reportFailure('Раскладка не сохранилась', failure);
         setFailed(true);
       })
       .finally(() => setSaving(false));
@@ -119,7 +128,14 @@ export function WidgetsScreen() {
           </Card>
         )}
 
-        <ComposeWidget current={current} onSaved={setSaved} />
+        <ComposeWidget
+          current={current}
+          onSaved={setSaved}
+          onStale={() => {
+            setSaved(null);
+            layout.refresh();
+          }}
+        />
 
         <InfoCard title="How this works" text={WIDGETS_NOTE} />
       </Stack>

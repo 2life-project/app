@@ -34,6 +34,7 @@ export { setPairedBand, useBandPaired, usePairedBand, type PairedBand } from './
 export {
   createEvent,
   eventKey,
+  eventTitle,
   fetchEvent,
   LAYERS,
   type CreatedEvent,

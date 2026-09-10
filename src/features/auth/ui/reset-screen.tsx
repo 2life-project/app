@@ -2,10 +2,18 @@ import { router } from 'expo-router';
 import { StyleSheet } from 'react-native';
 
 import { to } from '@/shared/nav';
-import { Button, Field, Screen, Stack, Text } from '@/shared/ui';
+import { Button, Field, KeyboardSpacer, Screen, Stack, Text } from '@/shared/ui';
 
 import { AUTH } from '../model/copy';
 import { useResetForm } from '../model/use-reset-form';
+
+/** Подпись главной кнопки на каждом шаге. */
+const ACTION = {
+  account: AUTH.reset.send,
+  code: AUTH.reset.check,
+  password: AUTH.reset.change,
+  done: AUTH.reset.back,
+} as const;
 
 /** Восстановление пароля: один экран, три шага подряд. */
 export function ResetScreen() {
@@ -50,16 +58,24 @@ export function ResetScreen() {
           ) : null}
 
           {form.step === 'code' ? (
-            <Field
-              label={copy.code}
-              value={form.code}
-              onChangeText={form.setCode}
-              keyboardType="number-pad"
-              textContentType="oneTimeCode"
-              returnKeyType="go"
-              onSubmitEditing={() => void form.submit()}
-              autoFocus
-            />
+            <>
+              <Field
+                label={copy.code}
+                value={form.code}
+                onChangeText={form.setCode}
+                keyboardType="number-pad"
+                textContentType="oneTimeCode"
+                returnKeyType="go"
+                onSubmitEditing={() => void form.submit()}
+                autoFocus
+              />
+              <Button
+                label={copy.resend}
+                variant="plain"
+                disabled={!form.canResend}
+                onPress={() => void form.resend()}
+              />
+            </>
           ) : null}
 
           {form.step === 'password' ? (
@@ -78,11 +94,12 @@ export function ResetScreen() {
           ) : null}
         </Stack>
 
+        {/* Действия ниже середины: до низа экрана большой палец дотягивается. */}
+        <Stack style={styles.fill} />
+
         <Stack gap="md">
           <Button
-            label={
-              form.step === 'account' ? copy.send : form.step === 'code' ? copy.check : copy.change
-            }
+            label={ACTION[form.step]}
             loading={form.busy}
             disabled={!form.ready}
             onPress={() => void form.submit()}
@@ -92,8 +109,16 @@ export function ResetScreen() {
               {form.message}
             </Text>
           ) : null}
-          <Button label={copy.back} variant="plain" onPress={() => router.back()} />
+          {/* С первого шага — на вход; с остальных — на шаг назад, введённое
+              остаётся: уйти с экрана значило бы набирать почту заново. */}
+          <Button
+            label={form.step === 'account' ? copy.back : copy.stepBack}
+            variant="plain"
+            onPress={form.step === 'account' ? () => router.back() : form.back}
+          />
         </Stack>
+
+        <KeyboardSpacer />
       </Stack>
     </Screen>
   );

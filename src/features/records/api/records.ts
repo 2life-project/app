@@ -1,4 +1,4 @@
-import { request } from '@/core/http/client';
+import { request, searchParams } from '@/core/http/client';
 
 import type {
   Biochemistry,
@@ -47,6 +47,6 @@ export function fetchGeneticsReport(
   uploadId: string,
   signal?: AbortSignal,
 ): Promise<GeneticsReport> {
-  const query = new URLSearchParams({ uploadId }).toString();
+  const query = searchParams({ uploadId });
   return request<GeneticsReport>(`/api/genetics/genuser?${query}`, { signal });
 }

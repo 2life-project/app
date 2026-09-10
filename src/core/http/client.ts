@@ -4,7 +4,16 @@ import { logger } from '@/core/log/logger';
 
 import { HttpError } from './error';
 
-export { HttpError, errorCode } from './error';
+export { HttpError, errorCode, reportFailure } from './error';
+
+/**
+ * Строка запроса из пар «ключ — значение». Один хелпер на все `api/`, а не
+ * своя копия в каждом: кодирование и порядок обязаны быть одинаковыми, иначе
+ * два экрана с одним запросом получат два разных ключа кэша.
+ */
+export function searchParams(params: Record<string, string>): string {
+  return new URLSearchParams(params).toString();
+}
 
 const TIMEOUT_MS = 15_000;
 

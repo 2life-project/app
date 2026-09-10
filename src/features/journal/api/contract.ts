@@ -40,8 +40,6 @@ export type CalendarMonth = {
   days: readonly MonthDay[];
 };
 
-export type { JournalEvent as CalendarEvent } from '@/shared/domain';
-
 export type CalendarEvents = {
   schemaVersion: number;
   start: string;

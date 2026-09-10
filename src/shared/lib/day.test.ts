@@ -1,4 +1,4 @@
-import { dayIn, dayOf, longDay, shortDay, weekdayOf } from './day';
+import { isoWithOffset, dayIn, dayOf, longDay, shortDay, weekdayOf } from './day';
 
 describe('день в часовом поясе', () => {
   // Полночь по Москве — это ещё вчера по UTC. Запрос за «сегодня» обязан
@@ -39,5 +39,17 @@ describe('dayOf', () => {
 
   it('битый момент времени не роняет разбор', () => {
     expect(dayOf('не дата', 'Europe/Moscow')).toBe('');
+  });
+});
+
+describe('isoWithOffset', () => {
+  it('пишет местное время со смещением пояса, а не UTC', () => {
+    const at = new Date(2026, 8, 10, 1, 5, 9);
+    const offset = -at.getTimezoneOffset();
+    const sign = offset >= 0 ? '+' : '-';
+    const hh = String(Math.abs(Math.trunc(offset / 60))).padStart(2, '0');
+    const mm = String(Math.abs(offset % 60)).padStart(2, '0');
+
+    expect(isoWithOffset(at)).toBe(`2026-09-10T01:05:09${sign}${hh}:${mm}`);
   });
 });

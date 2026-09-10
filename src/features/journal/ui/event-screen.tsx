@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 
 import { useQuery } from '@/core/http/use-query';
+import { eventTitle } from '@/shared/domain';
 import { longDay, useToday } from '@/shared/lib/day';
 import { ActionLink, ListRow, SheetBody, Stack, Tag, Text } from '@/shared/ui';
 
@@ -18,7 +19,7 @@ export function EventScreen({ id }: { id: string }) {
 
   return (
     <SheetBody
-      title={event?.title ?? 'Event'}
+      title={event ? eventTitle(event) : 'Event'}
       action={<ActionLink label="Close" onPress={() => router.back()} />}>
       {event ? (
         <>

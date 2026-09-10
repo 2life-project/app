@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 
-import { logger } from '@/core/log/logger';
+import { reportFailure } from '@/core/http/client';
 import { shortDay } from '@/shared/lib/day';
 import { to } from '@/shared/nav';
 import {
@@ -18,32 +18,40 @@ import {
   WidgetCard,
 } from '@/shared/ui';
 
-import type { HomeData, PlanItem } from '../api/contract';
+import type { HomeData } from '../api/contract';
 import { markPlanItem } from '../api/home';
-import { intakesOf, planRowsOf } from '../model/plan';
+import { intakeRowsOf, planCounts } from '../model/plan';
 import { COURSE_HINT, WHY_COURSES } from '../model/supplements';
 
 /**
  * Приёмы дня приходят пунктами объединённого плана; у каждого — готовое
  * действие для отметки. Раздел показывает их строками и отмечает через это
  * действие, а не собирает адрес отметки сам.
+ *
+ * Отметка меняет строку на месте: перечитывать ради галочки всю Главную —
+ * два запроса и мигание ленты — незачем, ответ сервера говорит достаточно.
  */
-export function Supplements({ home, onChanged }: { home: HomeData; onChanged: () => void }) {
-  const { done, total } = home.plan;
-  const intakes = intakesOf(home.plan.items);
-  const rows = planRowsOf(intakes);
+export function Supplements({ home }: { home: HomeData }) {
+  /** Отметки, поставленные с этого экрана: сервер их принял, лента ещё старая. */
+  const [marked, setMarked] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
 
-  const mark = (item: PlanItem, taken: boolean) => {
-    setBusy(item.id);
+  const rows = intakeRowsOf(home.plan.items, marked);
+  const { done, total } = planCounts(home.plan, marked);
+
+  const mark = (id: string, taken: boolean) => {
+    const item = home.plan.items.find((candidate) => candidate.id === id);
+    if (!item) return;
+
+    setBusy(id);
     setFailed(false);
     markPlanItem(item, taken ? 'taken' : 'pending')
-      .then(onChanged)
+      .then(() => setMarked({ ...marked, [id]: taken }))
       .catch((failure: unknown) => {
         // Отказ обязан быть виден: молча отскочившая галочка выглядит как
         // «кнопка не работает», и причины на экране нет.
-        logger.error('Приём не отметился', { id: item.id, failure });
+        reportFailure('Приём не отметился', failure);
         setFailed(true);
       })
       .finally(() => setBusy(null));
@@ -80,25 +88,22 @@ export function Supplements({ home, onChanged }: { home: HomeData; onChanged: ()
         <Stack gap="sm">
           {failed ? <Text tone="danger">The mark did not save. Try again.</Text> : null}
 
-          {rows.map((row, index) => {
-            const item = intakes[index];
-            return (
-              <ListRow
-                key={row.id}
-                leading={
-                  <CheckCircle
-                    checked={row.done}
-                    // Пока отметка идёт, вторая не уходит: две подряд
-                    // записали бы приём дважды.
-                    onPress={item && busy === null ? () => mark(item, !row.done) : undefined}
-                  />
-                }
-                title={row.title}
-                subtitle={row.time}
-                done={row.done}
-              />
-            );
-          })}
+          {rows.map((row) => (
+            <ListRow
+              key={row.id}
+              leading={
+                <CheckCircle
+                  checked={row.done}
+                  // Пока отметка идёт, вторая не уходит: две подряд
+                  // записали бы приём дважды.
+                  onPress={busy === null ? () => mark(row.id, !row.done) : undefined}
+                />
+              }
+              title={row.title}
+              subtitle={row.time}
+              done={row.done}
+            />
+          ))}
 
           {rows.length === 0 ? <Text tone="muted">No doses are planned for today.</Text> : null}
 

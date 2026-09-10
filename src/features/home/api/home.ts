@@ -1,4 +1,4 @@
-import { request } from '@/core/http/client';
+import { request, searchParams } from '@/core/http/client';
 import { requestId } from '@/shared/lib/id';
 
 import type {
@@ -24,12 +24,10 @@ export function homeKey(date: string, timeZone: string): string {
   return `home:${date}:${timeZone}`;
 }
 
-function query(params: Record<string, string>): string {
-  return new URLSearchParams(params).toString();
-}
-
 export function fetchHomeLayout(signal?: AbortSignal): Promise<HomeLayout> {
-  return request<HomeLayout>(`/api/v2/home/layout?${query({ surface: SURFACE })}`, { signal });
+  return request<HomeLayout>(`/api/v2/home/layout?${searchParams({ surface: SURFACE })}`, {
+    signal,
+  });
 }
 
 export function fetchHomeData(
@@ -37,7 +35,7 @@ export function fetchHomeData(
   timeZone: string,
   signal?: AbortSignal,
 ): Promise<HomeData> {
-  const path = `/api/v2/home/data?${query({ surface: SURFACE, date, timezone: timeZone })}`;
+  const path = `/api/v2/home/data?${searchParams({ surface: SURFACE, date, timezone: timeZone })}`;
   return request<HomeData>(path, { signal });
 }
 
@@ -49,7 +47,7 @@ export function saveHomeLayout(
   current: HomeLayout,
   cells: readonly LayoutCell[],
 ): Promise<HomeLayout> {
-  return request<HomeLayout>(`/api/v2/home/layout?${query({ surface: SURFACE })}`, {
+  return request<HomeLayout>(`/api/v2/home/layout?${searchParams({ surface: SURFACE })}`, {
     method: 'PUT',
     body: {
       schemaVersion: current.schemaVersion,
@@ -98,7 +96,9 @@ export function markPlanItem(
 
 /** Адрес действия может прийти полным: клиент ходит только на свой сервер. */
 function pathOf(url: string): string {
-  return url.startsWith('/') ? url : new URL(url).pathname + new URL(url).search;
+  if (url.startsWith('/')) return url;
+  const parsed = new URL(url);
+  return parsed.pathname + parsed.search;
 }
 
 export function fetchDecisions(signal?: AbortSignal): Promise<{ items: readonly Decision[] }> {

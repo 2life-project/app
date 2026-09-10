@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { currentUser } from '@/core/auth';
-import { HttpError } from '@/core/http/client';
+import { reportFailure } from '@/core/http/client';
 import { logger } from '@/core/log/logger';
 import { requestId } from '@/shared/lib/id';
 
@@ -157,13 +157,8 @@ export async function ensureBinding(
     return binding;
   } catch (failure) {
     // Очередь просто ждёт: данные уже в ней, регистрация повторится при
-    // следующем чтении. Отказ сервера уже записан клиентом; сетевой — нет, а
-    // в релизе виден только `error`.
-    if (failure instanceof HttpError) {
-      logger.warn('band: регистрация на сервере не прошла', { status: failure.status });
-    } else {
-      logger.error('band: регистрация не дошла до сервера', { reason: String(failure) });
-    }
+    // следующем чтении.
+    reportFailure('band: регистрация на сервере не прошла', failure);
     return null;
   }
 }

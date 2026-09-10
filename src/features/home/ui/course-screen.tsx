@@ -1,8 +1,8 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 
+import { reportFailure } from '@/core/http/client';
 import { useQuery } from '@/core/http/use-query';
-import { logger } from '@/core/log/logger';
 import { useToday } from '@/shared/lib/day';
 import { to } from '@/shared/nav';
 import {
@@ -58,7 +58,7 @@ function CourseDetail({ id }: { id: string }) {
       .then(setSaved)
       .catch((failure: unknown) => {
         // Отскочивший тумблер без слов выглядит как «не работает».
-        logger.warn('Курс не переключился', { id, on, failure });
+        reportFailure('Курс не переключился', failure);
         setFailed(true);
       });
   };

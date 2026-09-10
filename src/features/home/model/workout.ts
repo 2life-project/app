@@ -43,12 +43,13 @@ function wholeNumber(text: string): number | null {
 }
 
 /**
- * Событие из полей или `null`, если они не читаются. Время — сегодняшнее:
- * тренировку вчерашнего дня записывают из журнала, выбрав день.
+ * Событие из полей или `null`, если они не читаются. День — тот, что выбрали
+ * в журнале, иначе сегодняшний: браслет мог пропустить и вчерашнюю.
  */
 export function workoutInput(
   fields: WorkoutFields,
   timeZone: string,
+  day?: string,
   now = new Date(),
 ): NewEvent | null {
   const match = TIME.exec(fields.time.trim());
@@ -65,7 +66,7 @@ export function workoutInput(
   const km = fields.distanceKm.trim() === '' ? undefined : Number(fields.distanceKm.trim());
   if (km !== undefined && !(km >= 0)) return null;
 
-  const startAt = new Date(now);
+  const startAt = dayStart(day) ?? new Date(now);
   startAt.setHours(hours, minutes, 0, 0);
 
   return {
@@ -79,6 +80,13 @@ export function workoutInput(
       ...(km === undefined ? {} : { distanceMeter: Math.round(km * 1000) }),
     },
   };
+}
+
+/** Полночь выбранного дня по местным часам; `null` — день не задан или не читается. */
+function dayStart(day: string | undefined): Date | null {
+  const [year, month, date] = (day ?? '').split('-').map(Number);
+  if (!year || !month || !date) return null;
+  return new Date(year, month - 1, date);
 }
 
 export type WorkoutTile = { label: string; value: string; unit?: string };
