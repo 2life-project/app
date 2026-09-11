@@ -107,7 +107,7 @@ async function deliver(account: string, binding: Binding, delivery: Delivery): P
     await settle(account, binding.bandId);
     return 'sent';
   } catch (failure) {
-    return (await recover(account, binding, failure)) ? 'retry' : 'stop';
+    return (await recover(account, binding, failure, delivery)) ? 'retry' : 'stop';
   }
 }
 
@@ -120,13 +120,26 @@ async function deliver(account: string, binding: Binding, delivery: Delivery): P
 const RECORD_CONFLICTS = new Set(['band_event_conflict', 'band_delivery_conflict']);
 
 /** Что делать с отказом. Возвращает, можно ли продолжать заход. */
-async function recover(account: string, binding: Binding, failure: unknown): Promise<boolean> {
+async function recover(
+  account: string,
+  binding: Binding,
+  failure: unknown,
+  delivery: Delivery,
+): Promise<boolean> {
   const status = failure instanceof HttpError ? failure.status : 0;
   const code = errorCode(failure);
 
   if (status === 413 || status === 422 || (status === 409 && RECORD_CONFLICTS.has(code ?? ''))) {
     if (await halveDelivery(account, binding.bandId)) return true;
-    logger.error('band: запись отвергнута приёмником и отброшена', { status, code });
+
+    // Делить больше нечего: в пачке одна запись, и это она. Конфликт — не
+    // потеря: приёмник уже держит это событие, пусть в другой версии. Отказ
+    // по размеру или схеме — потеря, и её надо видеть.
+    const [record] = delivery.records;
+    const dropped = { stream: record?.stream ?? null, eventId: record?.eventId ?? null };
+    if (status === 409) logger.warn('band: событие уже у приёмника в другой версии', dropped);
+    else
+      logger.error('band: запись отвергнута приёмником и отброшена', { status, code, ...dropped });
     await settle(account, binding.bandId, 'dropped');
     return true;
   }

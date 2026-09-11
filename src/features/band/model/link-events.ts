@@ -83,6 +83,9 @@ export function adopt(next: Band | null, hooks: Hooks): void {
     }
     if (event.kind === 'recorder') {
       const recorderEvent = event.event;
+      // Одна кнопка без экрана: по логу должно быть видно, что именно нажали —
+      // паузу от финиша человек на устройстве не отличит.
+      logger.info('band: диктофон', { kind: recorderEvent.kind, session: recorderEvent.session });
       // Метку сохраняем сразу: файл скачается позже, а до тех пор она
       // существует только в этом отчёте.
       if (recorderEvent.kind === 'marked') {

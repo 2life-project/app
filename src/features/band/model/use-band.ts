@@ -1,7 +1,8 @@
 import { usePairedBand } from '@/shared/domain';
 
 import { useBandActions } from './band-actions';
-import { adoptBand, connect, disconnect, forget, scan } from './link';
+import { connect, disconnect, forget, scan } from './link';
+import { collectRecordings } from './link-recordings';
 import { refresh } from './link-refresh';
 import { bandRef, patch, stateRef, useBandState } from './link-store';
 import { useAlarms } from './use-alarms';
@@ -25,14 +26,7 @@ export function useBand() {
   const settings = useDeviceSettings(bandRef);
   const service = useService(bandRef);
 
-  const actions = useBandActions({
-    bandRef,
-    adopt: adoptBand,
-    patch,
-    refresh,
-    deviceId: state.device?.id,
-    stateRef,
-  });
+  const actions = useBandActions({ bandRef, collect: collectRecordings, patch, stateRef });
 
   return {
     state,

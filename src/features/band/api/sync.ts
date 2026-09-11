@@ -28,48 +28,60 @@ const RECORDINGS_PER_RUN = 1;
 type SyncResult = { fetched: number; freed: number };
 
 /**
- * Забрать новые записи. Вызывается и из фоновой задачи, и с экрана — при
- * открытии приложения система окна не выдаёт, а забрать надо.
+ * Забрать новые записи по уже открытому соединению.
+ *
+ * Аккаунт приходит снаружи и известен до качки: она долгая, а файл обязан
+ * лечь в папку того, для кого его забирали. Только полностью скачанная
+ * запись удаляется с устройства.
+ */
+export async function pullRecordings(
+  band: Pick<Band, 'recorder'>,
+  account: string,
+  limit = Infinity,
+): Promise<SyncResult> {
+  const known = savedSessions();
+  const fresh = (await band.recorder.list()).filter((item) => !known.has(item.session));
+
+  let fetched = 0;
+  let freed = 0;
+
+  for (const recording of fresh.slice(0, limit)) {
+    const raw = await band.recorder.download(recording.session, recording.bytes);
+
+    // Скачали не всё — на устройстве не трогаем: остаток дозагрузится
+    // в следующий заход, а неполный файл потом не восстановить.
+    if (raw.length < recording.bytes) {
+      logger.warn('band: запись пришла не целиком', {
+        session: recording.session,
+        got: raw.length,
+        expected: recording.bytes,
+      });
+      continue;
+    }
+
+    saveRecording(recording.session, raw, account);
+    fetched += 1;
+
+    await band.recorder.remove(recording.session);
+    freed += recording.bytes;
+  }
+
+  return { fetched, freed };
+}
+
+/**
+ * Забрать новые записи своим соединением: для фоновой задачи, когда связь
+ * приложения не держится.
  */
 export async function syncRecordings(deviceId: string): Promise<SyncResult> {
   // Записи принадлежат аккаунту, и без него им нет места на телефоне. Забрать
   // файл с устройства и стереть его там — значило бы потерять запись совсем.
-  // Аккаунт запоминается здесь, до качки: она долгая, а файл обязан лечь в
-  // папку того, для кого его забирали.
   const account = currentUser()?.id;
   if (!account) return { fetched: 0, freed: 0 };
 
   const band = await Band.connect(deviceId);
-
   try {
-    const known = savedSessions();
-    const fresh = (await band.recorder.list()).filter((item) => !known.has(item.session));
-
-    let fetched = 0;
-    let freed = 0;
-
-    for (const recording of fresh.slice(0, RECORDINGS_PER_RUN)) {
-      const raw = await band.recorder.download(recording.session, recording.bytes);
-
-      // Скачали не всё — на устройстве не трогаем: остаток дозагрузится
-      // в следующее окно, а неполный файл потом не восстановить.
-      if (raw.length < recording.bytes) {
-        logger.warn('band: запись пришла не целиком', {
-          session: recording.session,
-          got: raw.length,
-          expected: recording.bytes,
-        });
-        continue;
-      }
-
-      saveRecording(recording.session, raw, account);
-      fetched += 1;
-
-      await band.recorder.remove(recording.session);
-      freed += recording.bytes;
-    }
-
-    return { fetched, freed };
+    return await pullRecordings(band, account, RECORDINGS_PER_RUN);
   } finally {
     await band.disconnect();
   }

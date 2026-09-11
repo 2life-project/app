@@ -11,6 +11,7 @@ import { backfillHistory, loadSnapshot } from './band-data';
 import { INITIAL } from './band-state';
 import { forgetBand } from './forget-band';
 import { adopt, release } from './link-events';
+import { collectRecordings } from './link-recordings';
 import { isForeground, refresh, setForeground, shareSoon } from './link-refresh';
 import { bandRef, patch, reset, snapshot, stateRef, update } from './link-store';
 import { sendProfile } from './profile-sync';
@@ -82,8 +83,13 @@ export function start(): void {
   AppState.addEventListener('change', (next) => {
     setForeground(next === 'active');
     syncPoll();
-    // Возврат на экран — повод попробовать снова, если связь так и не поднялась.
-    if (next === 'active') keep();
+    if (next === 'active') {
+      // Возврат на экран — повод попробовать снова, если связь так и не
+      // поднялась, и забрать запись, которая закончилась, пока приложение
+      // спало: её событие могло уйти в никуда.
+      keep();
+      void collectRecordings();
+    }
   });
 
   // Привязка появляется позже старта — с диска или после подключения руками.
@@ -140,7 +146,7 @@ function lost(): void {
 const HOOKS = {
   onLost: lost,
   onFresh: shareSoon,
-  onRecordingFinished: () => void refresh(),
+  onRecordingFinished: () => void collectRecordings(),
 };
 
 /** Взять соединение под управление со стандартной подпиской на отчёты. */
@@ -240,6 +246,9 @@ export async function connect(device: FoundBand): Promise<void> {
 
     await refresh();
     patch({ step: undefined });
+
+    // Записи, сделанные без связи, событием не придут: спросить список.
+    void collectRecordings();
 
     // Дочитать сутки, которые устройство ещё помнит, а телефон уже нет. После
     // `refresh`, а не вместо: экран к этому моменту уже полон, а архив

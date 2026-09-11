@@ -48,7 +48,14 @@ export {
 export type { RecordingMark, SavedRecording } from './storage';
 export { hashRecording, partFile, type PartFile } from './recording-parts';
 export { marksOf, rememberMark } from './storage';
-export { holdBand, holdsBand, setSyncDevice, syncDevice, syncRecordings } from './sync';
+export {
+  holdBand,
+  holdsBand,
+  pullRecordings,
+  setSyncDevice,
+  syncDevice,
+  syncRecordings,
+} from './sync';
 export { WearHand, type MotionGoal, type UserProfile } from './profile';
 
 export {
