@@ -12,7 +12,7 @@ import { GlassButton } from './glass-button';
  */
 export function BackButton() {
   return (
-    <GlassButton size="sm" accessibilityLabel="Назад" onPress={() => router.back()}>
+    <GlassButton size="sm" accessibilityLabel="Back" onPress={() => router.back()}>
       <Feather name="chevron-left" size={size.icon.md} color={theme.color.text} />
     </GlassButton>
   );
