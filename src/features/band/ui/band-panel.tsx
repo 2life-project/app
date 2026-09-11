@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import { isComplete, setBodyProfile, useBodyProfile } from '@/shared/domain';
+import { isComplete, saveBodyProfile, useBodyProfile } from '@/shared/domain';
 import { Banner, Stack } from '@/shared/ui';
 
 import { useBand } from '../model/use-band';
@@ -90,8 +90,6 @@ export function BandPanel() {
           onStopRecording={band.stopRecording}
           onPull={band.pullRecordings}
           onRemoveRecording={band.removeRecording}
-          onStartWorkout={band.startWorkout}
-          onStopWorkout={band.stopWorkout}
           onRefresh={band.refresh}
           onReconnect={reconnect}
           onDisconnect={band.disconnect}
@@ -114,7 +112,7 @@ export function BandPanel() {
         visible={editingProfile}
         profile={profile}
         onClose={() => setEditingProfile(false)}
-        onSave={(patch) => void band.saveProfile(setBodyProfile(patch))}
+        onSave={(patch) => void band.saveProfile(saveBodyProfile(patch))}
       />
     </Stack>
   );

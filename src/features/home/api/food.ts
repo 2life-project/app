@@ -1,4 +1,5 @@
-import { request } from '@/core/http/client';
+import { request, searchParams } from '@/core/http/client';
+import { isoWithOffset } from '@/shared/lib/day';
 import { requestId } from '@/shared/lib/id';
 
 /**
@@ -36,7 +37,7 @@ export type FoodItem = {
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
 export function searchFood(query: string, signal?: AbortSignal): Promise<FoodHit[]> {
-  return request<FoodHit[]>(`/api/food/search?${new URLSearchParams({ q: query }).toString()}`, {
+  return request<FoodHit[]>(`/api/food/search?${searchParams({ q: query })}`, {
     signal,
   });
 }
@@ -76,7 +77,9 @@ export function logMeal(
       // дважды: без ключа идемпотентности это два одинаковых приёма в дне.
       requestId: requestId(),
       mealType: meal,
-      time: new Date().toISOString(),
+      // Со смещением пояса: в UTC час ночи — ещё вчера, и еда уезжала бы в
+      // чужие сутки относительно даты в адресе.
+      time: isoWithOffset(new Date()),
       calories: Math.round(item.calories),
       protein: round(item.protein),
       fat: round(item.fat),

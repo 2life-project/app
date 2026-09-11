@@ -19,6 +19,8 @@ export type MetricWidgetProps = {
   ring: {
     value: number | null;
     valueLabel: string;
+    /** Слово под числом: «почти без движения» объясняет 0.9 лучше шкалы. */
+    note?: string;
     tone?: Extract<Tone, 'success' | 'warning' | 'danger'>;
   };
   tiles: StatTileProps[];
@@ -46,6 +48,7 @@ export function MetricWidget({ icon, title, action, ring, tiles, children }: Met
           size={RING}
           value={ring.value}
           valueLabel={ring.valueLabel}
+          note={ring.note}
           tone={ring.tone}
         />
         <View style={styles.tiles}>

@@ -1,14 +1,25 @@
+import { useMemo } from 'react';
+
 import type { Query } from '@/core/http/use-query';
+import type { BandReadings } from '@/shared/domain';
 import { Stack, Text, WidgetCard } from '@/shared/ui';
 
 import type { Decision, HomeData, LayoutCell } from '../api/contract';
 import { cellsOf } from '../model/feed';
+import { highlightsOf } from '../model/highlights';
 import type { HomeState } from '../model/home';
 import { summaryFor } from '../model/summary';
 import { moveOf, recoverOf, ringsOf, type RingView } from '../model/vitals';
+import { recoverExtraOf, widgetData } from '../model/widget-of';
 
+import { Highlights } from './highlights';
 import { CustomWidget, FuelWidget, SystemWidget, VitalsWidget } from './widget-data';
 import { DecisionsWidget } from './widget-decisions';
+import { GoalsWidget } from './widget-goals';
+import { MedsWidget } from './widget-meds';
+import { NowWidget } from './widget-now';
+import { PlanWidget } from './widget-plan';
+import { StreamsWidget } from './widget-streams';
 import { SummaryWidget } from './widget-summary';
 
 /**
@@ -19,12 +30,18 @@ import { SummaryWidget } from './widget-summary';
 export function Overview({
   state,
   decisions,
+  band,
 }: {
   state: HomeState;
   decisions: Query<readonly Decision[]>;
+  /** Показания браслета за показанный день: в сводке они главнее серверных. */
+  band: BandReadings | null;
 }) {
-  const cells = cellsOf(state.layout);
-  const rings = ringsOf(state.home);
+  // Считается на каждый рендер ленты, а рендеров много: живые показания
+  // браслета, обновление Главной, смена дня. Пересчёт — только по данным.
+  const cells = useMemo(() => cellsOf(state.layout), [state.layout]);
+  const rings = useMemo(() => ringsOf(state.home), [state.home]);
+  const highlights = useMemo(() => highlightsOf(state.home, band), [state.home, band]);
 
   if (cells.length === 0) {
     return (
@@ -36,6 +53,7 @@ export function Overview({
 
   return (
     <Stack gap="md">
+      <Highlights highlights={highlights} />
       {cells.map((cell) => (
         <Cell key={cell.id} cell={cell} home={state.home} rings={rings} decisions={decisions} />
       ))}
@@ -58,7 +76,12 @@ function Cell({
     case 'vitals':
       return <VitalsWidget rings={rings} />;
     case 'recover':
-      return <SystemWidget widget="recover" view={recoverOf(home)} />;
+      return (
+        <SystemWidget
+          widget="recover"
+          view={recoverOf(home, recoverExtraOf(widgetData(home, cell)))}
+        />
+      );
     case 'fuel':
       // У питания, в отличие от других систем, есть прямое действие: записать
       // съеденное. Полоса приёмов ведёт к нему в одно нажатие с Главной.
@@ -67,6 +90,16 @@ function Cell({
       return <SystemWidget widget="move" view={moveOf(home)} />;
     case 'decisions':
       return <DecisionsWidget query={decisions} />;
+    case 'rails':
+      return <PlanWidget home={home} />;
+    case 'now':
+      return <NowWidget home={home} data={widgetData(home, cell)} />;
+    case 'meds':
+      return <MedsWidget data={widgetData(home, cell)} />;
+    case 'goals':
+      return <GoalsWidget home={home} />;
+    case 'streams':
+      return <StreamsWidget home={home} />;
     case 'custom': {
       // Данные пользовательского виджета сервер кладёт отдельно и связывает по
       // идентификатору ячейки: рецепт в раскладке, значения — в ответе данных.
@@ -74,7 +107,7 @@ function Cell({
       return widget ? <CustomWidget widget={widget} /> : null;
     }
     default: {
-      const view = summaryFor(cell.widget, home);
+      const view = summaryFor(cell.widget);
       return view ? <SummaryWidget view={view} /> : null;
     }
   }

@@ -33,6 +33,8 @@ import {
 } from '../model/biochemistry';
 import { NOT_ON_SERVER, RECORDS_SECTIONS, WHY_RECORDS } from '../model/records';
 
+import { Genetics } from './genetics';
+
 const OUT_OF_RANGE_SHOWN = 4;
 
 export function RecordsScreen() {
@@ -56,7 +58,7 @@ export function RecordsScreen() {
         // придуманный список в медицинской карте нельзя: по такому списку
         // принимают решения, а он был бы неправдой.
         <Missing key="allergies" what={NOT_ON_SERVER.allergies} />,
-        <Missing key="genetics" what={NOT_ON_SERVER.genetics} />,
+        <Genetics key="genetics" />,
         <Missing key="vaccines" what={NOT_ON_SERVER.vaccines} />,
       ]}
     />

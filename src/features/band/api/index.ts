@@ -39,14 +39,44 @@ export { toOgg, durationSeconds } from './audio';
 export {
   markUploaded,
   pendingUploads,
-  readRecording,
+  recordingBytes,
   removeSaved,
   saveRecording,
   savedRecordings,
   savedSessions,
-  usedBytes,
 } from './storage';
 export type { RecordingMark, SavedRecording } from './storage';
+export { hashRecording, partFile, type PartFile } from './recording-parts';
 export { marksOf, rememberMark } from './storage';
-export { holdBand, startBackgroundSync, stopBackgroundSync, syncRecordings } from './sync';
+export {
+  holdBand,
+  holdsBand,
+  pullRecordings,
+  setSyncDevice,
+  syncDevice,
+  syncRecordings,
+} from './sync';
 export { WearHand, type MotionGoal, type UserProfile } from './profile';
+
+export {
+  claimRecording,
+  completeUpload,
+  disconnectBand,
+  fetchRecording,
+  fetchReceipt,
+  registerBand,
+  sendBatch,
+  uploadPart,
+} from './backend';
+export type {
+  BandLimits,
+  BandStream,
+  Batch,
+  Coverage,
+  IngestionRecord,
+  Receipt,
+  RecordingClaim,
+  RemoteRecording,
+  TimeQuality,
+} from './backend';
+export { uuidFrom } from './sha256';

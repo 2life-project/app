@@ -53,14 +53,26 @@ export function setPairedBand(next: PairedBand | null): void {
   void (next ? AsyncStorage.setItem(KEY, JSON.stringify(next)) : AsyncStorage.removeItem(KEY));
 }
 
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
 export function usePairedBand(): PairedBand | null {
-  return useSyncExternalStore(
-    (listener) => {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
-    () => paired,
-  );
+  return useSyncExternalStore(subscribe, () => paired);
+}
+
+/**
+ * Привязка вне React. Нужна связи с браслетом: она живёт на уровне
+ * приложения, а не экрана, и поднимается при старте — до того, как хоть один
+ * компонент отрисован.
+ */
+export function pairedBand(): PairedBand | null {
+  return paired;
+}
+
+export function onPairedBand(listener: () => void): () => void {
+  return subscribe(listener);
 }
 
 /**

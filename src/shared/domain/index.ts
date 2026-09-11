@@ -11,7 +11,6 @@ export {
   LIMITS,
   runStepOf,
   setBodyProfile,
-  syncBodyProfile,
   useBodyProfile,
   walkStepOf,
   within,
@@ -19,6 +18,7 @@ export {
   type Sex,
   type Hand,
 } from './body-profile';
+export { mergeServerProfile, saveBodyProfile, syncBodyProfile } from './body-profile-sync';
 export {
   clearBandReadings,
   sourceCaption,
@@ -30,7 +30,27 @@ export {
   type Vital,
   type VitalGroup,
 } from './band-readings';
-export { setPairedBand, useBandPaired, usePairedBand, type PairedBand } from './connection';
+export {
+  onPairedBand,
+  pairedBand,
+  setPairedBand,
+  useBandPaired,
+  usePairedBand,
+  type PairedBand,
+} from './connection';
+export {
+  createEvent,
+  eventKey,
+  eventTitle,
+  fetchEvent,
+  LAYERS,
+  type CreatedEvent,
+  type EventInput,
+  type EventValue,
+  type JournalEvent,
+  type Layer,
+  type NewEvent,
+} from './event';
 export {
   availability,
   coverageRatio,

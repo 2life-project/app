@@ -23,11 +23,14 @@ export function LoginScreen() {
       action={AUTH.continue.in}
       footer={
         <Stack gap="lg">
-          <Button
-            label={AUTH.switchTo.in}
-            variant="plain"
-            onPress={() => router.push(to.register())}
-          />
+          <Stack gap="sm">
+            <Button
+              label={AUTH.switchTo.in}
+              variant="plain"
+              onPress={() => router.push(to.register())}
+            />
+            <Button label={AUTH.forgot} variant="plain" onPress={() => router.push(to.reset())} />
+          </Stack>
 
           <View style={styles.divider}>
             <View style={styles.line} />
@@ -37,8 +40,10 @@ export function LoginScreen() {
             <View style={styles.line} />
           </View>
 
-          {/* Кнопки живые: обменять токен Apple или Google сервер пока не
-              умеет, и нажатие честно об этом говорит. Погашенная кнопка
+          {/* Кнопки живые, и нажатие честно говорит, что входа пока нет:
+              сервер умеет обменять токен Apple и Google, но идентификаторы
+              приложения у него не настроены (503), а на телефоне нет
+              нативных SDK, которые этот токен выдают. Погашенная кнопка
               молчит, и по ней не понять, сломалось или так задумано. */}
           <Stack gap="sm">
             <Button

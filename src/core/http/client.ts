@@ -2,18 +2,30 @@ import { authToken, refreshSession } from '@/core/auth';
 import { env } from '@/core/config/env';
 import { logger } from '@/core/log/logger';
 
-import { HttpError } from './error';
+import { errorDetails, errorCode, HttpError } from './error';
 
-export { HttpError, errorCode } from './error';
+export { HttpError, errorCode, reportFailure } from './error';
+
+/**
+ * Строка запроса из пар «ключ — значение». Один хелпер на все `api/`, а не
+ * своя копия в каждом: кодирование и порядок обязаны быть одинаковыми, иначе
+ * два экрана с одним запросом получат два разных ключа кэша.
+ */
+export function searchParams(params: Record<string, string>): string {
+  return new URLSearchParams(params).toString();
+}
 
 const TIMEOUT_MS = 15_000;
+
+/** Сколько символов подробностей отказа пускать в лог: имена полей влезают, дампы — нет. */
+const DETAILS_LIMIT = 800;
 
 /**
  * Необязательное поле объекта разрешено: `JSON.stringify` просто выбрасывает
  * `undefined`, а типы контракта описывают такие поля как опциональные —
  * запрещать их значило бы требовать `as` на каждом теле запроса.
  */
-type JsonValue =
+export type JsonValue =
   | string
   | number
   | boolean
@@ -86,8 +98,21 @@ async function unwrap<T>(path: string, response: Response): Promise<T> {
   }
 
   if (!response.ok) {
-    logger.error('Запрос не прошёл', { path, status: response.status });
-    throw new HttpError(response.status, payload);
+    const failure = new HttpError(response.status, payload);
+    // Код и поля из ответа — в лог, не в интерфейс: без них 422 неотличим от
+    // любого другого 422, а чинить контракт надо по имени поля. Подробности
+    // строкой: вложенный объект консоль печатает как [Object]. Уровень — по
+    // виновнику: 5xx — сервер упал, это надо видеть и в релизе; 4xx — ответ
+    // на наш запрос, отказ ли это, решает вызывающий (конфликт записи для
+    // очереди браслета штатен).
+    const log = response.status >= 500 ? logger.error : logger.warn;
+    log('Запрос не прошёл', {
+      path,
+      status: response.status,
+      error: errorCode(failure),
+      details: JSON.stringify(errorDetails(failure) ?? null).slice(0, DETAILS_LIMIT),
+    });
+    throw failure;
   }
 
   return payload as T;

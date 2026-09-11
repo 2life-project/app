@@ -1,9 +1,10 @@
 import Feather from '@expo/vector-icons/Feather';
 import { router } from 'expo-router';
+import { useState, type ReactNode } from 'react';
 import { StyleSheet } from 'react-native';
 
 import { useBandPaired, useBandReadings } from '@/shared/domain';
-import { longDay, useToday, weekdayOf } from '@/shared/lib/day';
+import { longDay, shiftDay, useToday, weekdayOf } from '@/shared/lib/day';
 import { to } from '@/shared/nav';
 import { theme } from '@/shared/theme';
 import { GlassButton, PagedScreen, Stack, Text } from '@/shared/ui';
@@ -24,13 +25,16 @@ import { Wellbeing } from './wellbeing';
  * зелёная подложка при пустом Bluetooth — это обещание, которого нет.
  */
 const HEADER_ACTIONS = [
-  { icon: 'watch', label: 'Устройство', href: to.device(), band: true },
-  { icon: 'settings', label: 'Настройки', href: to.settings(), band: false },
-  { icon: 'edit-2', label: 'Настроить виджеты', href: to.widgets(), band: false },
+  { icon: 'watch', label: 'Device', href: to.device(), band: true },
+  { icon: 'settings', label: 'Settings', href: to.settings(), band: false },
+  { icon: 'edit-2', label: 'Set up widgets', href: to.widgets(), band: false },
 ] as const;
 
-export function HomeScreen() {
-  const { date, timeZone } = useToday();
+export function HomeScreen({ activityDevice }: { activityDevice?: ReactNode } = {}) {
+  const { date: today, timeZone } = useToday();
+  // Показанный день: разделы листают его стрелками, лента перечитывается под него.
+  const [date, setDate] = useState(today);
+  const shift = (days: number) => setDate(shiftDay(date, days));
   const home = useHome(date, timeZone);
   const decisions = useDecisions();
   const bandPaired = useBandPaired();
@@ -83,18 +87,36 @@ export function HomeScreen() {
   const state = home.data;
   const pages = state
     ? [
-        <Overview key="o" state={state} decisions={decisions} />,
-        <Activity key="a" home={state.home} band={band} />,
-        <Nutrition key="n" home={state.home} />,
-        <Supplements key="s" home={state.home} />,
-        <Wellbeing key="w" home={state.home} date={date} timeZone={timeZone} />,
+        <Overview key="o" state={state} decisions={decisions} band={band} />,
+        <Activity
+          key="a"
+          home={state.home}
+          band={band}
+          device={date === today && bandPaired ? activityDevice : undefined}
+          today={today}
+          onShift={shift}
+        />,
+        <Nutrition key="n" home={state.home} today={today} onShift={shift} />,
+        <Supplements key="s" home={state.home} today={today} onShift={shift} />,
+        <Wellbeing
+          key="w"
+          home={state.home}
+          date={date}
+          timeZone={timeZone}
+          today={today}
+          onShift={shift}
+        />,
       ]
     : HOME_SECTIONS.map((section) =>
         // Данные браслета лежат на телефоне и от сети не зависят. Прятать их
         // за «сервер не ответил» значит терять единственное, что у человека
         // сейчас есть, — и ровно то, что он собрал своим телом за сегодня.
         section.value === 'activity' && band ? (
-          <BandOnly key={section.value} band={band} />
+          <BandOnly
+            key={section.value}
+            band={band}
+            device={date === today && bandPaired ? activityDevice : undefined}
+          />
         ) : (
           <StateCard key={section.value} query={home} />
         ),

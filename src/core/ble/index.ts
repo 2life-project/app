@@ -1,2 +1,2 @@
-export { ble, isReady, waitForRadio } from './manager';
+export { ble, isReady, onBleRestore, waitForRadio } from './manager';
 export { requestScanPermission } from './permission';

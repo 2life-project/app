@@ -1,10 +1,10 @@
 import Feather from '@expo/vector-icons/Feather';
 import { useRef, type ReactNode } from 'react';
 import { StyleSheet, type TextInput } from 'react-native';
-import Animated, { useAnimatedKeyboard, useAnimatedStyle } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 
 import { size, theme } from '@/shared/theme';
-import { Button, Field, Pressable, Screen, Stack, Text } from '@/shared/ui';
+import { Button, Field, KeyboardSpacer, Pressable, Screen, Stack, Text } from '@/shared/ui';
 
 import { AUTH } from '../model/copy';
 import { useAuthForm } from '../model/use-auth-form';
@@ -34,12 +34,6 @@ export function AuthForm({
   // во время отрисовки, а вернуть фокус надо из обработчика отказа.
   const passwordRef = useRef<TextInput>(null);
   const form = useAuthForm(mode, () => passwordRef.current?.focus());
-
-  // Клавиатура закрывала бы нижние кнопки: KeyboardAvoidingView под
-  // edge-to-edge окно уже не сдвигает, поэтому высоту добираем распоркой,
-  // которая следит за клавиатурой на UI-потоке.
-  const keyboard = useAnimatedKeyboard();
-  const keyboardSpacer = useAnimatedStyle(() => ({ height: keyboard.height.value }));
 
   return (
     <Screen keyboardDismissMode="interactive">
@@ -111,7 +105,7 @@ export function AuthForm({
           {footer}
         </Stack>
 
-        <Animated.View style={keyboardSpacer} />
+        <KeyboardSpacer />
       </Stack>
     </Screen>
   );

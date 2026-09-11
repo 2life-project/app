@@ -1,5 +1,6 @@
 import { Directory, File, Paths } from 'expo-file-system';
 
+import { currentUser } from '@/core/auth';
 import { logger } from '@/core/log/logger';
 
 import { toOgg, durationSeconds } from './audio';
@@ -13,6 +14,10 @@ import { toOgg, durationSeconds } from './audio';
  *
  * Имя файла — время начала записи, оно же её идентификатор на устройстве. Так
  * список на телефоне и список на браслете сходятся без отдельной таблицы.
+ *
+ * Папка — своя у каждого аккаунта. Записи принадлежат тому, кто их наговорил:
+ * телефоном пользуются двое, и файлы первого не должны ни показываться
+ * второму, ни уехать на сервер под его именем.
  */
 
 const FOLDER = 'band-recordings';
@@ -44,10 +49,33 @@ export type RecordingMark = {
   offsetSeconds: number;
 };
 
-function folder(): Directory {
-  const directory = new Directory(Paths.document, FOLDER);
-  if (!directory.exists) directory.create({ intermediates: true });
+/** Папка записей аккаунта — текущего, если не сказано иначе. `null` — никто не вошёл. */
+function folder(account = currentUser()?.id): Directory | null {
+  if (!account) return null;
+
+  const directory = new Directory(Paths.document, FOLDER, account);
+  if (!directory.exists) {
+    directory.create({ intermediates: true });
+    adoptLegacy(directory);
+  }
   return directory;
+}
+
+/**
+ * Записи, сохранённые до того, как папки стали именными, лежат в корне. Чьи
+ * они, узнать уже нельзя; терять их — хуже: на браслете их давно нет. Они
+ * достаются первому, кто вошёл после обновления, — один раз.
+ */
+function adoptLegacy(target: Directory): void {
+  const root = new Directory(Paths.document, FOLDER);
+  for (const entry of root.list()) {
+    if (!(entry instanceof File)) continue;
+    try {
+      entry.move(new File(target, entry.name));
+    } catch (failure) {
+      logger.error('band: старая запись не перенеслась в папку аккаунта', { failure });
+    }
+  }
 }
 
 /**
@@ -79,14 +107,20 @@ function parseName(name: string): { session: number; rawBytes: number; uploaded:
  * Сохранить запись. Принимает сырой поток пакетов с устройства и упаковывает
  * его в Ogg — так файл сразу играется и принимается сервисами распознавания.
  */
-export function saveRecording(session: number, raw: Uint8Array): SavedRecording {
+export function saveRecording(session: number, raw: Uint8Array, account?: string): SavedRecording {
+  // Аккаунт берётся тем, кто начал выгрузку, — до того, как файл забрали с
+  // устройства: сессия за время долгой качки могла смениться, а файл уже в
+  // руках и обязан лечь в папку того, для кого его забирали.
+  const home = folder(account);
+  if (!home) throw new Error('band: записи некуда сохранить — никто не вошёл');
+
   // Имя несёт длину потока, поэтому докачанная заново запись легла бы вторым
   // файлом рядом с первым: `fileOf` вернул бы любой из них, отметка об отправке
   // легла бы на один, а второй уехал бы на сервер ещё раз.
   const previous = fileOf(session);
   if (previous) previous.delete();
 
-  const file = new File(folder(), nameOf(session, raw.length, false));
+  const file = new File(home, nameOf(session, raw.length, false));
   if (!file.exists) file.create();
   file.write(toOgg(raw));
 
@@ -106,7 +140,7 @@ export function saveRecording(session: number, raw: Uint8Array): SavedRecording 
 export function savedRecordings(): SavedRecording[] {
   const items: SavedRecording[] = [];
 
-  for (const entry of folder().list()) {
+  for (const entry of folder()?.list() ?? []) {
     if (!(entry instanceof File)) continue;
     const parsed = parseName(entry.name);
     if (!parsed) continue;
@@ -142,23 +176,26 @@ export function pendingUploads(): SavedRecording[] {
  * держать их в памяти нельзя: приложение закроют, а метка — единственное, что
  * человек в этой записи отметил сам.
  */
-function marksFile(session: number): File {
-  return new File(folder(), `${session}.marks.json`);
+function marksFile(session: number): File | null {
+  const home = folder();
+  return home ? new File(home, `${session}.marks.json`) : null;
 }
 
 export function rememberMark(session: number, mark: RecordingMark): void {
+  const file = marksFile(session);
+  if (!file) return;
+
   const marks = marksOf(session).filter((item) => item.index !== mark.index);
   marks.push(mark);
   marks.sort((a, b) => a.offsetSeconds - b.offsetSeconds);
 
-  const file = marksFile(session);
   if (!file.exists) file.create();
   file.write(JSON.stringify(marks));
 }
 
 export function marksOf(session: number): RecordingMark[] {
   const file = marksFile(session);
-  if (!file.exists) return [];
+  if (!file?.exists) return [];
 
   try {
     const parsed: unknown = JSON.parse(file.textSync());
@@ -173,8 +210,8 @@ export function marksOf(session: number): RecordingMark[] {
  * Найти файл сессии. Перебором, а не сборкой имени: в имени лежит ещё и длина
  * исходного потока, и вызывающий её не знает.
  */
-function fileOf(session: number): File | null {
-  for (const entry of folder().list()) {
+export function fileOf(session: number): File | null {
+  for (const entry of folder()?.list() ?? []) {
     if (!(entry instanceof File)) continue;
     if (parseName(entry.name)?.session === session) return entry;
   }
@@ -187,34 +224,17 @@ export function markUploaded(session: number): void {
   const parsed = source ? parseName(source.name) : null;
   if (!source || !parsed || parsed.uploaded) return;
 
-  source.move(new File(folder(), nameOf(session, parsed.rawBytes, true)));
+  source.move(new File(source.parentDirectory, nameOf(session, parsed.rawBytes, true)));
 }
 
 export function removeSaved(session: number): void {
   fileOf(session)?.delete();
 
   const marks = marksFile(session);
-  if (marks.exists) marks.delete();
+  if (marks?.exists) marks.delete();
 }
 
-/** Сколько места записи занимают на диске. */
-export function usedBytes(): number {
-  return savedRecordings().reduce((total, item) => total + item.uploadBytes, 0);
-}
-
-/**
- * Прочитать файл для отправки. Возвращает undefined, если файла нет: запись
- * могли удалить между составлением очереди и отправкой.
- */
-export async function readRecording(session: number): Promise<Uint8Array | undefined> {
-  const file = fileOf(session);
-  if (file) {
-    try {
-      return new Uint8Array(await file.arrayBuffer());
-    } catch (error) {
-      logger.warn('band: не удалось прочитать запись', { session, reason: String(error) });
-    }
-  }
-
-  return undefined;
+/** Размер файла на диске. `null` — записи уже нет. */
+export function recordingBytes(session: number): number | null {
+  return fileOf(session)?.size ?? null;
 }

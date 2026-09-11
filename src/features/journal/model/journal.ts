@@ -1,7 +1,8 @@
+import type { JournalEvent } from '@/shared/domain';
 import type { Tone } from '@/shared/theme';
 import type { CalendarDay } from '@/shared/ui';
 
-import { LAYERS, type CalendarEvent, type CalendarMonth, type Layer } from '../api/contract';
+import { LAYERS, type CalendarMonth, type Layer } from '../api/contract';
 
 /**
  * Слои журнала: их состав задаёт сервер, а цвет — интерфейс. Цвет здесь
@@ -43,26 +44,26 @@ export function monthDays(month: CalendarMonth | null, shown: readonly Layer[]):
 }
 
 /** Время события или пометка «весь день»: без времени строка теряет смысл. */
-export function eventTime(event: CalendarEvent): string {
+export function eventTime(event: JournalEvent): string {
   if (event.allDay || !event.startAt) return 'all day';
   return event.startAt.slice(11, 16);
 }
 
-export function isDone(event: CalendarEvent): boolean {
+export function isDone(event: JournalEvent): boolean {
   return event.status === 'done' || event.status === 'recorded';
 }
 
 /**
- * Можно ли переключить отметку. Ручка `done` в контракте описана как отметка
- * ЗАПЛАНИРОВАННОГО события: заметка или измерение — это уже случившийся факт,
- * и «снять галочку» с них значит утверждать, что их не было.
+ * Можно ли поставить отметку. Ручка `done` в контракте отмечает
+ * ЗАПЛАНИРОВАННОЕ событие и только в одну сторону: снять отметку сервер не
+ * умеет, а заметка или измерение — это уже случившийся факт.
  */
-export function markable(event: CalendarEvent): boolean {
-  return event.status === 'planned' || event.status === 'done' || event.status === 'skipped';
+export function markable(event: JournalEvent): boolean {
+  return event.status === 'planned' || event.status === 'skipped';
 }
 
 /** Текст заметки, если сервер его прислал. Форму `detail` контракт даёт только для заметки. */
-export function detailText(event: CalendarEvent): string | null {
+export function detailText(event: JournalEvent): string | null {
   const detail = event.detail;
   if (typeof detail !== 'object' || detail === null) return null;
   const text = (detail as { text?: unknown }).text;
@@ -70,7 +71,7 @@ export function detailText(event: CalendarEvent): string | null {
 }
 
 /** Метки заметки — тем же осторожным чтением, что и текст. */
-export function detailTags(event: CalendarEvent): readonly string[] {
+export function detailTags(event: JournalEvent): readonly string[] {
   const detail = event.detail;
   if (typeof detail !== 'object' || detail === null) return [];
   const tags = (detail as { tags?: unknown }).tags;

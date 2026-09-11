@@ -9,6 +9,7 @@ import type { BandState } from './band-state';
 import { startOfToday } from './day-metrics';
 import { dayKey, loadDay, needsRead, recentDays, rememberDay } from './history-store';
 import { reviveDates } from './revive-dates';
+import { rememberNights } from './sleep-store';
 import { loadWorkouts } from './workout-store';
 
 /**
@@ -86,7 +87,7 @@ export function clearSnapshot(): void {
 }
 
 /**
- * Прочитать с устройства всё, что показывает раздел.
+ * Прочитать с устройства всё быстрое, что показывает раздел. История — отдельно.
  *
  * Каждый показатель читается сам по себе и сам по себе доезжает на экран.
  * Одним запросом на всё делать нельзя: у браслета своя очередь команд, любой
@@ -123,8 +124,15 @@ export async function loadEverything(
   await step('память', async () =>
     patch({ storage: (await band.recorder.storage()) ?? undefined }),
   );
-  await step('сон', async () => patch({ sleep: await band.sleep(week, now) }));
-  await step('стресс', async () => patch({ stress: await band.stress(startOfToday(now), now) }));
+  await step('сон', async () => {
+    const sleep = await band.history.sleep(week, now);
+    patch({ sleep });
+    // Ночь остаётся на телефоне и после того, как устройство её затёрло.
+    await rememberNights(sleep);
+  });
+  await step('стресс', async () =>
+    patch({ stress: await band.history.stress(startOfToday(now), now) }),
+  );
 
   // Тренировки браслет заводит сам, без единой кнопки. Берём только последние:
   // сводка каждой — отдельный обмен по радио, и вычитывать всю неделю значит
@@ -145,11 +153,23 @@ export async function loadEverything(
   });
 
   patch({ saved: savedRecordings(), recorded: await loadWorkouts() });
+}
 
-  // История последней: она забирается кадр за кадром и идёт дольше всего
-  // остального вместе взятого. Впереди неё числа успели бы устареть.
+/**
+ * Поминутная история за сегодня — отдельным шагом, после всего остального.
+ *
+ * Она забирается кадр за кадром и идёт дольше всего остального вместе взятого:
+ * впереди неё числа успели бы устареть, а отправка на сервер ждала бы её
+ * минуты. Поэтому быстрые чтения уезжают на сервер первой пачкой, а история —
+ * второй, когда дочитается.
+ */
+export async function loadHistory(
+  band: Band,
+  patch: (next: Partial<BandState>) => void,
+): Promise<void> {
+  const now = new Date();
   await step('история', async () => {
-    const today = await band.history(startOfToday(now), now);
+    const today = await band.history.minutes(startOfToday(now), now);
     patch({ today });
     // Сразу в архив, без повторного чтения: сутки уже в руках, а второй заход
     // за теми же минутами — это ещё сотня кадров по радио и заряд браслета.
@@ -205,7 +225,7 @@ export async function backfillHistory(band: Band): Promise<string[]> {
     const to = end > new Date() ? new Date() : end;
 
     try {
-      await rememberDay(day, await band.history(from, to));
+      await rememberDay(day, await band.history.minutes(from, to));
       filled.push(day);
     } catch (failure) {
       // Один непрочитанный день не отменяет остальные: связь могла оборваться

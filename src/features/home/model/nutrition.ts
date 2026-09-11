@@ -39,7 +39,8 @@ export type NutritionView = {
   /** `metric` — ключ из каталога показателей: по нему открывается его экран. */
   rows: { id: string; title: string; subtitle?: string; value: string; metric?: string }[];
   macros: MacroView[];
-  insight: { title: string; text: string };
+  /** Подсказка дня или `null`, когда серверу не о чем говорить. */
+  insight: string | null;
   meals: number;
   /** Дневная цель по калориям: по ней полоса приёмов считает цель каждого. */
   goalCalories: number | null;
@@ -115,7 +116,7 @@ export function nutritionOf(home: HomeData): NutritionView | null {
           : null,
       valueLabel: amount(eaten, 'kcal'),
       note: goalCalories ? `of ${formatNumber(goalCalories, 'kcal')}` : undefined,
-      tone: serverTone(insight.tone),
+      tone: serverTone(insight?.tone),
     },
     caption:
       remainingCalories === null
@@ -137,7 +138,7 @@ export function nutritionOf(home: HomeData): NutritionView | null {
       macro('CARBS', totals.carbs, goals.carbs),
       macro('FAT', totals.fat, goals.fat),
     ],
-    insight: { title: insight.title, text: insight.text },
+    insight: insight?.text ?? null,
     meals: meals.length,
     goalCalories,
     eatenCalories: eaten,

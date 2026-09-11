@@ -2,13 +2,11 @@ import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
 import { useQuery } from '@/core/http/use-query';
-import { shortDay } from '@/shared/lib/day';
 import { to } from '@/shared/nav';
 import { space } from '@/shared/theme';
 import {
   Banner,
   Card,
-  DatePager,
   InfoCard,
   LineChart,
   LinkCard,
@@ -19,6 +17,7 @@ import {
   Text,
   WidgetCard,
 } from '@/shared/ui';
+import { DayPager, type DayProps } from '@/shared/ui';
 
 import { checkinKey, fetchCheckin } from '../api/checkin';
 import type { HomeData } from '../api/contract';
@@ -30,11 +29,13 @@ export function Wellbeing({
   home,
   date,
   timeZone,
+  today,
+  onShift,
 }: {
   home: HomeData;
   date: string;
   timeZone: string;
-}) {
+} & DayProps) {
   // Анкета лежит отдельно от ленты: её перечитывают после ответа, а не вместе
   // со всей Главной.
   const checkin = useQuery(checkinKey(date, timeZone, FORM), (signal) =>
@@ -45,7 +46,7 @@ export function Wellbeing({
   if (!view) {
     return (
       <Stack gap="md">
-        <DatePager label={`Today · ${shortDay(home.date)}`} />
+        <DayPager date={home.date} today={today} onShift={onShift} />
         <Card variant="sunken">
           <Text tone="muted">Wellbeing data did not load for this day.</Text>
         </Card>
@@ -58,7 +59,7 @@ export function Wellbeing({
 
   return (
     <Stack gap="md">
-      <DatePager label={`Today · ${shortDay(home.date)}`} />
+      <DayPager date={home.date} today={today} onShift={onShift} />
 
       <SectionSummary
         title="Wellbeing"
@@ -96,9 +97,11 @@ export function Wellbeing({
         </WidgetCard>
       ) : null}
 
-      <InfoCard title={view.recommendation.title} text={view.recommendation.text} />
+      {view.recommendation ? (
+        <InfoCard title="Recommendation" text={view.recommendation.text} />
+      ) : null}
 
-      {view.recommendation.actions.length > 0 ? (
+      {view.recommendation && view.recommendation.actions.length > 0 ? (
         <WidgetCard title="What to do today">
           <Stack gap="sm">
             {view.recommendation.actions.map((action) => (

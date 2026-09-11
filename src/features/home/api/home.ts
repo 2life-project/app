@@ -1,4 +1,4 @@
-import { request } from '@/core/http/client';
+import { request, searchParams } from '@/core/http/client';
 import { requestId } from '@/shared/lib/id';
 
 import type {
@@ -6,8 +6,10 @@ import type {
   HomeData,
   HomeLayout,
   LayoutCell,
+  PlanItem,
   Surface,
   WidgetCatalog,
+  WidgetRecipe,
 } from './contract';
 
 /**
@@ -22,12 +24,10 @@ export function homeKey(date: string, timeZone: string): string {
   return `home:${date}:${timeZone}`;
 }
 
-function query(params: Record<string, string>): string {
-  return new URLSearchParams(params).toString();
-}
-
 export function fetchHomeLayout(signal?: AbortSignal): Promise<HomeLayout> {
-  return request<HomeLayout>(`/api/v2/home/layout?${query({ surface: SURFACE })}`, { signal });
+  return request<HomeLayout>(`/api/v2/home/layout?${searchParams({ surface: SURFACE })}`, {
+    signal,
+  });
 }
 
 export function fetchHomeData(
@@ -35,7 +35,7 @@ export function fetchHomeData(
   timeZone: string,
   signal?: AbortSignal,
 ): Promise<HomeData> {
-  const path = `/api/v2/home/data?${query({ surface: SURFACE, date, timezone: timeZone })}`;
+  const path = `/api/v2/home/data?${searchParams({ surface: SURFACE, date, timezone: timeZone })}`;
   return request<HomeData>(path, { signal });
 }
 
@@ -47,7 +47,7 @@ export function saveHomeLayout(
   current: HomeLayout,
   cells: readonly LayoutCell[],
 ): Promise<HomeLayout> {
-  return request<HomeLayout>(`/api/v2/home/layout?${query({ surface: SURFACE })}`, {
+  return request<HomeLayout>(`/api/v2/home/layout?${searchParams({ surface: SURFACE })}`, {
     method: 'PUT',
     body: {
       schemaVersion: current.schemaVersion,
@@ -62,6 +62,43 @@ export function saveHomeLayout(
 
 export function fetchWidgetCatalog(signal?: AbortSignal): Promise<WidgetCatalog> {
   return request<WidgetCatalog>('/api/v2/widgets/catalog', { signal });
+}
+
+/**
+ * Собрать рецепт виджета по описанию словами. Сервер отвечает черновиком и
+ * раскладку не трогает: рецепт становится виджетом только после того, как
+ * человек его подтвердил и ячейка сохранена в раскладке.
+ */
+export function composeWidget(prompt: string): Promise<{ recipe: WidgetRecipe; saved: boolean }> {
+  return request<{ recipe: WidgetRecipe; saved: boolean }>('/api/v2/widgets/compose', {
+    method: 'POST',
+    body: { prompt },
+  });
+}
+
+/**
+ * Отметить приём добавки. Адрес, метод и тело даёт сам пункт плана: сервер
+ * называет действие, а клиент его выполняет, не собирая адрес по памяти.
+ * Пункты без действия отмечаются в своих разделах — их здесь не трогают.
+ */
+export function markPlanItem(
+  item: PlanItem,
+  status: 'taken' | 'skipped' | 'pending',
+): Promise<unknown> {
+  const action = item.action;
+  if (!action) return Promise.reject(new Error(`plan item ${item.id} has no action`));
+
+  return request(pathOf(action.url), {
+    method: action.method,
+    body: { ...action.body, status },
+  });
+}
+
+/** Адрес действия может прийти полным: клиент ходит только на свой сервер. */
+function pathOf(url: string): string {
+  if (url.startsWith('/')) return url;
+  const parsed = new URL(url);
+  return parsed.pathname + parsed.search;
 }
 
 export function fetchDecisions(signal?: AbortSignal): Promise<{ items: readonly Decision[] }> {

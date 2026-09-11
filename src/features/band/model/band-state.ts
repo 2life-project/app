@@ -89,6 +89,10 @@ export type BandState = {
   storage?: Storage;
   /** Идёт ли запись прямо сейчас. */
   recording: boolean;
+  /** Запись стоит на паузе: устройство ждёт нажатия, файл ещё открыт. */
+  recordingPaused?: boolean;
+  /** Сессия, которую устройство пишет сейчас: её не качать и не стирать. */
+  recordingSession?: number;
   busy: boolean;
 };
 

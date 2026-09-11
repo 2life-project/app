@@ -20,7 +20,7 @@ export function ContextMenu({ items, renderTrigger }: ContextMenuProps) {
     <>
       {renderTrigger(() => setOpen(true))}
       <Modal visible={open} transparent animationType="fade" onRequestClose={close}>
-        <RNPressable style={styles.backdrop} onPress={close} accessibilityLabel="Закрыть меню">
+        <RNPressable style={styles.backdrop} onPress={close} accessibilityLabel="Close menu">
           <View style={styles.sheet}>
             {items.map((item) => (
               <RNPressable

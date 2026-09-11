@@ -1,355 +1,40 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-
-import { logger } from '@/core/log/logger';
-import { clearBandReadings, setPairedBand, syncBodyProfile, usePairedBand } from '@/shared/domain';
-
-import {
-  Band,
-  type FoundBand,
-  connectedBands,
-  dropConnection,
-  mergeFound,
-  scanForBands,
-  sortByProximity,
-  startBackgroundSync,
-  stopBackgroundSync,
-} from '../api';
+import { usePairedBand } from '@/shared/domain';
 
 import { useBandActions } from './band-actions';
-import {
-  backfillHistory,
-  clearSnapshot,
-  loadEverything,
-  loadSnapshot,
-  saveSnapshot,
-} from './band-data';
-import { INITIAL, type BandState } from './band-state';
-import { clearHistory } from './history-store';
-import { sendProfile } from './profile-sync';
-import { publishReadings } from './publish-readings';
+import { connect, disconnect, forget, scan } from './link';
+import { collectRecordings } from './link-recordings';
+import { refresh } from './link-refresh';
+import { bandRef, patch, stateRef, useBandState } from './link-store';
 import { useAlarms } from './use-alarms';
-import { useBandEvents } from './use-band-events';
-import { useForeground } from './use-foreground';
-import { useOpenSession } from './use-open-session';
-import { useReconnect } from './use-reconnect';
 import { useService } from './use-service';
 import { useDeviceSettings } from './use-settings';
-import { clearOpenSession, rememberWorkout, toRecord } from './workout-store';
 
 /**
- * Состояние работы с браслетом: поиск, подключение и всё, что устройство отдаёт.
+ * Экранная сторона связи с браслетом: подписка на состояние и команды.
  *
- * Живёт одним хуком намеренно: у браслета одно соединение на приложение, и
- * разнести его по нескольким независимым состояниям — значит получить два
- * экрана, спорящих за радио.
+ * Сама связь живёт на уровне приложения (`link.ts`) и экрана не ждёт: уход с
+ * него не рвёт соединение, возврат — не поднимает заново. Здесь только то,
+ * что нужно разметке.
  */
-
-export type BandStage = 'idle' | 'scanning' | 'connecting' | 'connected' | 'failed';
-
-/** Как часто обновлять сводку дня при открытом разделе. */
-const LIVE_POLL_MS = 30_000;
-
-/** Сколько связь должна продержаться, чтобы считаться устойчивой. */
-const STABLE_CONNECTION_MS = 60_000;
-
 export function useBand() {
+  const state = useBandState();
   const paired = usePairedBand();
-  const foreground = useForeground();
-  const [state, setState] = useState<BandState>(INITIAL);
-  const band = useRef<Band | null>(null);
-  const stopScan = useRef<(() => void) | null>(null);
-  /**
-   * Какая по счёту попытка переподключения идёт.
-   *
-   * Сбрасывается не любой удачей, а только устоявшейся связью: при мигающем
-   * соединении «подключился — через секунду оборвался» счёт иначе обнулялся
-   * каждым циклом, пауза навсегда оставалась минимальной, и каждый круг тянул
-   * полное чтение устройства — десятки обменов по радио на его же заряде.
-   */
-  const retry = useRef(0);
-  /** Когда поднялась текущая связь: по ней видно, была она устойчивой или мигнула. */
-  const connectedSince = useRef<number | null>(null);
-  /** Профиль, который уже принят устройством: второй раз то же самое не шлём. */
-  const sentProfile = useRef<string | null>(null);
-  /** Человек отключился сам — тогда обратно его не тащим. */
-  const manual = useRef(false);
-  /** Зеркало состояния: снимок на диск пишется вне рендера, из обработчиков. */
-  const latest = useRef<BandState>(INITIAL);
 
-  const patch = useCallback((next: Partial<BandState>) => {
-    setState((current) => {
-      const merged = { ...current, ...next };
-      latest.current = merged;
-      return merged;
-    });
-  }, []);
+  // Будильники и настройки держат своё состояние: список читается по
+  // требованию, и тянуть двадцать обменов по радио в общее состояние незачем.
+  const alarms = useAlarms(bandRef);
+  const settings = useDeviceSettings(bandRef);
+  const service = useService(bandRef);
 
-  // Показания с прошлого запуска — сразу, не дожидаясь Bluetooth. Они лежат на
-  // диске телефона и от сессии в аккаунте не зависят: раздел не должен
-  // начинаться с пустых графиков только потому, что связь ещё не поднялась.
-  useEffect(() => {
-    void loadSnapshot().then((snapshot) => {
-      if (!snapshot) return;
-      patch(snapshot);
-      // Публикуем сам снимок, а не зеркало состояния: зеркало обновляется
-      // внутри `setState`, то есть уже после этой микрозадачи, и здесь оно
-      // ещё пустое — на Главную уезжали бы пустые показания поверх настоящих.
-      publishReadings({ ...INITIAL, ...snapshot });
-    });
-  }, [patch]);
-
-  // Браслет мог остаться на связи с телефоном — от прошлого запуска, от
-  // системы, от приложения вендора. В эфире такого не найти: подключённое
-  // устройство перестаёт рекламировать себя, и поиск молчал бы вечно.
-  useEffect(() => {
-    if (paired) return;
-    void connectedBands().then((bands) => {
-      if (bands.length > 0) patch({ found: sortByProximity(bands) });
-    });
-  }, [paired, patch]);
-
-  useEffect(() => {
-    return () => {
-      stopScan.current?.();
-      void band.current?.disconnect();
-    };
-  }, []);
-
-  const scan = useCallback(async () => {
-    stopScan.current?.();
-    patch({ stage: 'scanning', found: [], problem: undefined });
-
-    const result = await scanForBands((device) => {
-      setState((current) => ({ ...current, found: mergeFound(current.found, device) }));
-    });
-
-    if (!result.ok) {
-      patch({ stage: 'failed', problem: result.problem });
-      return;
-    }
-    stopScan.current = result.stop;
-  }, [patch]);
-
-  /** Обновить всё, что читается разом. Вызывается после подключения и по кнопке. */
-  const refresh = useCallback(async () => {
-    const active = band.current;
-    if (!active) return;
-
-    patch({ busy: true });
-    try {
-      await loadEverything(active, patch);
-      saveSnapshot(latest.current);
-      // Итоги дня — остальному приложению. Здесь, а не на каждом живом отчёте:
-      // отчёты приходят каждые десять секунд, а минутные итоги между ними те же.
-      publishReadings(latest.current);
-    } finally {
-      patch({ busy: false });
-    }
-  }, [patch]);
-
-  /**
-   * Правка, считающая новое значение от актуального состояния.
-   *
-   * Нужна там, где отчёты приходят пачкой: `patch` берёт готовое значение,
-   * посчитанное до вызова, и два кадра в одной порции обновлений считались бы
-   * от одного и того же старого состояния — второй затирал бы первый.
-   */
-  const update = useCallback((next: (current: BandState) => Partial<BandState>) => {
-    setState((current) => {
-      const merged = { ...current, ...next(current) };
-      latest.current = merged;
-      return merged;
-    });
-  }, []);
-
-  const adopt = useBandEvents({ bandRef: band, patch, update, refresh });
-
-  useOpenSession(state.session, patch);
-
-  // Пока раздел открыт, сводка дня подтягивается сама: шаги и калории живой
-  // отчёт не несёт, а смотреть на цифры получасовой давности при подключённом
-  // браслете незачем.
-  useEffect(() => {
-    // В фоне опрос бессмысленен: система придерживает радио, а первый же промах
-    // уводил связь в 'idle' — приложение возвращалось уже отключённым.
-    if (state.stage !== 'connected' || !foreground) return;
-
-    const timer = setInterval(() => {
-      void band.current
-        ?.daySummary()
-        .then((summary) => patch({ summary }))
-        .catch((failure: unknown) => {
-          // Сама по себе связь не восстановится, а опрос будет ходить в неё до
-          // ухода с экрана — по строке в лог каждые полминуты, пока человек
-          // смотрит на «подключено», которого нет.
-          logger.error('band: связь потеряна на опросе', { reason: String(failure) });
-          // Закрыть соединение обязательно: без этого подписки и открытый
-          // канал остаются висеть, а браслет считает себя занятым и в эфире
-          // больше не появляется.
-          void band.current?.disconnect().catch(() => undefined);
-          adopt(null);
-          patch({ stage: 'idle' });
-        });
-    }, LIVE_POLL_MS);
-
-    return () => clearInterval(timer);
-  }, [adopt, foreground, patch, state.stage]);
-
-  const connect = useCallback(
-    async (device: FoundBand) => {
-      stopScan.current?.();
-      manual.current = false;
-      patch({
-        stage: 'connecting',
-        step: 'opening',
-        device: { id: device.id, name: device.name },
-      });
-
-      try {
-        const connected = await Band.connect(device.id);
-        adopt(connected);
-        patch({ step: 'configuring' });
-
-        // Пульс раз в минуту: это минимум, который принимает прошивка, и с ним
-        // живые отчёты приходят каждые десять секунд.
-        await connected.watchHeartRate(1);
-        await startBackgroundSync(device.id);
-
-        // Привязка живёт на телефоне рядом с показаниями: браслет принадлежит
-        // устройству, а не аккаунту, и переподключаться после каждого входа
-        // человек не должен.
-        setPairedBand({ id: device.id, name: device.name, pairedAt: new Date().toISOString() });
-
-        // Счёт попыток обнуляет только связь, которая продержалась: короткая
-        // предыдущая сессия означает, что устройство мигает, и пауза должна
-        // продолжать расти, а не начинаться заново.
-        const lasted =
-          connectedSince.current === null ? Infinity : Date.now() - connectedSince.current;
-        if (lasted > STABLE_CONNECTION_MS) retry.current = 0;
-        connectedSince.current = Date.now();
-
-        patch({ stage: 'connected', step: 'reading', retrying: false, problem: undefined });
-
-        // Профиль уезжает при каждом подключении, а не только при первом.
-        // Прочитать, что сейчас записано в устройстве, нечем — команды чтения
-        // профиля в протоколе нет, — а разойтись они могут: браслет сбрасывают
-        // к заводским, вес человек меняет на другом экране. Без ожидания: связь
-        // уже установлена, и держать на этом обмене экран незачем.
-        // Профиль уезжает при первом подключении и после правок, а не на
-        // каждом реконнекте: в плохом покрытии их десятки за час, и каждый
-        // стоил бы запроса к серверу и записи по радио ради тех же чисел.
-        void syncBodyProfile().then(async (profile) => {
-          const wanted = JSON.stringify(profile);
-          if (sentProfile.current === wanted) return;
-
-          const sent = await sendProfile(connected, profile);
-          if (sent) sentProfile.current = wanted;
-          patch({ profileSent: sent });
-        });
-
-        await refresh();
-
-        // Дочитать сутки, которые устройство ещё помнит, а телефон уже нет.
-        // После `refresh`, а не вместо: экран к этому моменту уже полон, а
-        // архив набивается молча — по кадру на минуту, это долго.
-        patch({ step: undefined });
-
-        void backfillHistory(connected);
-      } catch (error) {
-        logger.warn('band: подключение не удалось', { reason: String(error) });
-        patch({ stage: 'failed', step: undefined, problem: 'connect-failed' });
-      }
-    },
-    [adopt, patch, refresh],
-  );
-
-  const disconnect = useCallback(async () => {
-    // Отключение по кнопке: обратно не тащим, иначе кнопка ничего не значит.
-    manual.current = true;
-    await band.current?.disconnect();
-    // Через тот же вход, что и берём: прямое присваивание ссылки оставляло
-    // поднятым флаг «связь занята экраном», и фоновая выгрузка после первого
-    // же отключения не срабатывала больше никогда — а память диктофона
-    // кончается за пятнадцать часов записи.
-    adopt(null);
-    // Данные и привязка остаются: отключение — это разрыв связи, а не отказ от
-    // браслета. Забыть его — отдельное действие.
-    patch({ stage: 'idle', found: [], problem: undefined, retrying: false });
-  }, [adopt, patch]);
-
-  /**
-   * Забыть браслет: отвязать на устройстве, разорвать связь и стереть память
-   * телефона. Порядок важен — снять привязку можно только пока связь жива, а
-   * после разрыва браслет уже недоступен.
-   */
-  const forget = useCallback(async () => {
-    const active = band.current;
-    const deviceId = latest.current.device?.id ?? paired?.id;
-    band.current = null;
-
-    if (active) {
-      try {
-        await active.admin.unbind();
-      } catch (error) {
-        logger.warn('band: устройство не отвязалось', { reason: String(error) });
-      }
-      await active.disconnect().catch(() => undefined);
-    }
-
-    // Связь могли держать и без нас: другой экран, прошлый запуск, система.
-    if (deviceId) await dropConnection(deviceId);
-    await stopBackgroundSync();
-
-    // Занятие могло идти прямо сейчас. Копии на устройстве нет, поэтому
-    // дописываем его перед тем, как стереть всё остальное.
-    const open = latest.current.session;
-    if (open) await rememberWorkout(toRecord(open)).catch(() => undefined);
-    await clearOpenSession();
-
-    setPairedBand(null);
-    clearSnapshot();
-    clearBandReadings();
-    // Архив суток уходит вместе с браслетом: иначе история старого устройства
-    // подмешается к новому, а разделить их будет уже нечем.
-    await clearHistory().catch(() => undefined);
-    latest.current = INITIAL;
-    setState(INITIAL);
-  }, [paired]);
-
-  // Связь возвращается сама: правило пауз и условия попыток — в своём файле,
-  // потому что это отдельная забота, а не часть чтения данных.
-  useReconnect({
-    paired,
-    stage: state.stage,
-    foreground,
-    attempt: retry,
-    manual,
-    patch,
-    connect,
-  });
-
-  // Будильники держат своё состояние: список читается по требованию, и тянуть
-  // двадцать обменов по радио в общее состояние раздела незачем.
-  const alarms = useAlarms(band);
-  const settings = useDeviceSettings(band);
-  const service = useService(band);
-
-  const actions = useBandActions({
-    bandRef: band,
-    adopt,
-    patch,
-    refresh,
-    deviceId: state.device?.id,
-    stateRef: latest,
-  });
+  const actions = useBandActions({ bandRef, collect: collectRecordings, patch, stateRef });
 
   return {
     state,
+    paired,
     scan,
     connect,
     disconnect,
     forget,
-    paired,
     refresh,
     alarms,
     settings,

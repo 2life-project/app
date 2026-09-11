@@ -48,11 +48,11 @@ export function MonthCalendar({
   return (
     <Card>
       <View style={styles.head}>
-        <Pressable haptic={false} accessibilityLabel="Предыдущий месяц" onPress={onPrev}>
+        <Pressable haptic={false} accessibilityLabel="Previous month" onPress={onPrev}>
           <Feather name="chevron-left" size={size.icon.md} color={theme.color.textMuted} />
         </Pressable>
         <Text variant="subtitle">{title}</Text>
-        <Pressable haptic={false} accessibilityLabel="Следующий месяц" onPress={onNext}>
+        <Pressable haptic={false} accessibilityLabel="Next month" onPress={onNext}>
           <Feather name="chevron-right" size={size.icon.md} color={theme.color.textMuted} />
         </Pressable>
       </View>

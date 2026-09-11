@@ -95,3 +95,32 @@ export function dayOf(at: number | string, timeZone = deviceTimeZone()): string 
   const date = new Date(at);
   return Number.isNaN(date.getTime()) ? '' : dayIn(timeZone, date);
 }
+
+/**
+ * Момент времени со смещением пояса, а не в UTC: `2026-09-10T01:00:00+03:00`.
+ *
+ * Сервер кладёт запись в день по этой отметке. В UTC час ночи по Москве —
+ * ещё вчера, и еда уезжала бы в чужие сутки относительно даты в адресе.
+ */
+export function isoWithOffset(at: Date): string {
+  const pad = (value: number) => String(Math.abs(value)).padStart(2, '0');
+  const offset = -at.getTimezoneOffset();
+  const sign = offset >= 0 ? '+' : '-';
+  const local = `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}`;
+  const time = `${pad(at.getHours())}:${pad(at.getMinutes())}:${pad(at.getSeconds())}`;
+  return `${local}T${time}${sign}${pad(Math.trunc(offset / 60))}:${pad(offset % 60)}`;
+}
+
+/** День через `days` от указанного: `2026-09-11` и -1 → `2026-09-10`. Только даты, без часов. */
+export function shiftDay(date: string, days: number): string {
+  const [year, month, day] = date.split('-').map(Number);
+  const shifted = new Date(Date.UTC(year ?? 1970, (month ?? 1) - 1, (day ?? 1) + days));
+  return shifted.toISOString().slice(0, 10);
+}
+
+/** Часы и минуты момента по часам телефона: `09:05`. Невалидный момент — пусто. */
+export function clockOf(at: Date | number): string {
+  const moment = typeof at === 'number' ? new Date(at) : at;
+  if (Number.isNaN(moment.getTime())) return '';
+  return `${String(moment.getHours()).padStart(2, '0')}:${String(moment.getMinutes()).padStart(2, '0')}`;
+}

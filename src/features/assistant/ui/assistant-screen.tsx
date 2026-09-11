@@ -20,7 +20,7 @@ type ScreenOptions = ComponentProps<typeof RouterStack.Screen>['options'];
  * больше половины, как в макете; шапку и «ручку» рисует сама система.
  */
 export const AssistantScreenOptions: ScreenOptions = {
-  title: 'Ассистент',
+  title: 'Assistant',
   presentation: 'formSheet',
   // Высота из макета: шит закрывает чуть больше половины экрана, но тянется
   // на всю — длинный ответ читают целиком, а не в щели.
@@ -48,15 +48,12 @@ export function AssistantScreen() {
       <View style={styles.header} collapsable={false}>
         <GlassButton
           size={HEADER_BUTTON}
-          accessibilityLabel="История диалогов"
+          accessibilityLabel="Conversation history"
           onPress={() => router.push(to.threads())}>
           <Feather name="rotate-ccw" size={size.icon.sm} color={theme.color.text} />
         </GlassButton>
         <Text variant="subtitle">2Life Assistant</Text>
-        <GlassButton
-          size={HEADER_BUTTON}
-          accessibilityLabel="Закрыть"
-          onPress={() => router.back()}>
+        <GlassButton size={HEADER_BUTTON} accessibilityLabel="Close" onPress={() => router.back()}>
           <Feather name="x" size={size.icon.sm} color={theme.color.text} />
         </GlassButton>
       </View>
@@ -114,7 +111,7 @@ export function AssistantScreen() {
       </ScrollView>
 
       <View style={styles.field}>
-        <Pressable accessibilityLabel="Голосовая заметка" onPress={() => setMemo(true)}>
+        <Pressable accessibilityLabel="Voice note" onPress={() => setMemo(true)}>
           <Feather name="mic" size={size.icon.md} color={theme.color.textMuted} />
         </Pressable>
         <TextInput
@@ -128,7 +125,7 @@ export function AssistantScreen() {
           returnKeyType="send"
           onSubmitEditing={() => ask(draft)}
         />
-        <Pressable accessibilityLabel="Отправить" haptic onPress={() => ask(draft)}>
+        <Pressable accessibilityLabel="Send" haptic onPress={() => ask(draft)}>
           <LinearGradient colors={theme.color.warm} style={styles.send}>
             <Feather name="arrow-up" size={size.icon.sm} color={theme.color.neutral.on} />
           </LinearGradient>

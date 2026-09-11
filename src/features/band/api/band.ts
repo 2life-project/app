@@ -1,6 +1,6 @@
 import { logger } from '@/core/log/logger';
 
-import { type ActivitySample, decodeActivityFrame, decodeLiveSample } from './activity';
+import { decodeLiveSample } from './activity';
 import { BandAdmin } from './admin';
 import { BandAlarms } from './alarms';
 import { byteAt } from './bytes';
@@ -17,29 +17,18 @@ import {
 } from './device';
 import type { BandEvent, BandListener } from './events';
 import { Mode } from './frame';
-import {
-  type DaySummary,
-  type StressDay,
-  decodeDaySummary,
-  decodeMeasurement,
-  decodeStress,
-  decodeWearState,
-} from './health';
+import { type DaySummary, decodeDaySummary, decodeMeasurement, decodeWearState } from './health';
+import { BandHistory } from './history-api';
 import { BandNotifications } from './notifications';
 import * as recorder from './recorder';
 import { BandRecorder } from './recorder-api';
 import { BandSettings } from './settings';
-import { type SleepSession, groupSleep } from './sleep';
-import { decodeSleep } from './sleep-stages';
 import { type BandTransport } from './transport';
 import { decodeWorkoutTick } from './workouts';
 import { BandWorkouts } from './workouts-api';
 
-/**
- * Потолок кадров истории за один запрос. Сутки по минутам не дают больше сотни
- * кадров, и всё, что выше, — испорченный ответ, а не длинный день.
- */
-const MAX_HISTORY_FRAMES = 120;
+/** Заголовок одно-кадрового ответа: маркер, команда, режим — дальше поля. */
+const SINGLE_FRAME_HEADER = 3;
 
 /** Отчёты, которые устройство присылает само. */
 /**
@@ -66,6 +55,8 @@ export class Band {
   readonly notifications: BandNotifications;
   readonly recorder: BandRecorder;
   readonly workouts: BandWorkouts;
+  /** Архив: поминутная история, сон и стресс за период. */
+  readonly history: BandHistory;
   /** Необратимое: отвязка, пароль, заводской сброс. */
   readonly admin: BandAdmin;
 
@@ -75,6 +66,7 @@ export class Band {
     this.notifications = new BandNotifications(transport);
     this.recorder = new BandRecorder(transport);
     this.workouts = new BandWorkouts(transport);
+    this.history = new BandHistory(transport);
     this.admin = new BandAdmin(transport);
 
     this.transport.onReport((data) => this.handleReport(data));
@@ -144,8 +136,16 @@ export class Band {
     return decodeBattery(await this.transport.request(cmd.readBattery())).level;
   }
 
+  /**
+   * Часы устройства.
+   *
+   * Отвечают одним кадром без номера части и терминатора: `01 a3 aa` и сразу
+   * поля. Через сборщик такой ответ не проходит — он ждёт терминатор до
+   * истечения времени, и часы «не читались» на каждом подключении.
+   */
   async deviceTime(): Promise<Date | undefined> {
-    return decodeTime(await this.transport.request(cmd.readTime(), { field: 0xaa }));
+    const raw = await this.transport.requestRaw(cmd.readTime(), cmd.Cmd.time);
+    return decodeTime(raw.subarray(SINGLE_FRAME_HEADER));
   }
 
   async syncTime(): Promise<void> {
@@ -211,47 +211,6 @@ export class Band {
    * Сон сессиями. Границы ставит само устройство маркерами — эвристике по
    * разрыву во времени здесь верить незачем, когда есть прямой признак.
    */
-  async sleep(from: Date, to: Date): Promise<SleepSession[]> {
-    return groupSleep(decodeSleep(await this.transport.request(cmd.readSleep(from, to))));
-  }
-
-  async stress(from: Date, to: Date): Promise<StressDay[]> {
-    return decodeStress(await this.transport.request(cmd.readStress(from, to)));
-  }
-
-  /**
-   * Поминутная история за период. Устройство отдаёт её кадрами, поэтому сначала
-   * спрашиваем их количество, потом забираем по одному.
-   */
-  async history(from: Date, to: Date): Promise<ActivitySample[]> {
-    // Счётчик отвечает одним коротким кадром без терминатора — сборщик
-    // многокадровых ответов ждал бы его до истечения времени.
-    const countBody = await this.transport.requestRaw(cmd.readActivityCount(from, to), 0xc5);
-    const declared = countBody.length > 0 ? byteAt(countBody, countBody.length - 1) : 0;
-
-    // Кадров не бывает больше суток по минутам, а число приходит одним байтом:
-    // сбитый ответ превращается в две с половиной сотни запросов по двенадцать
-    // секунд каждый — раздел на такое время просто перестаёт отвечать.
-    const frames = Math.min(declared, MAX_HISTORY_FRAMES);
-    if (declared > frames) {
-      logger.warn('band: устройство заявило слишком много кадров', { declared });
-    }
-
-    const samples: ActivitySample[] = [];
-    for (let index = 0; index < frames; index += 1) {
-      try {
-        const body = await this.transport.request(cmd.readActivityFrame(from, to, index));
-        samples.push(...decodeActivityFrame(body).samples);
-      } catch (error) {
-        // Один потерянный кадр не повод бросать всю выгрузку: остальные дни
-        // важнее, а пропуск виден по разрыву во времени.
-        logger.warn('band: кадр истории не пришёл', { index, reason: String(error) });
-      }
-    }
-
-    return samples;
-  }
-
   // ------------------------------------------------------------------ отчёты
 
   private handleReport(data: Uint8Array): void {

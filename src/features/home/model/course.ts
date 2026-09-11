@@ -1,49 +1,60 @@
-/** Курс добавок из макета: приём, состав, приверженность, связь с протоколом. */
-export const COURSE = {
-  title: 'Morning stack',
-  when: '3 capsules · every day at 08:00',
-  taken: 'Taken today at 08:04',
-  streak: '29-DAY STREAK',
-  items: [
-    {
-      id: 'omega',
-      title: 'Omega-3',
-      dose: '2 g EPA+DHA',
-      goal: 'omega-3 index 6.1 → 8.0',
-      left: '18 days left',
-    },
-    {
-      id: 'd3',
-      title: 'Vitamin D3',
-      dose: '2,000 IU',
-      goal: '28 → 40–60 ng/mL',
-      left: '6 days left',
-    },
-    {
-      id: 'mg',
-      title: 'Magnesium glycinate',
-      dose: '400 mg',
-      goal: 'sleep and recovery',
-      left: '24 days left',
-    },
-  ],
-  adherence: {
-    title: 'Last 30 days',
-    caption: '1 missed',
-    days: [
-      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    ],
-  },
-  protocols: ['Lipid correction', 'Vitamin D repletion'],
-  about: {
-    title: 'Why a stack, not pills',
-    text: 'You sorted these into the box once. Marking the stack is one tap — and it is what the journal records.',
-  },
+import { shortDay } from '@/shared/lib/day';
+
+import type { Course, CourseDraft } from '../api/courses';
+
+/**
+ * Форма курса: имя и срок. Состав приёмов сервер ведёт расписанием по дням
+ * недели через отдельные ручки; здесь только то, что принимает сам курс.
+ * Экрана формы в макете нет — формулировки рабочие.
+ */
+export const COURSE_FORM = {
+  name: { label: 'Course name', hint: 'Morning stack' },
+  start: { label: 'Starts', hint: 'YYYY-MM-DD · optional' },
+  end: { label: 'Ends', hint: 'YYYY-MM-DD · optional' },
+  badDate: 'Dates are written as YYYY-MM-DD.',
+  saveFailed: 'The course did not save. Try again.',
 } as const;
 
-export const NEW_COURSE_FIELDS = [
-  { id: 'name', label: 'Course name', hint: 'Morning stack' },
-  { id: 'time', label: 'When', hint: 'every day · 08:00' },
-  { id: 'items', label: 'What is in it', hint: 'Omega-3 2 g, D3 2,000 IU' },
-  { id: 'supply', label: 'How much you have', hint: '60 capsules' },
-] as const;
+export type CourseFields = { name: string; start: string; end: string };
+
+const DAY = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/** Существует ли такой день: `2026-02-31` по форме верен, а в календаре его нет. */
+export function isDay(text: string): boolean {
+  const match = DAY.exec(text);
+  if (!match) return false;
+  const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  const date = new Date(year, month - 1, day);
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+}
+
+/**
+ * Черновик из полей или `null`, если дата написана не так. Пустое поле —
+ * это отсутствие срока, а не ошибка: бессрочный курс тоже курс.
+ */
+export function courseDraftOf(fields: CourseFields): CourseDraft | null {
+  const start = fields.start.trim();
+  const end = fields.end.trim();
+  if ((start && !isDay(start)) || (end && !isDay(end))) return null;
+
+  return {
+    name: fields.name.trim() || null,
+    startDate: start || null,
+    endDate: end || null,
+  };
+}
+
+export function fieldsOf(course: Pick<Course, 'name' | 'startDate' | 'endDate'>): CourseFields {
+  return { name: course.name, start: course.startDate ?? '', end: course.endDate ?? '' };
+}
+
+/** Срок курса словами. Бессрочный курс — тоже курс, и это надо сказать. */
+export function coursePeriod(course: Pick<Course, 'startDate' | 'endDate'>): string {
+  if (!course.startDate && !course.endDate) return 'no end date';
+  if (course.startDate && course.endDate) {
+    return `${shortDay(course.startDate)} — ${shortDay(course.endDate)}`;
+  }
+  return course.startDate
+    ? `from ${shortDay(course.startDate)}`
+    : `until ${shortDay(course.endDate ?? '')}`;
+}

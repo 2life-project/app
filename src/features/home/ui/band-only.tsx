@@ -1,10 +1,11 @@
 import { router } from 'expo-router';
+import type { ReactNode } from 'react';
 import { View, StyleSheet } from 'react-native';
 
 import { sourceCaption, vitalsOf, type BandReadings } from '@/shared/domain';
 import { to } from '@/shared/nav';
 import { space } from '@/shared/theme';
-import { ActionLink, Card, ListRow, SectionCaption, Stack, StatTile, Text } from '@/shared/ui';
+import { ActionLink, Card, SectionCaption, Stack, StatTile, Text, VitalsList } from '@/shared/ui';
 
 /**
  * Активность, когда сервер не ответил, а браслет — да.
@@ -14,7 +15,7 @@ import { ActionLink, Card, ListRow, SectionCaption, Stack, StatTile, Text } from
  * прятать единственные данные, которые у человека сейчас есть, — и ровно те,
  * что он собрал своим телом за сегодня.
  */
-export function BandOnly({ band }: { band: BandReadings }) {
+export function BandOnly({ band, device }: { band: BandReadings; device?: ReactNode }) {
   const vitals = vitalsOf(band);
 
   return (
@@ -46,21 +47,9 @@ export function BandOnly({ band }: { band: BandReadings }) {
         </Card>
       </Stack>
 
-      {vitals.length > 0 ? (
-        <Card>
-          <Stack gap="xs">
-            {vitals.map((vital) => (
-              <ListRow
-                key={vital.id}
-                title={vital.title}
-                subtitle={vital.note}
-                trailing={vital.value}
-              />
-            ))}
-          </Stack>
-        </Card>
-      ) : null}
+      {vitals.length > 0 ? <VitalsList caption={sourceCaption(band)} vitals={vitals} /> : null}
 
+      {device}
       <ActionLink label="Open the band" chevron onPress={() => router.push(to.device())} />
     </Stack>
   );

@@ -1,20 +1,10 @@
-/**
- * Ответы `/api/v2/calendar` и `/api/v2/journal`. Слои задаёт сервер — их
- * список здесь повторён именно его словами, чтобы фильтр в интерфейсе и
- * фильтр в запросе не разошлись.
- */
-export const LAYERS = [
-  'workouts',
-  'nutrition',
-  'intake',
-  'practices',
-  'checkins',
-  'symptoms',
-  'notes',
-  'health',
-] as const;
+import type { JournalEvent, Layer } from '@/shared/domain';
 
-export type Layer = (typeof LAYERS)[number];
+/**
+ * Ответы `/api/v2/calendar`. Само событие и слои живут в домене: их читает
+ * ещё и Главная, открывая тренировку из ленты.
+ */
+export { LAYERS, type Layer } from '@/shared/domain';
 
 export type LayerCounts = Record<Layer, number>;
 
@@ -50,30 +40,6 @@ export type CalendarMonth = {
   days: readonly MonthDay[];
 };
 
-/**
- * Событие дня. `values` и `detail` у каждого вида свои и в контракте показаны
- * только для заметки — поэтому оставлены нетипизированными: придумать им
- * форму значит договориться с собой вместо сервера.
- */
-export type CalendarEvent = {
-  id: string;
-  date: string;
-  layer: Layer;
-  kind: string;
-  title: string;
-  startAt: string | null;
-  endAt: string | null;
-  allDay: boolean;
-  /** `planned` ждёт отметки, `done` и `recorded` уже случились. */
-  status: 'planned' | 'done' | 'recorded' | 'skipped' | string;
-  source: { name: string; kind: string; method: string };
-  revision: string;
-  values: readonly unknown[];
-  detail: unknown;
-  reference: { domain: string; id: string } | null;
-  action: string | null;
-};
-
 export type CalendarEvents = {
   schemaVersion: number;
   start: string;
@@ -90,6 +56,6 @@ export type CalendarEvents = {
     skipped: number;
     layers: LayerCounts;
   };
-  events: readonly CalendarEvent[];
+  events: readonly JournalEvent[];
   nextCursor: string | null;
 };

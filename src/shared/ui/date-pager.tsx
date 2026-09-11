@@ -16,11 +16,11 @@ export type DatePagerProps = {
 export function DatePager({ label, onPrev, onNext }: DatePagerProps) {
   return (
     <View style={styles.bar}>
-      <Pressable haptic={false} accessibilityLabel="Предыдущий день" onPress={onPrev}>
+      <Pressable haptic={false} accessibilityLabel="Previous day" onPress={onPrev}>
         <Feather name="chevron-left" size={size.icon.md} color={theme.color.textMuted} />
       </Pressable>
       <Text variant="body">{label}</Text>
-      <Pressable haptic={false} accessibilityLabel="Следующий день" onPress={onNext}>
+      <Pressable haptic={false} accessibilityLabel="Next day" onPress={onNext}>
         <Feather name="chevron-right" size={size.icon.md} color={theme.color.textMuted} />
       </Pressable>
     </View>

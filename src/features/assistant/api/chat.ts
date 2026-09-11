@@ -1,4 +1,4 @@
-import { request } from '@/core/http/client';
+import { request, searchParams } from '@/core/http/client';
 import { requestId } from '@/shared/lib/id';
 
 import type { ChatMessages, ChatThread, ChatThreads } from './contract';
@@ -14,10 +14,9 @@ export function messagesKey(threadId: string): string {
 }
 
 export function fetchMessages(threadId: string, signal?: AbortSignal): Promise<ChatMessages> {
-  return request<ChatMessages>(
-    `/api/chat/messages?${new URLSearchParams({ sessionId: threadId }).toString()}`,
-    { signal },
-  );
+  return request<ChatMessages>(`/api/chat/messages?${searchParams({ sessionId: threadId })}`, {
+    signal,
+  });
 }
 
 export function createThread(): Promise<ChatThread> {

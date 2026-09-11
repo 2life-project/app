@@ -1,6 +1,5 @@
+import type { JournalEvent } from '@/shared/domain';
 import { to } from '@/shared/nav';
-
-import type { CalendarEvent } from '../api/contract';
 
 /** Сколько дней показывает агенда. */
 export const AGENDA_DAYS = 7;
@@ -9,8 +8,9 @@ export const AGENDA_DAYS = 7;
  * Счёт дней и раскладка событий по дням. Это вычисления, а не вёрстка:
  * экран остаётся композицией, а тут появляется место для теста.
  */
-export function quickAddHref(id: string) {
-  if (id === 'workout') return to.workout('new');
+export function quickAddHref(id: string, day: string) {
+  // Тренировка записывается в выбранный день: браслет мог пропустить и вчерашнюю.
+  if (id === 'workout') return to.workout('new', day);
   if (id === 'meal') return to.meal('new');
   if (id === 'stack') return to.course('all');
   return to.checkIn();
@@ -31,8 +31,8 @@ export function agendaEnd(date: string): string {
 }
 
 /** События приходят одним списком — в агенде их читают по дням. */
-export function groupByDate(events: readonly CalendarEvent[]) {
-  const byDate = new Map<string, CalendarEvent[]>();
+export function groupByDate(events: readonly JournalEvent[]) {
+  const byDate = new Map<string, JournalEvent[]>();
   for (const event of events) {
     const list = byDate.get(event.date) ?? [];
     list.push(event);

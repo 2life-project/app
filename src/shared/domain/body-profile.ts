@@ -1,7 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSyncExternalStore } from 'react';
 
-import { request } from '@/core/http/client';
 import { logger } from '@/core/log/logger';
 
 /**
@@ -140,13 +139,46 @@ function publish() {
  */
 let touched = false;
 
-void AsyncStorage.getItem(KEY)
-  .then((raw) => {
+/** Правка, которая ещё не дошла до сервера: сети могло не быть в момент сохранения. */
+const UNSYNCED_KEY = '2life:body-profile.unsynced';
+let unsynced = false;
+
+const loaded = Promise.all([
+  AsyncStorage.getItem(KEY).then((raw) => {
     if (touched || raw === null) return;
     profile = { ...EMPTY_PROFILE, ...(JSON.parse(raw) as Partial<BodyProfile>) };
     publish();
-  })
+  }),
+  AsyncStorage.getItem(UNSYNCED_KEY).then((raw) => {
+    if (raw !== null) unsynced = true;
+  }),
+])
+  .then(() => undefined)
   .catch((failure: unknown) => logger.warn('Профиль тела не прочитался', { failure }));
+
+/** Дождаться диска: сверка с сервером раньше него затёрла бы неотправленную правку. */
+export function bodyProfileLoaded(): Promise<void> {
+  return loaded;
+}
+
+export function bodyProfile(): BodyProfile {
+  return profile;
+}
+
+export function markUnsynced(flag: boolean): void {
+  unsynced = flag;
+  // Метка на диске — единственное, что после перезапуска отличит правку от
+  // серверного значения: не легла — правку затрёт сверка, и это надо видеть.
+  void (
+    flag ? AsyncStorage.setItem(UNSYNCED_KEY, '1') : AsyncStorage.removeItem(UNSYNCED_KEY)
+  ).catch((failure: unknown) =>
+    logger.error('Метка неотправленного профиля не сохранилась', { failure }),
+  );
+}
+
+export function isUnsynced(): boolean {
+  return unsynced;
+}
 
 export function setBodyProfile(patch: Partial<BodyProfile>): BodyProfile {
   touched = true;
@@ -171,7 +203,12 @@ export function clearBodyProfile(): void {
   touched = true;
   profile = EMPTY_PROFILE;
   publish();
-  void AsyncStorage.removeItem(KEY).catch(() => undefined);
+  markUnsynced(false);
+  // Не стёрлось — следующий вошедший увидит чужой рост и вес, и его браслет
+  // посчитает по чужому телу: такой отказ обязан быть в логе.
+  void AsyncStorage.removeItem(KEY).catch((failure: unknown) =>
+    logger.error('Профиль тела не стёрся при выходе', { failure }),
+  );
 }
 
 export function useBodyProfile(): BodyProfile {
@@ -182,42 +219,4 @@ export function useBodyProfile(): BodyProfile {
     },
     () => profile,
   );
-}
-
-/** Форма ответа `/api/profile` в той части, которая описывает тело. */
-type ServerProfile = {
-  profile?: {
-    sex: string | null;
-    dateOfBirth: string | null;
-    heightCm: number | null;
-    weightKg: number | null;
-  };
-};
-
-/**
- * Подтянуть с сервера то, что он знает о теле.
- *
- * Серверное значение не затирает введённое человеком: форму профиля он
- * заполняет на экране браслета ради калибровки, и молча вернуть туда пустой
- * серверный рост значило бы сбросить настройку устройства без его ведома.
- * Пустые поля, наоборот, заполняются — ради этого запрос и делается.
- */
-export async function syncBodyProfile(signal?: AbortSignal): Promise<BodyProfile> {
-  try {
-    const answer = await request<ServerProfile>('/api/profile', { signal });
-    const server = answer.profile;
-    if (!server) return profile;
-
-    return setBodyProfile({
-      heightCm: profile.heightCm ?? within(server.heightCm, LIMITS.heightCm),
-      weightKg: profile.weightKg ?? within(server.weightKg, LIMITS.weightKg),
-      birthDate: profile.birthDate ?? server.dateOfBirth,
-      sex: profile.sex ?? sexOf(server.sex),
-    });
-  } catch (failure) {
-    // Профиль на телефоне уже есть, и жить без сервера он умеет: это
-    // дозаполнение, а не загрузка экрана. Ронять из-за него нечего.
-    logger.warn('Профиль тела не подтянулся с сервера', { failure });
-    return profile;
-  }
 }

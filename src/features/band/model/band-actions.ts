@@ -3,7 +3,7 @@ import { useCallback, type MutableRefObject } from 'react';
 import { logger } from '@/core/log/logger';
 import type { BodyProfile } from '@/shared/domain';
 
-import { Band, removeSaved, savedRecordings, syncRecordings } from '../api';
+import { type Band, removeSaved, savedRecordings } from '../api';
 
 import type { BandState } from './band-state';
 import { sendProfile } from './profile-sync';
@@ -16,11 +16,9 @@ const BUZZ_MS = 3000;
 type Options = {
   /** Живое соединение. Ссылкой, а не значением: команды переживают перерисовку. */
   bandRef: MutableRefObject<Band | null>;
-  /** Взять браслет под управление: присвоение вместе с подпиской на отчёты. */
-  adopt: (next: Band | null) => void;
+  /** Забрать записи с устройства по живому соединению и отправить их. */
+  collect: () => Promise<void>;
   patch: (next: Partial<BandState>) => void;
-  refresh: () => Promise<void>;
-  deviceId?: string;
   /** Зеркало состояния: финиш читает занятие вне рендера. */
   stateRef: MutableRefObject<BandState>;
 };
@@ -31,7 +29,7 @@ type Options = {
  * Вынесены из состояния намеренно — состояние отвечает за связь и данные, а
  * здесь только действия, и каждое из них тихо ничего не делает, если связи нет.
  */
-export function useBandActions({ bandRef, adopt, patch, refresh, deviceId, stateRef }: Options) {
+export function useBandActions({ bandRef, collect, patch, stateRef }: Options) {
   const withBand = useCallback(
     (action: (active: Band) => Promise<void>) => async () => {
       const active = bandRef.current;
@@ -68,36 +66,18 @@ export function useBandActions({ bandRef, adopt, patch, refresh, deviceId, state
     patch({ recording: false });
   });
 
+  /**
+   * Забрать записи по кнопке. Сама выгрузка та же, что и по финишу записи:
+   * кнопка нужна, когда событие финиша не дошло, а запись на устройстве есть.
+   */
   const pullRecordings = useCallback(async () => {
-    if (!deviceId) return;
-
-    // Выгрузка рвёт соединение и поднимает его заново. Во время занятия это
-    // обрывает секундный поток, и цифры на экране замирают до самого финиша —
-    // человеку при этом ничего не сообщается.
-    if (stateRef.current.session) return;
-
     patch({ busy: true });
     try {
-      // Выгрузка переподключается сама: браслет держит одно соединение, и
-      // держать его открытым во время долгой качки незачем.
-      await bandRef.current?.disconnect();
-      adopt(null);
-
-      await syncRecordings(deviceId);
-      adopt(await Band.connect(deviceId));
-
-      patch({ saved: savedRecordings() });
-      await refresh();
-    } catch (error) {
-      // Связь после выгрузки могла не подняться. Оставить экран подключённым
-      // нельзя: кнопки останутся живыми и будут молча ничего не делать.
-      logger.error('band: выгрузка записей не удалась', { reason: String(error) });
-      adopt(null);
-      patch({ stage: 'idle', recording: false, problem: 'connect-failed' });
+      await collect();
     } finally {
       patch({ busy: false });
     }
-  }, [adopt, bandRef, deviceId, patch, refresh, stateRef]);
+  }, [collect, patch]);
 
   /** Убрать скачанную запись с телефона. На браслете её уже нет — выгрузка стирает. */
   const removeRecording = useCallback(

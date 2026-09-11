@@ -1,7 +1,10 @@
-import { useToday } from '@/shared/lib/day';
+import { useState, type ReactNode } from 'react';
+
+import { useBandPaired } from '@/shared/domain';
+import { shiftDay, useToday } from '@/shared/lib/day';
 import { Card, PagedScreen, Text } from '@/shared/ui';
 
-import { BODY_SECTIONS, BODY_SUBTITLE } from '../model/systems';
+import { BODY_SECTIONS, BODY_SUBTITLE, type BodySection } from '../model/systems';
 
 import { BodySystem } from './body-system';
 
@@ -12,9 +15,17 @@ import { BodySystem } from './body-system';
  * прятать то, что у человека уже есть.
  *
  * Пустоту показывает сама подсистема — там видно, чего именно не хватает.
+ *
+ * Карточки браслета приходят слотом по системам: их даёт маршрут, а не эта
+ * фича — фича фиче не видна.
  */
-export function BodyScreen() {
-  const { date, timeZone } = useToday();
+export function BodyScreen({ device }: { device?: Partial<Record<BodySection, ReactNode>> } = {}) {
+  const { date: today, timeZone } = useToday();
+  // Показанный день общий для всех систем: перелистнул в «Сердце» — и «Сон» на том же дне.
+  const [date, setDate] = useState(today);
+  // Без привязки секции браслета пусты, а пустой элемент всё равно элемент:
+  // раздел принял бы его за содержимое и спрятал вход в подключение.
+  const paired = useBandPaired();
 
   return (
     <PagedScreen
@@ -26,7 +37,11 @@ export function BodyScreen() {
           key={section.value}
           section={section.value}
           date={date}
+          today={today}
           timeZone={timeZone}
+          onShift={(days) => setDate(shiftDay(date, days))}
+          // Карточки устройства — про сейчас: на прошлом дне они врали бы датой.
+          device={date === today && paired ? device?.[section.value] : undefined}
           fallback={
             <Card variant="sunken">
               <Text tone="muted">Loading this system…</Text>

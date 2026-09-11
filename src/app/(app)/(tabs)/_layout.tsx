@@ -14,11 +14,11 @@ type FeatherName = keyof typeof Feather.glyphMap;
  * Символ нужен нативному таббару, иконка — запасному.
  */
 const TABS: { name: string; title: string; symbol: SFSymbol; icon: FeatherName }[] = [
-  { name: 'index', title: 'Главная', symbol: 'house.fill', icon: 'home' },
-  { name: 'journal', title: 'Журнал', symbol: 'calendar', icon: 'calendar' },
-  { name: 'body', title: 'Тело', symbol: 'waveform.path.ecg', icon: 'activity' },
-  { name: 'records', title: 'Медкарта', symbol: 'doc.text.fill', icon: 'file-text' },
-  { name: 'protocols', title: 'Протоколы', symbol: 'target', icon: 'target' },
+  { name: 'index', title: 'Home', symbol: 'house.fill', icon: 'home' },
+  { name: 'journal', title: 'Journal', symbol: 'calendar', icon: 'calendar' },
+  { name: 'body', title: 'Body', symbol: 'waveform.path.ecg', icon: 'activity' },
+  { name: 'records', title: 'Records', symbol: 'doc.text.fill', icon: 'file-text' },
+  { name: 'protocols', title: 'Protocols', symbol: 'target', icon: 'target' },
 ];
 
 /**

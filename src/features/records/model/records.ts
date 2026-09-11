@@ -1,4 +1,4 @@
-/** Медкарта — содержимое из макета. */
+/** Вкладки медкарты и тексты разделов, которых на сервере нет. */
 export const RECORDS_SECTIONS = [
   { value: 'labs', label: 'Labs' },
   { value: 'documents', label: 'Documents' },
@@ -17,10 +17,6 @@ export const NOT_ON_SERVER = {
   allergies: {
     title: 'Allergies are not kept here yet',
     text: 'The backend has no place for them. Until it does, tell your doctor directly — a list we invented would be worse than none.',
-  },
-  genetics: {
-    title: 'Genetics is not connected yet',
-    text: 'The backend stores genetic reports, but the way to read them is still being agreed.',
   },
   vaccines: {
     title: 'Vaccines are not kept here yet',

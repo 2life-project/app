@@ -4,8 +4,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { useQuery } from '@/core/http/use-query';
 import { logger } from '@/core/log/logger';
-import { sourceCaption, useBandReadings, vitalsOf, type Vital } from '@/shared/domain';
-import { shortDay } from '@/shared/lib/day';
+import { sourceCaption, useBandReadings, vitalsOf } from '@/shared/domain';
 import { to } from '@/shared/nav';
 import { space } from '@/shared/theme';
 import {
@@ -14,11 +13,10 @@ import {
   EmptyPanel,
   BarChart,
   Card,
-  DatePager,
+  DayPager,
   InfoCard,
   LineChart,
   LinkCard,
-  ListRow,
   RadioRow,
   SectionCaption,
   SectionSummary,
@@ -26,6 +24,7 @@ import {
   Stack,
   StatTile,
   Text,
+  VitalsList,
   WidgetCard,
 } from '@/shared/ui';
 
@@ -43,14 +42,21 @@ import { bandGroupOf, NO_DATA } from '../model/systems';
 export function BodySystem({
   section,
   date,
+  today,
   timeZone,
+  onShift,
   fallback,
+  device,
 }: {
   section: Subsystem;
   date: string;
+  today: string;
   timeZone: string;
+  onShift: (days: number) => void;
   /** Что показать, пока данных нет: загрузка или ошибка раздела. */
   fallback: React.ReactNode;
+  /** Карточки браслета по этой системе. Есть они — короткие строки показаний не нужны. */
+  device?: React.ReactNode;
 }) {
   const query = useQuery(subsystemKey(section, date, timeZone), (signal) =>
     fetchSubsystem(section, date, timeZone, signal),
@@ -65,16 +71,28 @@ export function BodySystem({
   const vitals = group === null ? [] : vitalsOf(band, group);
 
   const data = query.data;
+  // Карточки устройства, а без них — строки показаний с руки: одно на обе ветки.
+  const wrist =
+    device ??
+    (vitals.length > 0 ? <VitalsList caption={sourceCaption(band)} vitals={vitals} /> : null);
   if (!data) {
     // Сервер не ответил, но рука мерила. Показать «загружается» поверх готовых
     // чисел значит спрятать единственное, что у человека сейчас есть.
-    return vitals.length > 0 ? (
+    return (
       <Stack gap="md">
-        <BandVitals caption={sourceCaption(band)} vitals={vitals} />
-        {fallback}
+        <DayPager date={date} today={today} onShift={onShift} />
+        {wrist}
+        {query.error ? (
+          <Card variant="sunken">
+            <Stack gap="sm">
+              <Text tone="muted">This system did not load.</Text>
+              <Button label="Try again" variant="tonal" onPress={query.refresh} />
+            </Stack>
+          </Card>
+        ) : (
+          fallback
+        )}
       </Stack>
-    ) : (
-      <Stack gap="md">{fallback}</Stack>
     );
   }
 
@@ -86,7 +104,7 @@ export function BodySystem({
 
   return (
     <Stack gap="md">
-      <DatePager label={`Today · ${shortDay(data.date)}`} />
+      <DayPager date={date} today={today} onShift={onShift} />
 
       {failed ? (
         <Card variant="sunken">
@@ -94,9 +112,9 @@ export function BodySystem({
         </Card>
       ) : null}
 
-      {vitals.length > 0 ? <BandVitals caption={sourceCaption(band)} vitals={vitals} /> : null}
+      {wrist}
 
-      {empty && vitals.length === 0 ? (
+      {empty && vitals.length === 0 && !device ? (
         <>
           <EmptyPanel icon="watch" title={NO_DATA.title} text={NO_DATA.text} />
           <Button label={NO_DATA.connect} onPress={() => router.push(to.device())} />
@@ -192,27 +210,6 @@ export function BodySystem({
           </Text>
         </Stack>
       </Sheet>
-    </Stack>
-  );
-}
-
-/** Что браслет измерил сам по этой системе. Источник подписан: рядом стоят числа сервера. */
-function BandVitals({ caption, vitals }: { caption: string; vitals: readonly Vital[] }) {
-  return (
-    <Stack gap="sm">
-      <SectionCaption>{caption}</SectionCaption>
-      <Card>
-        <Stack gap="xs">
-          {vitals.map((vital) => (
-            <ListRow
-              key={vital.id}
-              title={vital.title}
-              subtitle={vital.note}
-              trailing={vital.value}
-            />
-          ))}
-        </Stack>
-      </Card>
     </Stack>
   );
 }

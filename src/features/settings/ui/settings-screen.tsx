@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { signOut, useSession } from '@/core/auth';
+import { reportFailure } from '@/core/http/client';
 import { useQuery } from '@/core/http/use-query';
 import {
   clearBandReadings,
@@ -20,11 +21,8 @@ import {
   BackButton,
   Button,
   Card,
-  IconTile,
-  ListRow,
   Screen,
   RadioRow,
-  SectionCaption,
   Sheet,
   Stack,
   Tag,
@@ -32,6 +30,7 @@ import {
 } from '@/shared/ui';
 
 import { fetchProfile } from '../api/settings';
+import { fetchLanguage, fetchSources, isLocale, saveLanguage } from '../api/sources';
 import { displayName, initials, memberSince } from '../model/profile';
 import {
   ADD_DEVICE,
@@ -42,12 +41,14 @@ import {
   SIGN_OUT_CONFIRM,
   APP_ROWS,
   DATA_ROWS,
-  DEVICES,
-  PROFILE,
+  PLAN_LABEL,
   SIGN_OUT,
   VERSION,
   type SettingsRow,
 } from '../model/settings';
+import { sourceRows } from '../model/sources';
+
+import { Section } from './settings-section';
 
 /**
  * Заголовок экрана стоит в содержимом, как в макете, поэтому в шапке остаётся
@@ -60,12 +61,17 @@ export const SettingsScreenOptions = { headerShown: false };
 export function SettingsScreen() {
   const session = useSession();
   const profile = useQuery('profile', (signal) => fetchProfile(signal));
+  // Состояние чужих трекеров — с сервера: подключены ли и что насчитали.
+  const sources = useQuery('sources', (signal) => fetchSources(signal));
+  // Язык хранится в аккаунте и общий с вебом; остальные выборы — на телефоне.
+  const language = useQuery('language', (signal) => fetchLanguage(signal));
   const [choice, setChoice] = useState<string | null>(null);
+  /** Строка под вариантами шита: что сделано или почему не вышло. */
+  const [notice, setNotice] = useState<string | null>(null);
   const [picked, setPicked] = usePersistentState<Record<string, string>>('settings', {});
   const [confirm, setConfirm] = useState<string | null>(null);
 
-  // Свой браслет — живой строкой поверх макетного списка: его состояние
-  // приложение знает точно, в отличие от остальных источников.
+  // Свой браслет — первой строкой: его состояние приложение знает само.
   const { date } = useToday();
   const band = bandRow(usePairedBand(), useBandReadings(date));
 
@@ -73,7 +79,10 @@ export function SettingsScreen() {
     if (row.opens === 'device') router.push(to.device());
     else if (row.opens === 'records') router.push(to.recordsIntro());
     else if (row.opens === 'confirm') setConfirm(row.id);
-    else if (row.opens === 'choice') setChoice(row.id);
+    else if (row.opens === 'choice') {
+      setNotice(null);
+      setChoice(row.id);
+    }
   };
 
   const sheet = choice ? SETTINGS_CHOICES[choice] : undefined;
@@ -81,7 +90,30 @@ export function SettingsScreen() {
   const name = displayName(profile.data?.profile ?? null, user);
   const since = memberSince(profile.data?.profile ?? null);
   /** Статус подписки приходит в самом ключе доступа — отдельной ручки нет. */
-  const plan = user?.subscriptionStatus === 'active' ? PROFILE.plan : null;
+  const plan = user?.subscriptionStatus === 'active' ? PLAN_LABEL : null;
+  const appRows = APP_ROWS.map((row) =>
+    row.id === 'language' && language.data
+      ? { ...row, value: LANGUAGE_NAMES[language.data.locale] ?? language.data.locale }
+      : row,
+  );
+
+  const pick = (row: string, option: string) => {
+    if (row === 'language') {
+      if (!isLocale(option)) return;
+      setNotice(null);
+      saveLanguage(option)
+        .then(language.refresh)
+        .catch((failure: unknown) => {
+          // Галочка не должна отскочить молча: человек решит, что выбрал.
+          reportFailure('Язык не сохранился', failure);
+          setNotice(SETTINGS_NOTICES.languageFailed);
+        });
+      return;
+    }
+    setPicked({ ...picked, [row]: option });
+  };
+  const selected = (row: string, fallback: string | undefined) =>
+    row === 'language' ? language.data?.locale : (picked[row] ?? fallback);
 
   return (
     <Screen>
@@ -112,10 +144,10 @@ export function SettingsScreen() {
 
         <Section
           caption="DEVICES"
-          rows={band ? [band, ...DEVICES, ADD_DEVICE] : [...DEVICES, ADD_DEVICE]}
+          rows={[...(band ? [band] : []), ...sourceRows(sources.data), ADD_DEVICE]}
           onOpen={open}
         />
-        <Section caption="APP" rows={APP_ROWS} onOpen={open} />
+        <Section caption="APP" rows={appRows} onOpen={open} />
         <Section caption="DATA" rows={DATA_ROWS} onOpen={open} />
         <Section caption="ACCOUNT" rows={[SIGN_OUT, RESET]} onOpen={open} />
 
@@ -135,19 +167,29 @@ export function SettingsScreen() {
               key={option.id}
               title={option.title}
               subtitle={option.subtitle}
-              selected={(picked[choice ?? ''] ?? sheet.options[0]?.id) === option.id}
+              selected={selected(choice ?? '', sheet.options[0]?.id) === option.id}
               onPress={() => {
-                // Экран есть только у своего браслета: чужой трекер
-                // подключается в приложении его производителя, а не у нас.
-                if (choice === 'add' && option.id === 'band') {
-                  setChoice(null);
-                  router.push(to.device());
+                // Экран есть только у своего браслета. Чужой трекер
+                // подключается через веб-приложение — и шит говорит это
+                // здесь же, а не закрывается молча.
+                if (choice === 'add') {
+                  if (option.id === 'band') {
+                    setChoice(null);
+                    router.push(to.device());
+                  } else {
+                    setNotice(SETTINGS_NOTICES.connectInWeb(option.title));
+                  }
                   return;
                 }
-                setPicked({ ...picked, [choice ?? '']: option.id });
+                pick(choice ?? '', option.id);
               }}
             />
           ))}
+          {notice ? (
+            <Text variant="bodySmall" tone="muted">
+              {notice}
+            </Text>
+          ) : null}
         </Stack>
       </Sheet>
 
@@ -199,41 +241,16 @@ export function SettingsScreen() {
   );
 }
 
-function Section({
-  caption,
-  rows,
-  onOpen,
-}: {
-  caption: string;
-  rows: readonly SettingsRow[];
-  onOpen: (row: SettingsRow) => void;
-}) {
-  return (
-    <Stack gap="sm">
-      <SectionCaption>{caption}</SectionCaption>
-      <Card>
-        <Stack gap="xs">
-          {rows.map((row) => (
-            <ListRow
-              key={row.id}
-              leading={<IconTile name={row.icon} tone={row.tone} size={ICON_TILE} />}
-              title={row.title}
-              titleTone={row.titleTone}
-              subtitle={row.subtitle}
-              trailing={row.value}
-              trailingSlot={row.connected ? <View style={styles.dot} /> : undefined}
-              onPress={row.opens ? () => onOpen(row) : undefined}
-            />
-          ))}
-        </Stack>
-      </Card>
-    </Stack>
-  );
-}
+/** Языки — словами, а не кодом: сервер отдаёт `ru`, человек читает «Русский». */
+const LANGUAGE_NAMES: Record<string, string> = { en: 'English', ru: 'Русский' };
+
+/** Подписи под шитом. Экрана в макете нет — формулировки рабочие. */
+const SETTINGS_NOTICES = {
+  connectInWeb: (title: string) => `${title} connects in the web app — open 2Life in a browser.`,
+  languageFailed: 'The language did not save. Try again.',
+} as const;
 
 const AVATAR = 52;
-const ICON_TILE = 32;
-const DOT = 7;
 
 const styles = StyleSheet.create({
   profile: { flexDirection: 'row', alignItems: 'center', gap: space.md },
@@ -246,12 +263,5 @@ const styles = StyleSheet.create({
     backgroundColor: theme.color.highlight.solid,
   },
   identity: { flex: 1 },
-  // Точка связи — состояние источника, а не его тип: цвет здесь значит «на связи».
-  dot: {
-    width: DOT,
-    height: DOT,
-    borderRadius: radius.full,
-    backgroundColor: theme.color.success.solid,
-  },
   version: { textAlign: 'center' },
 });

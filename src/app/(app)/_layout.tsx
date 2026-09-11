@@ -76,7 +76,7 @@ export default function AppLayout() {
       {TAB_ROOTS.has(pathname) ? (
         <GlassButton
           size="xl"
-          accessibilityLabel="Ассистент"
+          accessibilityLabel="Assistant"
           onPress={() => router.push(to.assistant())}
           style={styles.assistant}
           tint={theme.color.accent.surface}>

@@ -1,12 +1,16 @@
 export {
   onSignOut,
   authToken,
+  confirmPasswordReset,
+  currentUser,
   refreshSession,
   register,
+  requestPasswordReset,
   restoreSession,
   signIn,
   signOut,
   useSession,
+  validateResetCode,
   type SessionState,
   type SessionUser,
 } from './session';

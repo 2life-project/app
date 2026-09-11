@@ -2,7 +2,7 @@ import { formatNumber, NO_VALUE, readingsNote, type BandReadings } from '@/share
 
 import type { HomeData, MovementData } from '../api/contract';
 
-import { dataOf, serverTone, type StatusTone } from './section';
+import { bandLabel, dataOf, serverTone, type StatusTone } from './section';
 import type { Tile } from './vitals';
 
 /**
@@ -58,7 +58,7 @@ export function activityOf(home: HomeData, band: BandReadings | null = null): Ac
     ring: {
       value: null,
       valueLabel: amount(movement.score, 'score'),
-      note: movement.band ?? undefined,
+      note: bandLabel(movement.band),
       tone: serverTone(movement.band),
     },
     rows: [

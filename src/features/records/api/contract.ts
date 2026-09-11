@@ -178,3 +178,57 @@ export type Condition = {
   aiGenerated: boolean;
   userConfirmed: boolean;
 };
+
+/**
+ * Генетика. Загрузок может быть несколько — отчёт читается по конкретной;
+ * без `uploadId` сервер отвечает ошибкой проверки, а не пустым разделом.
+ */
+export type GeneticUpload = {
+  id: string;
+  originalFilename: string;
+  sourceFormat: string;
+  sourceName: string | null;
+  totalVariants: number | null;
+  variantsWithRsid: number | null;
+  parseStatus: string;
+  parseError: string | null;
+  uploadedAt: number;
+  parsedAt: number | null;
+};
+
+export type GeneticsSummary = { uploads: readonly GeneticUpload[] };
+
+/** Разбор по темам: оценки и выводы считает сервер, клиент их показывает. */
+export type GeneticsPanel = {
+  id: string;
+  subtitle?: string;
+  intro: string;
+  recommendation?: string;
+  compositeScore: number;
+  compositeLevel: string;
+  totalFound: number;
+};
+
+export type GeneticsSection = {
+  id: string;
+  icon: string;
+  panels: readonly GeneticsPanel[];
+  sectionScore: number;
+  sectionLevel: string;
+  insight: {
+    headline: string;
+    body: string;
+    actionItems: readonly string[];
+    severity: 'good' | 'mixed' | 'concern' | (string & {});
+  } | null;
+};
+
+export type GeneticsReport = {
+  sections: readonly GeneticsSection[];
+  totalSnps: number;
+  foundSnps: number;
+  overallScore: number;
+  greenCount: number;
+  yellowCount: number;
+  redCount: number;
+};

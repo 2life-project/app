@@ -40,3 +40,29 @@ export function fetchCourses(signal?: AbortSignal): Promise<Course[]> {
 export function fetchCourse(id: string, signal?: AbortSignal): Promise<Course> {
   return request<Course>(`/api/courses/${encodeURIComponent(id)}`, { signal });
 }
+
+/** Что у курса можно задать руками: имя и срок. Расписание — отдельные ручки. */
+export type CourseDraft = {
+  name: string | null;
+  startDate: string | null;
+  endDate: string | null;
+};
+
+export function createCourse(draft: CourseDraft): Promise<Course> {
+  return request<Course>('/api/courses', { method: 'POST', body: draft });
+}
+
+/**
+ * Частичная правка: отсутствующие поля сервер сохраняет как есть. Поэтому
+ * выключить курс — это `{ isActive: false }`, без расписания и дат.
+ * Ответ приходит без расписания — форма списка, не детали.
+ */
+export function updateCourse(
+  id: string,
+  patch: Partial<CourseDraft> & { isActive?: boolean },
+): Promise<Omit<Course, 'schedule'>> {
+  return request<Omit<Course, 'schedule'>>(`/api/courses/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body: patch,
+  });
+}

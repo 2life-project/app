@@ -1,4 +1,13 @@
-import { dayIn, dayOf, longDay, shortDay, weekdayOf } from './day';
+import {
+  isoWithOffset,
+  dayIn,
+  dayOf,
+  longDay,
+  shortDay,
+  weekdayOf,
+  shiftDay,
+  clockOf,
+} from './day';
 
 describe('день в часовом поясе', () => {
   // Полночь по Москве — это ещё вчера по UTC. Запрос за «сегодня» обязан
@@ -39,5 +48,32 @@ describe('dayOf', () => {
 
   it('битый момент времени не роняет разбор', () => {
     expect(dayOf('не дата', 'Europe/Moscow')).toBe('');
+  });
+});
+
+describe('isoWithOffset', () => {
+  it('пишет местное время со смещением пояса, а не UTC', () => {
+    const at = new Date(2026, 8, 10, 1, 5, 9);
+    const offset = -at.getTimezoneOffset();
+    const sign = offset >= 0 ? '+' : '-';
+    const hh = String(Math.abs(Math.trunc(offset / 60))).padStart(2, '0');
+    const mm = String(Math.abs(offset % 60)).padStart(2, '0');
+
+    expect(isoWithOffset(at)).toBe(`2026-09-10T01:05:09${sign}${hh}:${mm}`);
+  });
+});
+
+describe('shiftDay', () => {
+  it('ходит по календарю через границы месяца и года', () => {
+    expect(shiftDay('2026-09-11', -1)).toBe('2026-09-10');
+    expect(shiftDay('2026-09-30', 1)).toBe('2026-10-01');
+    expect(shiftDay('2026-01-01', -1)).toBe('2025-12-31');
+  });
+});
+
+describe('clockOf', () => {
+  it('часы и минуты с ведущим нулём, невалидный момент — пусто', () => {
+    expect(clockOf(new Date(2026, 8, 11, 9, 5))).toBe('09:05');
+    expect(clockOf(new Date(Number.NaN))).toBe('');
   });
 });

@@ -1,67 +1,108 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as BackgroundTask from 'expo-background-task';
-import * as TaskManager from 'expo-task-manager';
 
+import { currentUser } from '@/core/auth';
 import { logger } from '@/core/log/logger';
 
 import { Band } from './band';
+import type { Recording } from './recorder';
 import { saveRecording, savedSessions } from './storage';
 
 /**
- * Фоновая выгрузка записей с браслета.
+ * Выгрузка записей с браслета на телефон.
  *
- * Система даёт короткие окна и решает сама, когда их выдать. Поэтому задача
- * устроена так, чтобы её можно было прервать в любой момент без потерь: за один
- * запуск забирается одна запись, и только полностью скачанная удаляется с
- * устройства.
+ * Идёт и с экрана, и из фоновой задачи, а та получает короткие окна и решает
+ * их выдачу сама. Поэтому выгрузка устроена так, чтобы её можно было прервать
+ * в любой момент без потерь: за один заход забирается одна запись, и только
+ * полностью скачанная удаляется с устройства.
  *
  * Место на браслете кончается примерно через пятнадцать часов записи, так что
  * своевременная выгрузка — не оптимизация, а условие работы диктофона.
+ *
+ * Саму фоновую задачу заводит `model/background.ts`: в окне системы надо не
+ * только забрать файлы с устройства, но и отправить накопленное на сервер, а
+ * это уже не дело драйвера.
  */
-
-const TASK = 'band-sync';
 
 /** Одна запись за окно: длинная выгрузка всё равно не успеет и начнётся заново. */
 const RECORDINGS_PER_RUN = 1;
 
-type SyncResult = { fetched: number; freed: number };
+export type SyncResult = {
+  fetched: number;
+  freed: number;
+  /** Что осталось на устройстве после качки: экран обновляется без повторного чтения. */
+  remaining: Recording[];
+};
+
+type PullOptions = {
+  /** Сколько записей забрать за заход: фоновое окно короткое. */
+  limit?: number;
+  /** Сессия, которую устройство пишет сейчас: её не качать и тем более не стирать. */
+  skip?: number;
+};
 
 /**
- * Забрать новые записи. Вызывается и из фоновой задачи, и с экрана — при
- * открытии приложения система окна не выдаёт, а забрать надо.
+ * Забрать новые записи по уже открытому соединению.
+ *
+ * Аккаунт приходит снаружи и известен до качки: она долгая, а файл обязан
+ * лечь в папку того, для кого его забирали. Только полностью скачанная
+ * запись удаляется с устройства.
  */
-export async function syncRecordings(deviceId: string): Promise<SyncResult> {
-  const band = await Band.connect(deviceId);
+export async function pullRecordings(
+  band: Pick<Band, 'recorder'>,
+  account: string,
+  { limit = Infinity, skip }: PullOptions = {},
+): Promise<SyncResult> {
+  const known = savedSessions();
+  const listed = await band.recorder.list();
+  // Пустая запись — та, что ещё пишется или только что началась: качать её
+  // нечего, а стереть значит уничтожить идущую запись. То же — про сессию,
+  // о которой устройство сообщило как об идущей.
+  const fresh = listed.filter(
+    (item) => !known.has(item.session) && item.session !== skip && item.bytes > 0,
+  );
+  const removed = new Set<number>();
 
-  try {
-    const known = savedSessions();
-    const fresh = (await band.recorder.list()).filter((item) => !known.has(item.session));
+  let fetched = 0;
+  let freed = 0;
 
-    let fetched = 0;
-    let freed = 0;
+  for (const recording of fresh.slice(0, limit)) {
+    const raw = await band.recorder.download(recording.session, recording.bytes);
 
-    for (const recording of fresh.slice(0, RECORDINGS_PER_RUN)) {
-      const raw = await band.recorder.download(recording.session, recording.bytes);
-
-      // Скачали не всё — на устройстве не трогаем: остаток дозагрузится
-      // в следующее окно, а неполный файл потом не восстановить.
-      if (raw.length < recording.bytes) {
-        logger.warn('band: запись пришла не целиком', {
-          session: recording.session,
-          got: raw.length,
-          expected: recording.bytes,
-        });
-        continue;
-      }
-
-      saveRecording(recording.session, raw);
-      fetched += 1;
-
-      await band.recorder.remove(recording.session);
-      freed += recording.bytes;
+    // Скачали не всё — на устройстве не трогаем: остаток дозагрузится
+    // в следующий заход, а неполный файл потом не восстановить.
+    if (raw.length < recording.bytes) {
+      logger.warn('band: запись пришла не целиком', {
+        session: recording.session,
+        got: raw.length,
+        expected: recording.bytes,
+      });
+      continue;
     }
 
-    return { fetched, freed };
+    saveRecording(recording.session, raw, account);
+    fetched += 1;
+
+    await band.recorder.remove(recording.session);
+    removed.add(recording.session);
+    freed += recording.bytes;
+  }
+
+  return { fetched, freed, remaining: listed.filter((item) => !removed.has(item.session)) };
+}
+
+/**
+ * Забрать новые записи своим соединением: для фоновой задачи, когда связь
+ * приложения не держится.
+ */
+export async function syncRecordings(deviceId: string): Promise<SyncResult> {
+  // Записи принадлежат аккаунту, и без него им нет места на телефоне. Забрать
+  // файл с устройства и стереть его там — значило бы потерять запись совсем.
+  const account = currentUser()?.id;
+  if (!account) return { fetched: 0, freed: 0, remaining: [] };
+
+  const band = await Band.connect(deviceId);
+  try {
+    return await pullRecordings(band, account, { limit: RECORDINGS_PER_RUN });
   } finally {
     await band.disconnect();
   }
@@ -85,10 +126,6 @@ export async function setSyncDevice(deviceId: string | null): Promise<void> {
   ).catch((failure: unknown) => logger.warn('band: адрес для фона не сохранился', { failure }));
 }
 
-async function syncDevice(): Promise<string | null> {
-  return pairedDeviceId ?? (await AsyncStorage.getItem(DEVICE_KEY));
-}
-
 /**
  * Держит ли связь экран. Браслет допускает одно соединение, и фоновая задача,
  * подключившись поверх, в своём `finally` закрыла бы чужое: экран остался бы с
@@ -100,36 +137,11 @@ export function holdBand(on: boolean): void {
   held = on;
 }
 
-TaskManager.defineTask(TASK, async () => {
-  if (held) return BackgroundTask.BackgroundTaskResult.Success;
-
-  const deviceId = await syncDevice();
-  if (!deviceId) return BackgroundTask.BackgroundTaskResult.Success;
-
-  try {
-    const result = await syncRecordings(deviceId);
-    logger.info('band: фоновая выгрузка', { fetched: result.fetched });
-  } catch (error) {
-    // Браслет вне зоны — обычное дело в фоне. Но сюда же попадают испорченный
-    // кадр и отказ прошивки, а место на устройстве кончается за пятнадцать
-    // часов записи: прятать это ниже уровня видимости нельзя.
-    logger.warn('band: фоновая выгрузка не удалась', { reason: String(error) });
-  }
-
-  return BackgroundTask.BackgroundTaskResult.Success;
-});
-
-/** Включить фоновую выгрузку. Система сама решит, когда будить приложение. */
-export async function startBackgroundSync(deviceId: string): Promise<void> {
-  await setSyncDevice(deviceId);
-
-  if (await TaskManager.isTaskRegisteredAsync(TASK)) return;
-  await BackgroundTask.registerTaskAsync(TASK, { minimumInterval: 15 });
+export function holdsBand(): boolean {
+  return held;
 }
 
-export async function stopBackgroundSync(): Promise<void> {
-  await setSyncDevice(null);
-
-  if (!(await TaskManager.isTaskRegisteredAsync(TASK))) return;
-  await BackgroundTask.unregisterTaskAsync(TASK);
+/** Какой браслет выгружать в фоне. Читается уже после перезапуска процесса. */
+export async function syncDevice(): Promise<string | null> {
+  return pairedDeviceId ?? (await AsyncStorage.getItem(DEVICE_KEY));
 }

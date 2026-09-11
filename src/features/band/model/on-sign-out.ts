@@ -2,6 +2,7 @@ import { onSignOut } from '@/core/auth';
 
 import { clearSnapshot } from './band-data';
 import { clearHistory } from './history-store';
+import { clearNights } from './sleep-store';
 import { clearWorkouts } from './workout-store';
 
 /**
@@ -14,9 +15,15 @@ import { clearWorkouts } from './workout-store';
  * Сама привязка к устройству остаётся: браслет принадлежит телефону, а не
  * аккаунту (docs/decisions.md), и переподключать его после каждого входа
  * человек не должен.
+ *
+ * Очередь на отправку тоже остаётся, и это не забывчивость. Она ключуется
+ * аккаунтом: второй человек её не увидит и не отправит, а первый, войдя
+ * снова, дошлёт накопленное. Стереть её значило бы потерять измеренное — на
+ * браслете этих суток к тому времени уже нет.
  */
 onSignOut(() => {
   clearSnapshot();
   void clearHistory().catch(() => undefined);
+  void clearNights();
   void clearWorkouts().catch(() => undefined);
 });

@@ -11,6 +11,8 @@ export const to = {
   home: (): Href => '/',
   login: (): Href => '/login',
   register: (): Href => '/register',
+  /** Восстановление пароля по коду из письма. */
+  reset: (): Href => '/reset',
   journal: (): Href => '/journal',
   body: (): Href => '/body',
   records: (): Href => '/records',
@@ -25,7 +27,9 @@ export const to = {
   checkIn: (): Href => '/check-in',
   widgets: (): Href => '/widgets',
 
-  workout: (id: string): Href => `/workout/${id}`,
+  /** Новая тренировка принимает день: браслет мог пропустить и вчерашнюю. */
+  workout: (id: string, date?: string): Href =>
+    date ? { pathname: '/workout/[id]', params: { id, date } } : `/workout/${id}`,
   meal: (id: string): Href => `/meal/${id}`,
   /** Добавление еды в конкретный приём пищи. */
   addFood: (meal: string): Href => `/meal/${meal}/add`,

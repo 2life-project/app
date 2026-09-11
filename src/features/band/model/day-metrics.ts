@@ -1,5 +1,7 @@
 import { type ActivitySample, type StressDay } from '../api';
 
+import { clock } from './format';
+
 export { HEART_RATE_ZONES, STRESS_ZONES } from './analysis';
 
 /**
@@ -200,4 +202,12 @@ export function lastResting(samples: readonly ActivitySample[]): number | undefi
     if (value) return value;
   }
   return undefined;
+}
+
+/** Подписи оси времени: первый и последний отсчёт ряда. */
+export function timeAxis(samples: readonly { at: Date }[]): [string, string] | undefined {
+  const first = samples[0];
+  const final = samples[samples.length - 1];
+  if (!first || !final) return undefined;
+  return [clock(first.at), clock(final.at)];
 }

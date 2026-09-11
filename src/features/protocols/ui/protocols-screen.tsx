@@ -6,20 +6,10 @@ import { Card, InfoCard, ListRow, PagedScreen, Stack, Text } from '@/shared/ui';
 
 import type { ProtocolBundle } from '../api/contract';
 import { fetchProtocols } from '../api/protocols';
-import {
-  isFinished,
-  protocolId,
-  protocolParts,
-  protocolTitle,
-  protocolStatus,
-} from '../model/protocol-view';
+import { isFinished, protocolParts } from '../model/protocol-view';
 import { PROTOCOLS_SECTIONS, PROTOCOLS_VS_GOALS } from '../model/protocols';
 
-/**
- * Протоколы с сервера. Сам объект протокола сервер в спеке не описывает,
- * поэтому его поля читаются проверкой — см. `protocol-view`. Состав протокола
- * (правила, цели, рекомендации) описан, и число в подписи настоящее.
- */
+/** Протоколы с сервера: идущие, завершённые и те, у которых есть цели. */
 export function ProtocolsScreen() {
   const query = useQuery('protocols', (signal) => fetchProtocols(signal));
   const all = query.data?.protocols ?? [];
@@ -72,11 +62,11 @@ function List({
           <Stack gap="sm">
             {items.map((bundle) => (
               <ListRow
-                key={protocolId(bundle) || protocolTitle(bundle)}
-                title={protocolTitle(bundle)}
+                key={bundle.protocol.id}
+                title={bundle.protocol.goal}
                 subtitle={goals ? `${bundle.targets.length} targets` : protocolParts(bundle)}
-                trailing={protocolStatus(bundle) ?? undefined}
-                onPress={() => router.push(to.protocol(protocolId(bundle)))}
+                trailing={bundle.protocol.status}
+                onPress={() => router.push(to.protocol(bundle.protocol.id))}
               />
             ))}
           </Stack>

@@ -17,17 +17,14 @@ import { Hypnogram } from './hypnogram';
  * одного сна, а сложенные за семь дней они не значат ничего.
  */
 export function SleepCard({
-  sleep,
+  night,
   reading,
   onOpen,
 }: {
-  sleep: readonly SleepSession[];
+  night: SleepSession | undefined;
   reading: boolean;
   onOpen: () => void;
 }) {
-  // Сессии приходят по возрастанию времени: последняя — самая свежая.
-  const night = sleep[sleep.length - 1];
-
   if (!night) {
     return (
       <WidgetCard variant="sunken" title="Sleep">

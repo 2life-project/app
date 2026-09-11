@@ -1,4 +1,5 @@
-import { request } from '@/core/http/client';
+import { request, searchParams } from '@/core/http/client';
+import { createEvent } from '@/shared/domain';
 import { requestId } from '@/shared/lib/id';
 
 /**
@@ -35,12 +36,7 @@ export type Checkin = {
 };
 
 function query(date: string, timeZone: string, form: string): string {
-  return new URLSearchParams({
-    schemaVersion: '2',
-    date,
-    timezone: timeZone,
-    form,
-  }).toString();
+  return searchParams({ schemaVersion: '2', date, timezone: timeZone, form });
 }
 
 export function checkinKey(date: string, timeZone: string, form: string): string {
@@ -81,19 +77,10 @@ export function saveCheckin(
 }
 
 /** Заметка дня. Своего поля у чек-ина нет — она уходит событием журнала. */
-export function createNote(
-  text: string,
-  startAt: string,
-  timeZone: string,
-): Promise<{ id: string; date: string }> {
-  return request<{ id: string; date: string }>('/api/v2/journal/events', {
-    method: 'POST',
-    body: {
-      requestId: requestId(),
-      title: 'Note from the check-in',
-      startAt,
-      timezone: timeZone,
-      event: { kind: 'note', text, tags: [] },
-    },
+export function createNote(text: string, startAt: string, timeZone: string): Promise<unknown> {
+  return createEvent({
+    startAt,
+    timezone: timeZone,
+    event: { kind: 'note', text, tags: [] },
   });
 }

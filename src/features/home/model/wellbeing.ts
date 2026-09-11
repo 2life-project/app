@@ -18,7 +18,8 @@ export type WellbeingView = {
   factors: Tile[];
   /** Оценки за неделю без пропусков: график рисует замеры, а не нули вместо них. */
   series: number[];
-  recommendation: { title: string; text: string; actions: readonly string[] };
+  /** Рекомендация дня или `null`, когда чек-ина ещё не было. */
+  recommendation: { text: string; actions: readonly string[] } | null;
 };
 
 export function wellbeingOf(home: HomeData): WellbeingView | null {
@@ -32,7 +33,7 @@ export function wellbeingOf(home: HomeData): WellbeingView | null {
     ring: {
       value: null,
       valueLabel: score === null ? NO_VALUE : formatNumber(score, 'score'),
-      tone: serverTone(recommendation.tone),
+      tone: serverTone(recommendation?.tone),
     },
     caption: `DAY SCORE · ${status}`,
     rows: [
@@ -52,8 +53,7 @@ export function wellbeingOf(home: HomeData): WellbeingView | null {
     series: sevenDayProfile
       .map((entry) => entry.score)
       .filter((value): value is number => value !== null),
-    recommendation: {
-      title: recommendation.title,
+    recommendation: recommendation && {
       text: recommendation.text,
       actions: recommendation.actions,
     },
