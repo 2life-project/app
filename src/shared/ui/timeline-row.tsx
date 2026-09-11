@@ -2,6 +2,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { radius, space, theme } from '@/shared/theme';
 
+import { Pressable } from './pressable';
 import { Text } from './text';
 
 export type TimelineRowProps = {
@@ -12,6 +13,8 @@ export type TimelineRowProps = {
   state?: 'done' | 'next' | 'upcoming';
   /** Метка у ближайшего события. */
   badge?: string;
+  /** Строка ведёт к пункту: без обработчика она просто строка. */
+  onPress?: () => void;
 };
 
 /** Строка плана дня: время, точка, событие. Ближайшее выделено плашкой. */
@@ -21,10 +24,11 @@ export function TimelineRow({
   subtitle,
   state = 'upcoming',
   badge,
+  onPress,
 }: TimelineRowProps) {
   const muted = state === 'done';
 
-  return (
+  const row = (
     <View style={[styles.row, state === 'next' && styles.next]}>
       <Text variant="bodySmall" tone="muted" style={styles.time}>
         {time}
@@ -49,6 +53,7 @@ export function TimelineRow({
       ) : null}
     </View>
   );
+  return onPress ? <Pressable onPress={onPress}>{row}</Pressable> : row;
 }
 
 const DOT = 7;

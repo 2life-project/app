@@ -6,9 +6,15 @@ import { cellsOf } from '../model/feed';
 import type { HomeState } from '../model/home';
 import { summaryFor } from '../model/summary';
 import { moveOf, recoverOf, ringsOf, type RingView } from '../model/vitals';
+import { recoverExtraOf, widgetData } from '../model/widget-of';
 
 import { CustomWidget, FuelWidget, SystemWidget, VitalsWidget } from './widget-data';
 import { DecisionsWidget } from './widget-decisions';
+import { GoalsWidget } from './widget-goals';
+import { MedsWidget } from './widget-meds';
+import { NowWidget } from './widget-now';
+import { PlanWidget } from './widget-plan';
+import { StreamsWidget } from './widget-streams';
 import { SummaryWidget } from './widget-summary';
 
 /**
@@ -58,7 +64,12 @@ function Cell({
     case 'vitals':
       return <VitalsWidget rings={rings} />;
     case 'recover':
-      return <SystemWidget widget="recover" view={recoverOf(home)} />;
+      return (
+        <SystemWidget
+          widget="recover"
+          view={recoverOf(home, recoverExtraOf(widgetData(home, cell)))}
+        />
+      );
     case 'fuel':
       // У питания, в отличие от других систем, есть прямое действие: записать
       // съеденное. Полоса приёмов ведёт к нему в одно нажатие с Главной.
@@ -67,6 +78,16 @@ function Cell({
       return <SystemWidget widget="move" view={moveOf(home)} />;
     case 'decisions':
       return <DecisionsWidget query={decisions} />;
+    case 'rails':
+      return <PlanWidget home={home} />;
+    case 'now':
+      return <NowWidget home={home} data={widgetData(home, cell)} />;
+    case 'meds':
+      return <MedsWidget data={widgetData(home, cell)} />;
+    case 'goals':
+      return <GoalsWidget home={home} />;
+    case 'streams':
+      return <StreamsWidget home={home} />;
     case 'custom': {
       // Данные пользовательского виджета сервер кладёт отдельно и связывает по
       // идентификатору ячейки: рецепт в раскладке, значения — в ответе данных.
@@ -74,7 +95,7 @@ function Cell({
       return widget ? <CustomWidget widget={widget} /> : null;
     }
     default: {
-      const view = summaryFor(cell.widget, home);
+      const view = summaryFor(cell.widget);
       return view ? <SummaryWidget view={view} /> : null;
     }
   }

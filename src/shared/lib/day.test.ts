@@ -1,4 +1,4 @@
-import { isoWithOffset, dayIn, dayOf, longDay, shortDay, weekdayOf } from './day';
+import { isoWithOffset, dayIn, dayOf, longDay, shortDay, weekdayOf, shiftDay } from './day';
 
 describe('день в часовом поясе', () => {
   // Полночь по Москве — это ещё вчера по UTC. Запрос за «сегодня» обязан
@@ -51,5 +51,13 @@ describe('isoWithOffset', () => {
     const mm = String(Math.abs(offset % 60)).padStart(2, '0');
 
     expect(isoWithOffset(at)).toBe(`2026-09-10T01:05:09${sign}${hh}:${mm}`);
+  });
+});
+
+describe('shiftDay', () => {
+  it('ходит по календарю через границы месяца и года', () => {
+    expect(shiftDay('2026-09-11', -1)).toBe('2026-09-10');
+    expect(shiftDay('2026-09-30', 1)).toBe('2026-10-01');
+    expect(shiftDay('2026-01-01', -1)).toBe('2025-12-31');
   });
 });

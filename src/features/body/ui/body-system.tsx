@@ -5,7 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import { useQuery } from '@/core/http/use-query';
 import { logger } from '@/core/log/logger';
 import { sourceCaption, useBandReadings, vitalsOf, type Vital } from '@/shared/domain';
-import { shortDay } from '@/shared/lib/day';
+import { longDay, shortDay } from '@/shared/lib/day';
 import { to } from '@/shared/nav';
 import { space } from '@/shared/theme';
 import {
@@ -43,13 +43,17 @@ import { bandGroupOf, NO_DATA } from '../model/systems';
 export function BodySystem({
   section,
   date,
+  today,
   timeZone,
+  onShift,
   fallback,
   device,
 }: {
   section: Subsystem;
   date: string;
+  today: string;
   timeZone: string;
+  onShift: (days: number) => void;
   /** Что показать, пока данных нет: загрузка или ошибка раздела. */
   fallback: React.ReactNode;
   /** Карточки браслета по этой системе. Есть они — короткие строки показаний не нужны. */
@@ -73,6 +77,11 @@ export function BodySystem({
     // чисел значит спрятать единственное, что у человека сейчас есть.
     return (
       <Stack gap="md">
+        <DatePager
+          label={pagerLabel(date, today)}
+          onPrev={() => onShift(-1)}
+          onNext={nextOf(date, today, onShift)}
+        />
         {device ??
           (vitals.length > 0 ? <BandVitals caption={sourceCaption(band)} vitals={vitals} /> : null)}
         {fallback}
@@ -88,7 +97,11 @@ export function BodySystem({
 
   return (
     <Stack gap="md">
-      <DatePager label={`Today · ${shortDay(data.date)}`} />
+      <DatePager
+        label={pagerLabel(date, today)}
+        onPrev={() => onShift(-1)}
+        onNext={nextOf(date, today, onShift)}
+      />
 
       {failed ? (
         <Card variant="sunken">
@@ -223,3 +236,12 @@ function BandVitals({ caption, vitals }: { caption: string; vitals: readonly Vit
 const styles = StyleSheet.create({
   tiles: { flexDirection: 'row', gap: space.sm },
 });
+
+function pagerLabel(date: string, today: string): string {
+  return date === today ? `Today · ${shortDay(date)}` : longDay(date);
+}
+
+/** Вперёд дальше сегодняшнего дня не ходим: там ещё ничего не измерено. */
+function nextOf(date: string, today: string, onShift: (days: number) => void) {
+  return date < today ? () => onShift(1) : undefined;
+}

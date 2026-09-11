@@ -2,13 +2,11 @@ import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
 import { useQuery } from '@/core/http/use-query';
-import { shortDay } from '@/shared/lib/day';
 import { to } from '@/shared/nav';
 import { space } from '@/shared/theme';
 import {
   Banner,
   Card,
-  DatePager,
   InfoCard,
   LineChart,
   LinkCard,
@@ -24,17 +22,21 @@ import { checkinKey, fetchCheckin } from '../api/checkin';
 import type { HomeData } from '../api/contract';
 import { checkinCaption, wellbeingOf } from '../model/wellbeing';
 
+import { DayPager, type DayProps } from './day-pager';
+
 const FORM = 'short';
 
 export function Wellbeing({
   home,
   date,
   timeZone,
+  today,
+  onShift,
 }: {
   home: HomeData;
   date: string;
   timeZone: string;
-}) {
+} & DayProps) {
   // Анкета лежит отдельно от ленты: её перечитывают после ответа, а не вместе
   // со всей Главной.
   const checkin = useQuery(checkinKey(date, timeZone, FORM), (signal) =>
@@ -45,7 +47,7 @@ export function Wellbeing({
   if (!view) {
     return (
       <Stack gap="md">
-        <DatePager label={`Today · ${shortDay(home.date)}`} />
+        <DayPager date={home.date} today={today} onShift={onShift} />
         <Card variant="sunken">
           <Text tone="muted">Wellbeing data did not load for this day.</Text>
         </Card>
@@ -58,7 +60,7 @@ export function Wellbeing({
 
   return (
     <Stack gap="md">
-      <DatePager label={`Today · ${shortDay(home.date)}`} />
+      <DayPager date={home.date} today={today} onShift={onShift} />
 
       <SectionSummary
         title="Wellbeing"

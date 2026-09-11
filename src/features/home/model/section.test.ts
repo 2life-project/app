@@ -1,4 +1,4 @@
-import { bandLabel } from './activity';
+import { bandLabel } from './section';
 
 describe('bandLabel', () => {
   it('известный код — словами, незнакомый — по слову, пустой — ничего', () => {

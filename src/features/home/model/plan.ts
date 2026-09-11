@@ -1,3 +1,7 @@
+import type { Href } from 'expo-router';
+
+import { to } from '@/shared/nav';
+
 import type { HomeData, PlanItem } from '../api/contract';
 
 /**
@@ -7,7 +11,7 @@ import type { HomeData, PlanItem } from '../api/contract';
  */
 export type PlanRow = {
   id: string;
-  /** Что за пункт — словами сервера: заголовка у пункта в контракте нет. */
+  /** Что за пункт — словами сервера. */
   title: string;
   time: string;
   done: boolean;
@@ -29,10 +33,39 @@ function isDone(item: PlanItem, marks: LocalMarks): boolean {
 export function intakeRowsOf(items: readonly PlanItem[], marks: LocalMarks = {}): PlanRow[] {
   return items.filter(isIntake).map((item) => ({
     id: item.id,
-    title: `${item.kind} · ${item.domain}`,
+    title: titleOf(item),
     time: timeOf(item),
     done: isDone(item, marks),
   }));
+}
+
+/** Заголовок пункта: словами сервера, а без них — что за пункт и откуда. */
+export function titleOf(item: PlanItem): string {
+  return item.title?.trim() || `${item.kind} · ${item.domain}`;
+}
+
+/**
+ * Куда ведёт пункт. Адрес сервера — вебовский (`/protocols?protocol=…`), у
+ * телефона свои экраны: правило протокола открывает протокол, приём —
+ * курсы, остальное — журнал дня.
+ */
+export function planHref(item: PlanItem): Href {
+  const reference = item.reference as { protocolId?: unknown } | null | undefined;
+  const protocolId =
+    reference && typeof reference.protocolId === 'string' ? reference.protocolId : null;
+  if (protocolId) return to.protocol(protocolId);
+  if (item.domain === 'supplements') return to.course('all');
+  return to.journal();
+}
+
+/** Пункты дня по времени: без времени — в конец, они «в любое время». */
+export function byTime(items: readonly PlanItem[]): PlanItem[] {
+  return [...items].sort((a, b) => (a.startAt ?? Infinity) - (b.startAt ?? Infinity));
+}
+
+/** Первый пункт, который ещё не сделан: он и есть «следующий». */
+export function nextOf(items: readonly PlanItem[]): PlanItem | null {
+  return byTime(items).find((item) => item.status !== 'done' && item.status !== 'skipped') ?? null;
 }
 
 /**

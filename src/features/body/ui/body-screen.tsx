@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 
-import { useToday } from '@/shared/lib/day';
+import { shiftDay, useToday } from '@/shared/lib/day';
 import { Card, PagedScreen, Text } from '@/shared/ui';
 
 import { BODY_SECTIONS, BODY_SUBTITLE, type BodySection } from '../model/systems';
@@ -19,7 +19,9 @@ import { BodySystem } from './body-system';
  * фича — фича фиче не видна.
  */
 export function BodyScreen({ device }: { device?: Partial<Record<BodySection, ReactNode>> } = {}) {
-  const { date, timeZone } = useToday();
+  const { date: today, timeZone } = useToday();
+  // Показанный день общий для всех систем: перелистнул в «Сердце» — и «Сон» на том же дне.
+  const [date, setDate] = useState(today);
 
   return (
     <PagedScreen
@@ -31,8 +33,11 @@ export function BodyScreen({ device }: { device?: Partial<Record<BodySection, Re
           key={section.value}
           section={section.value}
           date={date}
+          today={today}
           timeZone={timeZone}
-          device={device?.[section.value]}
+          onShift={(days) => setDate(shiftDay(date, days))}
+          // Карточки устройства — про сейчас: на прошлом дне они врали бы датой.
+          device={date === today ? device?.[section.value] : undefined}
           fallback={
             <Card variant="sunken">
               <Text tone="muted">Loading this system…</Text>

@@ -110,3 +110,10 @@ export function isoWithOffset(at: Date): string {
   const time = `${pad(at.getHours())}:${pad(at.getMinutes())}:${pad(at.getSeconds())}`;
   return `${local}T${time}${sign}${pad(Math.trunc(offset / 60))}:${pad(offset % 60)}`;
 }
+
+/** День через `days` от указанного: `2026-09-11` и -1 → `2026-09-10`. Только даты, без часов. */
+export function shiftDay(date: string, days: number): string {
+  const [year, month, day] = date.split('-').map(Number);
+  const shifted = new Date(Date.UTC(year ?? 1970, (month ?? 1) - 1, (day ?? 1) + days));
+  return shifted.toISOString().slice(0, 10);
+}

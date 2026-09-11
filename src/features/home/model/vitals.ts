@@ -2,7 +2,8 @@ import { formatNumber, metricFill, metricValueText, NO_VALUE } from '@/shared/do
 
 import type { HomeData, MovementData, NutritionData, WellbeingData } from '../api/contract';
 
-import { dataOf, serverTone, type StatusTone } from './section';
+import { bandLabel, dataOf, serverTone, type StatusTone } from './section';
+import type { RecoverExtra } from './widget-of';
 
 /**
  * Четыре стороны дня. В макете это RECOVERY, FUEL, STRAIN и DOSES, в контракте —
@@ -29,7 +30,7 @@ export type Tile = {
 /** Виджет одной системы: кольцо и две плитки — шаблон из макета. */
 export type SystemView = {
   title: string;
-  ring: { value: number | null; valueLabel: string; tone?: StatusTone };
+  ring: { value: number | null; valueLabel: string; note?: string; tone?: StatusTone };
   tiles: Tile[];
 };
 
@@ -106,14 +107,26 @@ export function ringsOf(data: HomeData | null): readonly RingView[] {
   ];
 }
 
-/** Виджет восстановления: кольцо метрики и то, на чём её число стоит. */
-export function recoverOf(data: HomeData): SystemView {
+/** Виджет восстановления: кольцо метрики и то, на чём её число стоит — сон и ВСР. */
+export function recoverOf(data: HomeData, extra: RecoverExtra): SystemView {
   const recovery = data.rings.recovery;
-
   return {
     title: 'Recovery',
     ring: { value: metricFill(recovery), valueLabel: metricValueText(recovery) },
-    tiles: [],
+    tiles: [
+      {
+        label: 'SLEEP',
+        value: text(extra.sleepHours, 'h'),
+        unit: extra.sleepHours === null ? undefined : 'h',
+        note: extra.sleepSource === 'es100' ? 'band' : undefined,
+      },
+      {
+        label: 'HRV',
+        value: text(extra.hrvMs, 'ms'),
+        unit: extra.hrvMs === null ? undefined : 'ms',
+        note: extra.restingBpm === null ? undefined : `rest ${Math.round(extra.restingBpm)} bpm`,
+      },
+    ],
   };
 }
 
@@ -127,6 +140,7 @@ export function moveOf(data: HomeData): SystemView {
     ring: {
       value: movement?.ring.percent ?? null,
       valueLabel: text(movement?.score, 'score'),
+      note: bandLabel(movement?.band),
       tone: serverTone(movement?.band),
     },
     tiles: [

@@ -2,12 +2,10 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 
 import { reportFailure } from '@/core/http/client';
-import { shortDay } from '@/shared/lib/day';
 import { to } from '@/shared/nav';
 import {
   Button,
   CheckCircle,
-  DatePager,
   InfoCard,
   LinkCard,
   ListRow,
@@ -23,6 +21,8 @@ import { markPlanItem } from '../api/home';
 import { intakeRowsOf, planCounts } from '../model/plan';
 import { COURSE_HINT, WHY_COURSES } from '../model/supplements';
 
+import { DayPager, type DayProps } from './day-pager';
+
 /**
  * Приёмы дня приходят пунктами объединённого плана; у каждого — готовое
  * действие для отметки. Раздел показывает их строками и отмечает через это
@@ -31,7 +31,7 @@ import { COURSE_HINT, WHY_COURSES } from '../model/supplements';
  * Отметка меняет строку на месте: перечитывать ради галочки всю Главную —
  * два запроса и мигание ленты — незачем, ответ сервера говорит достаточно.
  */
-export function Supplements({ home }: { home: HomeData }) {
+export function Supplements({ home, today, onShift }: { home: HomeData } & DayProps) {
   /** Отметки, поставленные с этого экрана: сервер их принял, лента ещё старая. */
   const [marked, setMarked] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState<string | null>(null);
@@ -59,7 +59,7 @@ export function Supplements({ home }: { home: HomeData }) {
 
   return (
     <Stack gap="md">
-      <DatePager label={`Today · ${shortDay(home.date)}`} />
+      <DayPager date={home.date} today={today} onShift={onShift} />
 
       <SectionSummary
         title="Supplements"

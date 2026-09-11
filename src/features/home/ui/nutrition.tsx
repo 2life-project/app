@@ -1,22 +1,22 @@
 import { router } from 'expo-router';
 
-import { shortDay } from '@/shared/lib/day';
 import { to } from '@/shared/nav';
-import { Card, DatePager, InfoCard, LinkCard, ListRow, Stack, Text, WidgetCard } from '@/shared/ui';
+import { Card, InfoCard, LinkCard, ListRow, Stack, Text, WidgetCard } from '@/shared/ui';
 
 import type { HomeData } from '../api/contract';
 import { nutritionOf } from '../model/nutrition';
 
+import { DayPager, type DayProps } from './day-pager';
 import { FuelSummary } from './fuel-summary';
 import { MealStrip } from './meal-strip';
 
-export function Nutrition({ home }: { home: HomeData }) {
+export function Nutrition({ home, today, onShift }: { home: HomeData } & DayProps) {
   const view = nutritionOf(home);
 
   if (!view) {
     return (
       <Stack gap="md">
-        <DatePager label={`Today · ${shortDay(home.date)}`} />
+        <DayPager date={home.date} today={today} onShift={onShift} />
         <Card variant="sunken">
           <Text tone="muted">Nutrition data did not load for this day.</Text>
         </Card>
@@ -26,7 +26,7 @@ export function Nutrition({ home }: { home: HomeData }) {
 
   return (
     <Stack gap="md">
-      <DatePager label={`Today · ${shortDay(home.date)}`} />
+      <DayPager date={home.date} today={today} onShift={onShift} />
 
       {/* Четыре числа дня одной сеткой. Кольцо секции и плитки макросов
           показывали ровно их же — три вида одних цифр заставляли человека

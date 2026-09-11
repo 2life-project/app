@@ -181,6 +181,8 @@ export type PlanItem = {
   id: string;
   kind: string;
   status: string;
+  /** Словами сервера: «Magnesium glycinate 300 mg before bed». В спеке поля нет, в ответе есть. */
+  title?: string | null;
   /** Миллисекунды; у приёма без точного времени — `null` и подпись словами. */
   startAt: number | null;
   expectedTime?: string | null;

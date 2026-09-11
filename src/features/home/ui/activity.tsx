@@ -3,13 +3,11 @@ import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { vitalsOf, type BandReadings } from '@/shared/domain';
-import { shortDay } from '@/shared/lib/day';
 import { to } from '@/shared/nav';
 import { space } from '@/shared/theme';
 import {
   Banner,
   Card,
-  DatePager,
   InfoCard,
   LinkCard,
   ListRow,
@@ -23,6 +21,8 @@ import {
 import type { HomeData } from '../api/contract';
 import { activityOf } from '../model/activity';
 
+import { DayPager, type DayProps } from './day-pager';
+
 /**
  * Активность дня. Истории нагрузки в ответе Главной нет — графики периода
  * живут на экране показателя, туда и ведёт ссылка внизу.
@@ -31,19 +31,21 @@ export function Activity({
   home,
   band,
   device,
+  today,
+  onShift,
 }: {
   home: HomeData;
   band: BandReadings | null;
   /** Шаги и занятия браслета подробно: карточки даёт маршрут, фича фиче не видна. */
   device?: ReactNode;
-}) {
+} & DayProps) {
   const view = activityOf(home, band);
   const vitals = vitalsOf(band);
 
   if (!view) {
     return (
       <Stack gap="md">
-        <DatePager label={`Today · ${shortDay(home.date)}`} />
+        <DayPager date={home.date} today={today} onShift={onShift} />
         <Card variant="sunken">
           <Text tone="muted">Movement data did not load for this day.</Text>
         </Card>
@@ -54,7 +56,7 @@ export function Activity({
 
   return (
     <Stack gap="md">
-      <DatePager label={`Today · ${shortDay(home.date)}`} />
+      <DayPager date={home.date} today={today} onShift={onShift} />
 
       {view.available ? null : (
         <Banner
