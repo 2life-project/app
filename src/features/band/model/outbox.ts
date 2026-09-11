@@ -314,7 +314,7 @@ export function nextDelivery(
       envelope: delivery.envelope,
       records: stored.pending
         .slice(0, delivery.records)
-        .map(({ epoch: _epoch, ...record }) => record),
+        .map(({ epoch: _epoch, slot: _slot, ...record }) => record),
       coverage: delivery.coverage,
     };
   });

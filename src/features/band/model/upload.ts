@@ -195,8 +195,9 @@ async function drain(account: string, binding: Binding): Promise<void> {
       break;
     }
 
-    if (!(await deliver(account, binding, delivery))) break;
-    sent.push(delivery);
+    const outcome = await deliver(account, binding, delivery);
+    if (outcome === 'stop') break;
+    if (outcome === 'sent') sent.push(delivery);
   }
 
   // Результат разбора приходит позже приёма и на очередь не влияет: пачки уже
@@ -206,8 +207,11 @@ async function drain(account: string, binding: Binding): Promise<void> {
     void Promise.all(sent.map((delivery) => reportIssues(account, binding, delivery)));
 }
 
-/** Отправить одну пачку. `false` — дальше в этот заход идти нельзя. */
-async function deliver(account: string, binding: Binding, delivery: Delivery): Promise<boolean> {
+/** Чем кончилась пачка: принята, надо повторить иначе, или заход окончен. */
+type Outcome = 'sent' | 'retry' | 'stop';
+
+/** Отправить одну пачку. */
+async function deliver(account: string, binding: Binding, delivery: Delivery): Promise<Outcome> {
   try {
     const receipt = await sendBatch(binding.bandId, {
       deliveryId: delivery.deliveryId,
@@ -222,9 +226,9 @@ async function deliver(account: string, binding: Binding, delivery: Delivery): P
     });
 
     await settle(account, binding.bandId);
-    return true;
+    return 'sent';
   } catch (failure) {
-    return await recover(account, binding, failure);
+    return (await recover(account, binding, failure)) ? 'retry' : 'stop';
   }
 }
 

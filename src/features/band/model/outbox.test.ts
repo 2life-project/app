@@ -97,6 +97,21 @@ describe('очередь', () => {
     expect(delivery?.records).toHaveLength(2);
   });
 
+  // Приёмник отвергает записи с незнакомыми полями целой пачкой.
+  it('служебные поля очереди наружу не уходят', async () => {
+    await enqueue(ACCOUNT, BAND, [summary('2026-09-10', 100)], { ...KNOWN, epoch: 'e' });
+    const record = (await nextDelivery(ACCOUNT, BAND, LIMITS, ENVELOPE))?.records[0];
+
+    expect(Object.keys(record ?? {}).sort()).toEqual([
+      'capturedAt',
+      'eventId',
+      'payload',
+      'sequence',
+      'stream',
+      'timeQuality',
+    ]);
+  });
+
   it('одно и то же событие уезжает под одним идентификатором', async () => {
     await enqueue(ACCOUNT, BAND, [minute('2026-09-10T09:00:00.000Z', 10)], KNOWN);
     const first = (await nextDelivery(ACCOUNT, BAND, LIMITS, ENVELOPE))?.records[0]?.eventId;
