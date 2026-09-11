@@ -151,6 +151,11 @@ export function useBand() {
 
   const connect = useCallback(
     async (device: FoundBand) => {
+      // Второе подключение поверх идущего — это два соединения к одному
+      // устройству: их уведомления перемешиваются, и оба читают обрывки.
+      // Возврат на экран и нажатие по браслету в списке приходят вместе.
+      if (latest.current.stage === 'connecting') return;
+
       stopScan.current?.();
       manual.current = false;
       patch({
