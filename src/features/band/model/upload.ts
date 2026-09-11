@@ -62,9 +62,13 @@ export async function publishToServer(state: BandState): Promise<void> {
   if (!account) return;
 
   const binding = await ensureBinding(state.info, state.clockSkew ?? null);
-  if (!binding) return;
+  if (!binding) {
+    logger.warn('band: отправлять некуда — привязки нет', { mac: state.info?.mac ?? null });
+    return;
+  }
 
   const drafts = draftsOf(state);
+  logger.info('band: к отправке', { drafts: drafts.length, bandId: binding.bandId });
   if (drafts.length > 0) {
     await enqueue(account, binding.bandId, drafts, {
       // Часы устройства расходились настолько, что прочитанная история писалась
@@ -179,7 +183,10 @@ async function drain(account: string, binding: Binding): Promise<void> {
 
   for (let round = 0; round < MAX_BATCHES; round += 1) {
     const delivery = await nextDelivery(account, binding.bandId, binding.limits, envelope);
-    if (!delivery) break;
+    if (!delivery) {
+      if (round === 0) logger.info('band: очередь пуста', { bandId: binding.bandId });
+      break;
+    }
 
     if (!(await deliver(account, binding, delivery))) break;
     sent.push(delivery);

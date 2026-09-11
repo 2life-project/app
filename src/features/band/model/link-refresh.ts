@@ -1,5 +1,7 @@
 import { AppState } from 'react-native';
 
+import { logger } from '@/core/log/logger';
+
 import { uploadRecordings } from './audio-upload';
 import { loadEverything, loadHistory, saveSnapshot } from './band-data';
 import { bandRef, patch, stateRef } from './link-store';
@@ -33,8 +35,14 @@ export function share(): void {
   // Итоги дня — остальному приложению. Здесь, а не на каждом живом отчёте:
   // отчёты приходят каждые десять секунд, а минутные итоги между ними те же.
   publishReadings(stateRef.current);
-  void publishToServer(stateRef.current);
-  void uploadRecordings();
+  // Отказ отправки обязан быть виден: молча оборванное обещание — это очередь,
+  // которая «не работает» без единой строки в логе.
+  publishToServer(stateRef.current).catch((failure: unknown) =>
+    logger.error('band: отправка сорвалась', { reason: String(failure) }),
+  );
+  uploadRecordings().catch((failure: unknown) =>
+    logger.error('band: выгрузка записей сорвалась', { reason: String(failure) }),
+  );
 }
 
 /**

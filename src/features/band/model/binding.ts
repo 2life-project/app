@@ -154,6 +154,10 @@ export async function ensureBinding(
     };
 
     await AsyncStorage.setItem(keyOf(account, mac), JSON.stringify(binding));
+    logger.info('band: браслет зарегистрирован', {
+      bandId: binding.bandId,
+      bindingVersion: binding.bindingVersion,
+    });
     return binding;
   } catch (failure) {
     // Очередь просто ждёт: данные уже в ней, регистрация повторится при
