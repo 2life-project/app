@@ -15,7 +15,8 @@
         "ITSAppUsesNonExemptEncryption": false
       },
       "buildNumber": "3",
-      "usePrecompiledModules": false
+      "usePrecompiledModules": false,
+      "appleTeamId": "DL3ZMDX6R9"
     },
     "android": {
       "package": "dev.blackshift.twolife",
