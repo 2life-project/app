@@ -115,7 +115,7 @@ export function JournalScreen() {
             <GlassButton
               shape="pill"
               size="sm"
-              accessibilityLabel="Слои журнала"
+              accessibilityLabel="Journal layers"
               onPress={() => setLayersOpen(true)}
               surfaceStyle={styles.layersSurface}>
               <Stack direction="row" gap="xs" align="center">

@@ -25,9 +25,9 @@ import { Wellbeing } from './wellbeing';
  * зелёная подложка при пустом Bluetooth — это обещание, которого нет.
  */
 const HEADER_ACTIONS = [
-  { icon: 'watch', label: 'Устройство', href: to.device(), band: true },
-  { icon: 'settings', label: 'Настройки', href: to.settings(), band: false },
-  { icon: 'edit-2', label: 'Настроить виджеты', href: to.widgets(), band: false },
+  { icon: 'watch', label: 'Device', href: to.device(), band: true },
+  { icon: 'settings', label: 'Settings', href: to.settings(), band: false },
+  { icon: 'edit-2', label: 'Set up widgets', href: to.widgets(), band: false },
 ] as const;
 
 export function HomeScreen({ activityDevice }: { activityDevice?: ReactNode } = {}) {
@@ -87,7 +87,7 @@ export function HomeScreen({ activityDevice }: { activityDevice?: ReactNode } = 
   const state = home.data;
   const pages = state
     ? [
-        <Overview key="o" state={state} decisions={decisions} />,
+        <Overview key="o" state={state} decisions={decisions} band={band} />,
         <Activity
           key="a"
           home={state.home}

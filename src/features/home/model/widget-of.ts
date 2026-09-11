@@ -1,7 +1,7 @@
 import { formatNumber, NO_VALUE } from '@/shared/domain';
 import { shortDay } from '@/shared/lib/day';
 
-import type { HomeData, LayoutCell, PlanItem } from '../api/contract';
+import type { HomeData, LayoutCell, PlanItem, WidgetType } from '../api/contract';
 
 /**
  * Данные виджетов Главной. У каждого типа своя форма, и спека её не описывает
@@ -28,6 +28,11 @@ function isMeasure(value: unknown): value is Measure {
 export function widgetData(home: HomeData, cell: LayoutCell): unknown {
   const byId = home.widgets.find((widget) => widget.id === cell.id);
   return (byId ?? home.widgets.find((widget) => widget.type === cell.widget))?.data;
+}
+
+/** Данные виджета по типу — когда ячейки нет, а конверт с числами есть. */
+export function widgetOfType(home: HomeData, type: WidgetType): unknown {
+  return home.widgets.find((widget) => widget.type === type)?.data;
 }
 
 // ------------------------------------------------------------ восстановление
@@ -155,6 +160,8 @@ export type StreamRow = {
   key: string;
   title: string;
   value: string;
+  /** То же число без форматирования: сводка дня считает и сравнивает. */
+  raw: number;
   /** Откуда число: браслет, трекер, чек-ин, ручной ввод. */
   source: string;
   when: string;
@@ -228,6 +235,7 @@ export function streamsOf(home: HomeData): StreamRow[] {
       row: {
         key: stream.key,
         title: STREAM_TITLES[stream.key] ?? humanize(stream.key),
+        raw: stream.value,
         value: `${formatNumber(stream.value, unit)}${unit ? ` ${unit}` : ''}`,
         source: SOURCE_TITLES[source] ?? source,
         when: date === home.date ? 'today' : date ? shortDay(date) : '',

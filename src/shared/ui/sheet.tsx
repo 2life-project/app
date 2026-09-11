@@ -67,7 +67,7 @@ export function Sheet({ visible, onClose, title, action, children }: SheetProps)
       <View style={styles.header}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Закрыть"
+          accessibilityLabel="Close"
           hitSlop={space.sm}
           onPress={close}
           style={styles.close}>
@@ -87,7 +87,7 @@ export function Sheet({ visible, onClose, title, action, children }: SheetProps)
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={close}>
       <View style={styles.backdrop}>
-        <Pressable accessibilityLabel="Закрыть" style={styles.tapZone} onPress={close} />
+        <Pressable accessibilityLabel="Close" style={styles.tapZone} onPress={close} />
 
         <Animated.View
           style={[styles.sheet, dragStyle]}

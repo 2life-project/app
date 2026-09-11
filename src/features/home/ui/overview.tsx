@@ -1,13 +1,16 @@
 import type { Query } from '@/core/http/use-query';
+import type { BandReadings } from '@/shared/domain';
 import { Stack, Text, WidgetCard } from '@/shared/ui';
 
 import type { Decision, HomeData, LayoutCell } from '../api/contract';
 import { cellsOf } from '../model/feed';
+import { highlightsOf } from '../model/highlights';
 import type { HomeState } from '../model/home';
 import { summaryFor } from '../model/summary';
 import { moveOf, recoverOf, ringsOf, type RingView } from '../model/vitals';
 import { recoverExtraOf, widgetData } from '../model/widget-of';
 
+import { Highlights } from './highlights';
 import { CustomWidget, FuelWidget, SystemWidget, VitalsWidget } from './widget-data';
 import { DecisionsWidget } from './widget-decisions';
 import { GoalsWidget } from './widget-goals';
@@ -25,12 +28,16 @@ import { SummaryWidget } from './widget-summary';
 export function Overview({
   state,
   decisions,
+  band,
 }: {
   state: HomeState;
   decisions: Query<readonly Decision[]>;
+  /** Показания браслета за показанный день: в сводке они главнее серверных. */
+  band: BandReadings | null;
 }) {
   const cells = cellsOf(state.layout);
   const rings = ringsOf(state.home);
+  const highlights = highlightsOf(state.home, band);
 
   if (cells.length === 0) {
     return (
@@ -42,6 +49,7 @@ export function Overview({
 
   return (
     <Stack gap="md">
+      <Highlights highlights={highlights} />
       {cells.map((cell) => (
         <Cell key={cell.id} cell={cell} home={state.home} rings={rings} decisions={decisions} />
       ))}
