@@ -11,7 +11,6 @@ export {
   LIMITS,
   runStepOf,
   setBodyProfile,
-  syncBodyProfile,
   useBodyProfile,
   walkStepOf,
   within,
@@ -19,6 +18,7 @@ export {
   type Sex,
   type Hand,
 } from './body-profile';
+export { mergeServerProfile, saveBodyProfile, syncBodyProfile } from './body-profile-sync';
 export {
   clearBandReadings,
   sourceCaption,
