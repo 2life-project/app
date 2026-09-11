@@ -110,14 +110,28 @@ describe('очередь', () => {
   });
 
   // Сводка за сегодня меняется весь день. Отправлять обе её версии значит
-  // гнать заведомо устаревшую.
-  it('снимок в очереди заменяется свежим, а не копится', async () => {
+  // гнать заведомо устаревшую — а под одним именем приёмник их и не примет:
+  // содержимое принятого события менять нельзя.
+  it('снимок в очереди заменяется свежим и получает своё имя', async () => {
     await enqueue(ACCOUNT, BAND, [summary('2026-09-10', 100)], KNOWN);
+    const first = (await nextDelivery(ACCOUNT, BAND, LIMITS, ENVELOPE))?.records[0];
+    await unfreezeDelivery(ACCOUNT, BAND);
+
     await enqueue(ACCOUNT, BAND, [summary('2026-09-10', 900)], KNOWN);
+    const delivery = await nextDelivery(ACCOUNT, BAND, LIMITS, ENVELOPE);
+
+    expect(delivery?.records).toHaveLength(1);
+    expect(delivery?.records[0]?.payload).toMatchObject({ totals: { steps: 900 } });
+    expect(delivery?.records[0]?.eventId).not.toBe(first?.eventId);
+  });
+
+  it('тот же снимок второй раз не ставится', async () => {
+    await enqueue(ACCOUNT, BAND, [summary('2026-09-10', 100)], KNOWN);
+    await enqueue(ACCOUNT, BAND, [summary('2026-09-10', 100)], KNOWN);
 
     const delivery = await nextDelivery(ACCOUNT, BAND, LIMITS, ENVELOPE);
     expect(delivery?.records).toHaveLength(1);
-    expect(delivery?.records[0]?.payload).toMatchObject({ totals: { steps: 900 } });
+    expect(delivery?.records[0]?.sequence).toBe(1);
   });
 });
 

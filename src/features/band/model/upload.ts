@@ -4,7 +4,7 @@ import { errorCode, HttpError, reportFailure } from '@/core/http/client';
 import { logger } from '@/core/log/logger';
 import { deviceTimeZone } from '@/shared/lib/day';
 
-import { fetchReceipt, sendBatch, type Coverage } from '../api';
+import { fetchReceipt, sendBatch, type Coverage, type TimeQuality } from '../api';
 
 import type { BandState } from './band-state';
 import {
@@ -71,16 +71,23 @@ export async function publishToServer(state: BandState): Promise<void> {
   logger.info('band: к отправке', { drafts: drafts.length, bandId: binding.bandId });
   if (drafts.length > 0) {
     await enqueue(account, binding.bandId, drafts, {
-      // Часы устройства расходились настолько, что прочитанная история писалась
-      // по другому времени. Выдать её за точную нельзя: приёмник примет
-      // догадку за измерение.
-      timeQuality: clockWasReset(state.clockSkew ?? null) ? 'clock_reset' : 'known',
+      timeQuality: qualityOf(state.clockSkew ?? null),
       epoch: binding.epoch,
       coverage: coverageOf(state),
     });
   }
 
   await flushOutbox();
+}
+
+/**
+ * Насколько верить времени прочитанного. Часы не прочитались — время не
+ * подтверждено, и `known` тут был бы догадкой; расходились заметно — история
+ * писалась по другому времени, и выдавать её за точную нельзя.
+ */
+function qualityOf(clockSkewSeconds: number | null): TimeQuality {
+  if (clockSkewSeconds === null) return 'unknown';
+  return clockWasReset(clockSkewSeconds) ? 'clock_reset' : 'known';
 }
 
 /**
@@ -126,7 +133,7 @@ export async function publishDays(
     if (!stored || stored.samples.length === 0) continue;
 
     await enqueue(account, binding.bandId, samplesOf(stored.samples), {
-      timeQuality: clockWasReset(clockSkewSeconds) ? 'clock_reset' : 'known',
+      timeQuality: qualityOf(clockSkewSeconds),
       epoch: binding.epoch,
       // Эти сутки кончились, и окно прочитано целиком — в отличие от текущего
       // дня, про который такого сказать нельзя.
@@ -221,34 +228,33 @@ async function deliver(account: string, binding: Binding, delivery: Delivery): P
   }
 }
 
+/**
+ * Отказы, которые лечатся дроблением пачки: слишком большая, не прошедшая
+ * проверку транспорта или содержащая запись, чьё имя уже занято другим
+ * содержимым. Дробим, пока не останется одна запись: тогда виновата она, и
+ * держать из-за неё всю очередь нельзя.
+ */
+const RECORD_CONFLICTS = new Set(['band_event_conflict', 'band_delivery_conflict']);
+
 /** Что делать с отказом. Возвращает, можно ли продолжать заход. */
 async function recover(account: string, binding: Binding, failure: unknown): Promise<boolean> {
   const status = failure instanceof HttpError ? failure.status : 0;
+  const code = errorCode(failure);
 
-  // Слишком большая пачка режется пополам: предел объявляет сервер, и наш
-  // подсчёт мог разойтись с его — например, на длинной ночи со стадиями.
-  // Одна запись, которая больше предела, не уедет никогда — и держать из-за
-  // неё всю очередь нельзя: отбрасываем громко, как и непроходящую проверку.
-  if (status === 413 || status === 422) {
+  if (status === 413 || status === 422 || (status === 409 && RECORD_CONFLICTS.has(code ?? ''))) {
     if (await halveDelivery(account, binding.bandId)) return true;
-    logger.error('band: запись отвергнута приёмником и отброшена', {
-      status,
-      reason: String(failure),
-    });
+    logger.error('band: запись отвергнута приёмником и отброшена', { status, code });
     await settle(account, binding.bandId);
     return true;
   }
 
-  // Конверт пачки сервер уже не принимает: чаще всего версия привязки у него
-  // другая. Повторять нечем — эта доставка мертва. Снимаем заморозку и
-  // забываем свою копию привязки: следующее подключение спросит её заново, и
-  // те же записи уедут под новым именем. Новых идентификаторов ради обхода
-  // конфликта здесь нет — состав записей не меняется.
+  // Конверт пачки сервер уже не принимает: версия привязки у него другая.
+  // Повторять нечем — эта доставка мертва. Снимаем заморозку и забываем свою
+  // копию привязки: следующее подключение спросит её заново, и те же записи
+  // уедут под новым именем. Новых идентификаторов ради обхода конфликта
+  // здесь нет — состав записей не меняется.
   if (status === 409) {
-    logger.error('band: пачка отвергнута как конфликт', {
-      code: errorCode(failure),
-      reason: String(failure),
-    });
+    logger.error('band: привязка устарела', { code });
     await unfreezeDelivery(account, binding.bandId);
     await dropStoredBinding(account, binding.mac);
     return false;

@@ -66,7 +66,11 @@ export type Draft = {
  * данные, снятые до сброса часов устройства, нельзя выдать за снятые после.
  * Наружу эпоха не уходит.
  */
-type PendingRecord = IngestionRecord & { epoch: string | null };
+type PendingRecord = IngestionRecord & {
+  epoch: string | null;
+  /** Поток и сутки: по ним свежий снимок замещает в очереди прежний. */
+  slot?: string;
+};
 
 type Stored = {
   sequence: number;
@@ -166,23 +170,33 @@ export function enqueue(
       if (!snapshot && at <= (seen[slot] ?? -Infinity)) continue;
 
       sequence += 1;
+      // Личность события: для измерений — что и когда, для снимков — ещё и
+      // содержимое. Сводка дня в полдень и вечером — разные события: приёмник
+      // не даёт менять содержимое под уже принятым идентификатором.
+      const identity = snapshot
+        ? `${bandId}|${draft.stream}|${draft.key}|${JSON.stringify(draft.payload)}`
+        : `${bandId}|${draft.stream}|${draft.key}`;
       const record: PendingRecord = {
-        eventId: uuidFrom(`${bandId}|${draft.stream}|${draft.key}`),
+        eventId: uuidFrom(identity),
         sequence,
         stream: draft.stream,
         capturedAt,
         timeQuality: options.timeQuality,
         payload: draft.payload,
         epoch: options.epoch ?? null,
+        slot: snapshot ? slot : undefined,
       };
 
-      // Снимок в очереди заменяется свежим: две сводки одного дня — это одно
-      // событие, и отправлять обе значит гнать заведомо устаревшую.
+      // Снимок в очереди замещает прежний того же дня: отправлять обе версии
+      // значит гнать заведомо устаревшую. Прежний с тем же содержимым — тот же
+      // eventId, и второй раз он не нужен.
       const waiting = pending.findIndex(
-        (item, index) => index >= frozen && item.eventId === record.eventId,
+        (item, index) =>
+          index >= frozen && (snapshot ? item.slot === slot : item.eventId === record.eventId),
       );
       if (waiting === -1) pending.push(record);
-      else pending[waiting] = record;
+      else if (pending[waiting]?.eventId !== record.eventId) pending[waiting] = record;
+      else sequence -= 1;
 
       seen[slot] = Math.max(seen[slot] ?? 0, at);
     }
