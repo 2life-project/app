@@ -43,7 +43,7 @@ const VERIFY_PAUSE_MS = 2000;
 let running = false;
 
 export async function uploadRecordings(): Promise<void> {
-  const account = currentUser()?.sub;
+  const account = currentUser()?.id;
   if (!account || running) return;
 
   // Файл записи не помнит, с какого браслета он пришёл; действующая привязка

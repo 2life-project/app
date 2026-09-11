@@ -20,7 +20,8 @@ import { logger } from '@/core/log/logger';
 const REFRESH_KEY = 'twolife.refresh';
 
 export type SessionUser = {
-  sub: string;
+  /** Идентификатор аккаунта — им ключуется всё личное на телефоне. */
+  id: string;
   username: string;
   displayName?: string | null;
   email?: string | null;

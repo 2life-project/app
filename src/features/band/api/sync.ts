@@ -36,7 +36,7 @@ export async function syncRecordings(deviceId: string): Promise<SyncResult> {
   // файл с устройства и стереть его там — значило бы потерять запись совсем.
   // Аккаунт запоминается здесь, до качки: она долгая, а файл обязан лечь в
   // папку того, для кого его забирали.
-  const account = currentUser()?.sub;
+  const account = currentUser()?.id;
   if (!account) return { fetched: 0, freed: 0 };
 
   const band = await Band.connect(deviceId);

@@ -54,7 +54,7 @@ export type RecordingMark = {
 };
 
 /** Папка записей аккаунта — текущего, если не сказано иначе. `null` — никто не вошёл. */
-function folder(account = currentUser()?.sub): Directory | null {
+function folder(account = currentUser()?.id): Directory | null {
   if (!account) return null;
 
   const directory = new Directory(Paths.document, FOLDER, account);

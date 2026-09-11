@@ -106,7 +106,7 @@ export async function ensureBinding(
   info: DeviceInfo | undefined,
   clockSkewSeconds: number | null,
 ): Promise<Binding | null> {
-  const account = currentUser()?.sub;
+  const account = currentUser()?.id;
   if (!account) return null;
 
   const mac = info?.mac;
@@ -236,7 +236,7 @@ export function clockWasReset(skewSeconds: number | null): boolean {
  * отключение закрывает приём, а не стирает измеренное.
  */
 export async function releaseBinding(mac: string | undefined): Promise<void> {
-  const account = currentUser()?.sub;
+  const account = currentUser()?.id;
   if (!account || !mac) return;
 
   const binding = await storedBinding(account, mac);

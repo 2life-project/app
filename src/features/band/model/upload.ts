@@ -58,7 +58,7 @@ let running = false;
  * некуда.
  */
 export async function publishToServer(state: BandState): Promise<void> {
-  const account = currentUser()?.sub;
+  const account = currentUser()?.id;
   if (!account) return;
 
   const binding = await ensureBinding(state.info, state.clockSkew ?? null);
@@ -117,7 +117,7 @@ export async function publishDays(
   days: readonly string[],
   clockSkewSeconds: number | null,
 ): Promise<void> {
-  const account = currentUser()?.sub;
+  const account = currentUser()?.id;
   const binding = account ? await latestBinding(account) : null;
   if (!account || !binding || days.length === 0) return;
 
@@ -158,7 +158,7 @@ function coverageOfDay(day: string): Coverage[] {
  * связи с устройством нет.
  */
 export async function flushOutbox(): Promise<void> {
-  const account = currentUser()?.sub;
+  const account = currentUser()?.id;
   if (!account || running) return;
 
   running = true;
@@ -308,7 +308,7 @@ async function reportIssues(account: string, binding: Binding, delivery: Deliver
  * неизвестной принадлежности, и он прав.
  */
 export async function releaseServerBinding(mac: string | undefined): Promise<void> {
-  const account = currentUser()?.sub;
+  const account = currentUser()?.id;
   if (!account || !mac) return;
 
   const binding = (await bindingsOfAccount(account)).find((item) => item.mac === mac);
