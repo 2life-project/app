@@ -53,9 +53,8 @@ export type RecordingMark = {
   offsetSeconds: number;
 };
 
-/** Папка записей текущего аккаунта. `null` — никто не вошёл, записей нет. */
-function folder(): Directory | null {
-  const account = currentUser()?.sub;
+/** Папка записей аккаунта — текущего, если не сказано иначе. `null` — никто не вошёл. */
+function folder(account = currentUser()?.sub): Directory | null {
   if (!account) return null;
 
   const directory = new Directory(Paths.document, FOLDER, account);
@@ -112,10 +111,11 @@ function parseName(name: string): { session: number; rawBytes: number; uploaded:
  * Сохранить запись. Принимает сырой поток пакетов с устройства и упаковывает
  * его в Ogg — так файл сразу играется и принимается сервисами распознавания.
  */
-export function saveRecording(session: number, raw: Uint8Array): SavedRecording {
-  const home = folder();
-  // Без аккаунта записи некуда положить — а вызывающий обязан проверить это
-  // до того, как заберёт файл с устройства.
+export function saveRecording(session: number, raw: Uint8Array, account?: string): SavedRecording {
+  // Аккаунт берётся тем, кто начал выгрузку, — до того, как файл забрали с
+  // устройства: сессия за время долгой качки могла смениться, а файл уже в
+  // руках и обязан лечь в папку того, для кого его забирали.
+  const home = folder(account);
   if (!home) throw new Error('band: записи некуда сохранить — никто не вошёл');
 
   // Имя несёт длину потока, поэтому докачанная заново запись легла бы вторым

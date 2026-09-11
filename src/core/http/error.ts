@@ -42,6 +42,17 @@ export function reportFailure(message: string, failure: unknown): void {
   else logger.error(message, { reason: String(failure) });
 }
 
+/**
+ * Подробности отказа проверки: сервер называет поле и причину. Только для
+ * лога — в интерфейс уходит своя формулировка по коду.
+ */
+export function errorDetails(failure: unknown): unknown {
+  if (!(failure instanceof HttpError)) return undefined;
+  const body = typeof failure.body === 'string' ? safeParse(failure.body) : failure.body;
+  if (typeof body !== 'object' || body === null) return undefined;
+  return (body as { details?: unknown }).details;
+}
+
 function safeParse(text: string): unknown {
   try {
     return JSON.parse(text);

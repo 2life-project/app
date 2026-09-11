@@ -34,7 +34,10 @@ type SyncResult = { fetched: number; freed: number };
 export async function syncRecordings(deviceId: string): Promise<SyncResult> {
   // Записи принадлежат аккаунту, и без него им нет места на телефоне. Забрать
   // файл с устройства и стереть его там — значило бы потерять запись совсем.
-  if (!currentUser()) return { fetched: 0, freed: 0 };
+  // Аккаунт запоминается здесь, до качки: она долгая, а файл обязан лечь в
+  // папку того, для кого его забирали.
+  const account = currentUser()?.sub;
+  if (!account) return { fetched: 0, freed: 0 };
 
   const band = await Band.connect(deviceId);
 
@@ -59,7 +62,7 @@ export async function syncRecordings(deviceId: string): Promise<SyncResult> {
         continue;
       }
 
-      saveRecording(recording.session, raw);
+      saveRecording(recording.session, raw, account);
       fetched += 1;
 
       await band.recorder.remove(recording.session);

@@ -2,7 +2,7 @@ import { authToken, refreshSession } from '@/core/auth';
 import { env } from '@/core/config/env';
 import { logger } from '@/core/log/logger';
 
-import { HttpError } from './error';
+import { errorDetails, errorCode, HttpError } from './error';
 
 export { HttpError, errorCode, reportFailure } from './error';
 
@@ -95,8 +95,16 @@ async function unwrap<T>(path: string, response: Response): Promise<T> {
   }
 
   if (!response.ok) {
-    logger.error('Запрос не прошёл', { path, status: response.status });
-    throw new HttpError(response.status, payload);
+    const failure = new HttpError(response.status, payload);
+    // Код и поля из ответа — в лог, не в интерфейс: без них 422 неотличим
+    // от любого другого 422, а чинить контракт надо по имени поля.
+    logger.error('Запрос не прошёл', {
+      path,
+      status: response.status,
+      error: errorCode(failure),
+      details: errorDetails(failure),
+    });
+    throw failure;
   }
 
   return payload as T;

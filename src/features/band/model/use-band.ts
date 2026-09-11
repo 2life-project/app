@@ -8,7 +8,7 @@ import { Band, type FoundBand, mergeFound, scanForBands } from '../api';
 import { uploadRecordings } from './audio-upload';
 import { startBackgroundSync } from './background';
 import { useBandActions } from './band-actions';
-import { backfillHistory, loadEverything, saveSnapshot } from './band-data';
+import { backfillHistory, loadEverything, loadHistory, saveSnapshot } from './band-data';
 import { INITIAL, type BandState } from './band-state';
 import { forgetBand } from './forget-band';
 import { sendProfile } from './profile-sync';
@@ -92,7 +92,27 @@ export function useBand() {
     stopScan.current = result.stop;
   }, [patch]);
 
-  /** Обновить всё, что читается разом. Вызывается после подключения и по кнопке. */
+  /**
+   * Что делать с прочитанным: показать разделу, отдать остальному приложению,
+   * отправить на сервер. Отправка — без ожидания: она ходит в сеть, а этот
+   * путь стоит на подключении, и человек не должен ждать чужую сеть.
+   */
+  const share = useCallback(() => {
+    saveSnapshot(latest.current);
+    // Итоги дня — остальному приложению. Здесь, а не на каждом живом отчёте:
+    // отчёты приходят каждые десять секунд, а минутные итоги между ними те же.
+    publishReadings(latest.current);
+    void publishToServer(latest.current);
+    void uploadRecordings();
+  }, []);
+
+  /**
+   * Обновить всё, что читается. Вызывается после подключения и по кнопке.
+   *
+   * В два приёма: быстрые чтения уезжают на сервер сразу, а история — когда
+   * дочитается. Она идёт кадр за кадром минуты, и ждать её значило бы, что
+   * после подключения на сервере долго нет ничего.
+   */
   const refresh = useCallback(async () => {
     const active = band.current;
     if (!active) return;
@@ -100,20 +120,13 @@ export function useBand() {
     patch({ busy: true });
     try {
       await loadEverything(active, patch);
-      saveSnapshot(latest.current);
-      // Итоги дня — остальному приложению. Здесь, а не на каждом живом отчёте:
-      // отчёты приходят каждые десять секунд, а минутные итоги между ними те же.
-      publishReadings(latest.current);
-
-      // Отправка — без ожидания. Она ходит в сеть, а этот же `refresh`
-      // стоит на пути подключения: дождись мы ответа сервера, человек
-      // столько же секунд смотрел бы на «читаем…» из-за чужой сети.
-      void publishToServer(latest.current);
-      void uploadRecordings();
+      share();
+      await loadHistory(active, patch);
+      share();
     } finally {
       patch({ busy: false });
     }
-  }, [patch]);
+  }, [patch, share]);
 
   /**
    * Правка, считающая новое значение от актуального состояния.
