@@ -172,7 +172,7 @@ function syncPoll(): void {
 
   pollTimer = setInterval(() => {
     // Ссылка берётся в начале тика: пока отказ доедет до `catch`, обрыв мог
-    // уже поднять новое соединение — гасить надо то, что опрашивали, а не его.
+    // поднять новое соединение — гасить надо то, что опрашивали.
     const active = bandRef.current;
     if (!active) return;
     void active
@@ -256,8 +256,7 @@ export async function connect(device: FoundBand): Promise<void> {
     await refresh();
     patch({ step: undefined });
 
-    // Записи, сделанные без связи, событием не придут: спросить список.
-    void collectRecordings();
+    void collectRecordings(); // записи без связи событием не придут: спросить список
 
     // Дочитать сутки, которые устройство ещё помнит, а телефон уже нет. После
     // `refresh`, а не вместо: экран к этому моменту уже полон, а архив
