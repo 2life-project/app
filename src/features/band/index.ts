@@ -11,6 +11,11 @@ import './model/background';
 // Побочный эффект импорта: при выходе из аккаунта показания браслета уходят
 // вместе с человеком. Регистрируется в корне по той же причине, что и выгрузка.
 import './model/on-sign-out';
+import { start } from './model/link';
+
+// Связь с браслетом поднимается вместе с приложением, а не с экраном: экран
+// её только показывает, а держится она и когда человек в другом разделе.
+start();
 
 export { BandPanel } from './ui/band-panel';
 export { BandScreen, BandScreenOptions } from './ui/band-screen';

@@ -30,7 +30,14 @@ export {
   type Vital,
   type VitalGroup,
 } from './band-readings';
-export { setPairedBand, useBandPaired, usePairedBand, type PairedBand } from './connection';
+export {
+  onPairedBand,
+  pairedBand,
+  setPairedBand,
+  useBandPaired,
+  usePairedBand,
+  type PairedBand,
+} from './connection';
 export {
   createEvent,
   eventKey,
