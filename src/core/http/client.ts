@@ -17,6 +17,9 @@ export function searchParams(params: Record<string, string>): string {
 
 const TIMEOUT_MS = 15_000;
 
+/** Сколько символов подробностей отказа пускать в лог: имена полей влезают, дампы — нет. */
+const DETAILS_LIMIT = 800;
+
 /**
  * Необязательное поле объекта разрешено: `JSON.stringify` просто выбрасывает
  * `undefined`, а типы контракта описывают такие поля как опциональные —
@@ -98,11 +101,13 @@ async function unwrap<T>(path: string, response: Response): Promise<T> {
     const failure = new HttpError(response.status, payload);
     // Код и поля из ответа — в лог, не в интерфейс: без них 422 неотличим
     // от любого другого 422, а чинить контракт надо по имени поля.
+    // Подробности — строкой: вложенный объект консоль печатает как [Object],
+    // а чинить контракт надо по имени поля.
     logger.error('Запрос не прошёл', {
       path,
       status: response.status,
       error: errorCode(failure),
-      details: errorDetails(failure),
+      details: JSON.stringify(errorDetails(failure) ?? null).slice(0, DETAILS_LIMIT),
     });
     throw failure;
   }
