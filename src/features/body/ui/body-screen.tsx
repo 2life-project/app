@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 
+import { useBandPaired } from '@/shared/domain';
 import { shiftDay, useToday } from '@/shared/lib/day';
 import { Card, PagedScreen, Text } from '@/shared/ui';
 
@@ -22,6 +23,9 @@ export function BodyScreen({ device }: { device?: Partial<Record<BodySection, Re
   const { date: today, timeZone } = useToday();
   // Показанный день общий для всех систем: перелистнул в «Сердце» — и «Сон» на том же дне.
   const [date, setDate] = useState(today);
+  // Без привязки секции браслета пусты, а пустой элемент всё равно элемент:
+  // раздел принял бы его за содержимое и спрятал вход в подключение.
+  const paired = useBandPaired();
 
   return (
     <PagedScreen
@@ -37,7 +41,7 @@ export function BodyScreen({ device }: { device?: Partial<Record<BodySection, Re
           timeZone={timeZone}
           onShift={(days) => setDate(shiftDay(date, days))}
           // Карточки устройства — про сейчас: на прошлом дне они врали бы датой.
-          device={date === today ? device?.[section.value] : undefined}
+          device={date === today && paired ? device?.[section.value] : undefined}
           fallback={
             <Card variant="sunken">
               <Text tone="muted">Loading this system…</Text>

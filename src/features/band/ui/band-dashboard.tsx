@@ -130,7 +130,11 @@ export function BandDashboard({
             <Button label="Take a reading" onPress={onMeasure} disabled={!live} />
             <Button label="Buzz" variant="tonal" onPress={onVibrate} disabled={!live} />
             {state.recording ? (
-              <Button label="Stop recording" variant="tonal" onPress={onStopRecording} />
+              <Button
+                label={state.recordingPaused ? 'Finish recording' : 'Stop recording'}
+                variant="tonal"
+                onPress={onStopRecording}
+              />
             ) : (
               <Button
                 label="Record voice"
@@ -141,9 +145,11 @@ export function BandDashboard({
             )}
           </View>
           <Text variant="bodySmall" tone="muted">
-            {live
-              ? 'A single reading takes about a minute — the optical sensor turns on for it rather than running all the time.'
-              : 'Commands need a live connection to the band.'}
+            {state.recordingPaused
+              ? 'Recording is paused: one press on the band continues it, two presses finish and save.'
+              : live
+                ? 'A single reading takes about a minute — the optical sensor turns on for it rather than running all the time.'
+                : 'Commands need a live connection to the band.'}
           </Text>
         </Stack>
       </Card>

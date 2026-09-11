@@ -122,12 +122,6 @@ export function dosesOf(data: unknown): DosesView | null {
 
 export type GoalRow = { id: string; title: string; target: string; by?: string };
 
-/** Имена целей, которые сервер отдаёт ключом показателя, а не словами. */
-const GOAL_TITLES: Record<string, string> = {
-  weightKg: 'Weight',
-  water_ml: 'Water',
-};
-
 const GOAL_UNITS: Record<string, string> = {
   weightKg: 'kg',
   water_ml: 'ml',
@@ -143,7 +137,7 @@ export function goalsOf(home: HomeData): GoalRow[] {
     const unit = GOAL_UNITS[metric] ?? '';
     rows.push({
       id: goal.id,
-      title: GOAL_TITLES[title] ?? GOAL_TITLES[metric] ?? title,
+      title: METRIC_TITLES[title] ?? METRIC_TITLES[metric] ?? title,
       target:
         typeof goal.target === 'number'
           ? `${formatNumber(goal.target, unit)} ${unit}`.trim()
@@ -168,7 +162,9 @@ export type StreamRow = {
   fresh: boolean;
 };
 
-const STREAM_TITLES: Record<string, string> = {
+/** Имена показателей словами: сервер отдаёт ключи, а человек читает подписи. */
+export const METRIC_TITLES: Record<string, string> = {
+  water_ml: 'Water',
   heart_rate: 'Heart rate',
   steps: 'Steps',
   spo2: 'Blood oxygen',
@@ -234,7 +230,7 @@ export function streamsOf(home: HomeData): StreamRow[] {
       rank,
       row: {
         key: stream.key,
-        title: STREAM_TITLES[stream.key] ?? humanize(stream.key),
+        title: METRIC_TITLES[stream.key] ?? humanize(stream.key),
         raw: stream.value,
         value: `${formatNumber(stream.value, unit)}${unit ? ` ${unit}` : ''}`,
         source: SOURCE_TITLES[source] ?? source,

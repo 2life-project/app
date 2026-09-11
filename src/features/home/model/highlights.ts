@@ -1,6 +1,7 @@
 import type Feather from '@expo/vector-icons/Feather';
 
 import { formatNumber, type BandReadings } from '@/shared/domain';
+import { clockOf } from '@/shared/lib/day';
 
 import type { HomeData } from '../api/contract';
 
@@ -23,6 +24,7 @@ export type Highlight = {
   id: string;
   icon: IconName;
   tone: HighlightTone;
+  /** Подпись карточки — уже капсом, как подписи плиток: капс пишет автор строки. */
   title: string;
   value: string;
   unit?: string;
@@ -30,13 +32,6 @@ export type Highlight = {
   /** Ключ показателя на сервере: по нему открывается экран с графиками. */
   metric?: string;
 };
-
-function clockOf(iso: string | undefined): string | undefined {
-  if (!iso) return undefined;
-  const at = new Date(iso);
-  if (Number.isNaN(at.getTime())) return undefined;
-  return `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`;
-}
 
 function serverCaption(row: StreamRow | undefined): string | undefined {
   if (!row) return undefined;
@@ -61,7 +56,7 @@ export function highlightsOf(home: HomeData | null, band: BandReadings | null): 
   const nutrition = home ? dataOf(home.rings.nutrition) : null;
   const recover = recoverExtraOf(home ? widgetOfType(home, 'recover') : undefined);
   const streams = new Map((home ? streamsOf(home) : []).map((row) => [row.key, row]));
-  const at = band ? clockOf(band.updatedAt) : undefined;
+  const at = band ? clockOf(new Date(band.updatedAt)) : undefined;
   const fromBand = at ? `band · ${at}` : 'band';
   const metrics = movement?.metrics;
 
@@ -74,7 +69,7 @@ export function highlightsOf(home: HomeData | null, band: BandReadings | null): 
 
   const cards = [
     card(
-      { id: 'steps', icon: 'activity', tone: 'accent', title: 'Steps', metric: 'steps' },
+      { id: 'steps', icon: 'activity', tone: 'accent', title: 'STEPS', metric: 'steps' },
       band?.steps ?? metrics?.steps,
       whole,
       band?.steps !== undefined ? fromBand : serverCaption(streams.get('steps')),
@@ -84,7 +79,7 @@ export function highlightsOf(home: HomeData | null, band: BandReadings | null): 
         id: 'energy',
         icon: 'zap',
         tone: 'warning',
-        title: 'Active energy',
+        title: 'ACTIVE ENERGY',
         unit: 'kcal',
         metric: 'active_energy',
       },
@@ -93,7 +88,7 @@ export function highlightsOf(home: HomeData | null, band: BandReadings | null): 
       band?.calories !== undefined ? fromBand : serverCaption(streams.get('active_energy')),
     ),
     card(
-      { id: 'distance', icon: 'map-pin', tone: 'accent', title: 'Distance', unit: 'km' },
+      { id: 'distance', icon: 'map-pin', tone: 'accent', title: 'DISTANCE', unit: 'km' },
       band?.distanceMeters ?? metrics?.distanceMeters,
       (meters) => tenth(meters / 1000),
       band?.distanceMeters !== undefined ? fromBand : undefined,
@@ -103,7 +98,7 @@ export function highlightsOf(home: HomeData | null, band: BandReadings | null): 
         id: 'heart',
         icon: 'heart',
         tone: 'danger',
-        title: 'Heart rate',
+        title: 'HEART RATE',
         unit: 'bpm',
         metric: 'heart_rate',
       },
@@ -128,7 +123,7 @@ export function highlightsOf(home: HomeData | null, band: BandReadings | null): 
         id: 'spo2',
         icon: 'wind',
         tone: 'highlight',
-        title: 'Blood oxygen',
+        title: 'BLOOD OXYGEN',
         unit: '%',
         metric: 'spo2',
       },
@@ -141,7 +136,7 @@ export function highlightsOf(home: HomeData | null, band: BandReadings | null): 
         id: 'sleep',
         icon: 'moon',
         tone: 'highlight',
-        title: 'Sleep',
+        title: 'SLEEP',
         unit: 'h',
         metric: 'sleep_duration',
       },
@@ -154,13 +149,13 @@ export function highlightsOf(home: HomeData | null, band: BandReadings | null): 
           : 'last night',
     ),
     card(
-      { id: 'stress', icon: 'thermometer', tone: 'warning', title: 'Stress', metric: undefined },
+      { id: 'stress', icon: 'thermometer', tone: 'warning', title: 'STRESS', metric: undefined },
       band?.stress,
       whole,
       fromBand,
     ),
     card(
-      { id: 'calories', icon: 'coffee', tone: 'success', title: 'Calories eaten', unit: 'kcal' },
+      { id: 'calories', icon: 'coffee', tone: 'success', title: 'CALORIES EATEN', unit: 'kcal' },
       nutrition?.totals.calories,
       whole,
       nutrition?.goals.calories
@@ -172,7 +167,7 @@ export function highlightsOf(home: HomeData | null, band: BandReadings | null): 
         id: 'recovery',
         icon: 'battery-charging',
         tone: 'success',
-        title: 'Recovery',
+        title: 'RECOVERY',
         unit: '%',
         metric: 'recovery',
       },

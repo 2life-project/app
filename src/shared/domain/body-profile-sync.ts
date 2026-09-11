@@ -1,5 +1,4 @@
-import { request } from '@/core/http/client';
-import { logger } from '@/core/log/logger';
+import { reportFailure, request } from '@/core/http/client';
 
 import {
   bodyProfile,
@@ -11,6 +10,7 @@ import {
   sexOf,
   within,
   type BodyProfile,
+  type Sex,
 } from './body-profile';
 
 /**
@@ -40,6 +40,18 @@ type BodyFields = Pick<BodyProfile, 'heightCm' | 'weightKg' | 'birthDate' | 'sex
 const FIELDS = ['heightCm', 'weightKg', 'birthDate', 'sex'] as const;
 
 const NOTHING: BodyFields = { heightCm: null, weightKg: null, birthDate: null, sex: null };
+
+/**
+ * Как сервер называет пол. Его словарь в спеке не описан, а старый обработчик
+ * не приводит чужое слово к своему — отвергает. Поэтому запоминаем слово, с
+ * которым сервер сам отдал пол, и возвращаем ему его же.
+ */
+const sexWords: Record<Sex, string> = { male: 'male', female: 'female' };
+
+/** Сверка с сервером не чаще раза в час: подключений в плохой связи десятки за час. */
+const SYNC_TTL_MS = 60 * 60 * 1000;
+
+let syncedAt = 0;
 
 /**
  * Свести то, что знает сервер, с тем, что на телефоне.
@@ -73,6 +85,11 @@ export function mergeServerProfile(
   return { merged, push };
 }
 
+function rememberSexWord(server: ServerBody | undefined): void {
+  const sex = sexOf(server?.sex);
+  if (sex && server?.sex) sexWords[sex] = server.sex;
+}
+
 async function pushToServer(profile: BodyProfile, id?: string): Promise<void> {
   // `PATCH` требует идентификатор профиля, а его отдаёт только `GET`.
   const profileId = id ?? (await request<ServerProfile>('/api/profile')).profile?.id;
@@ -85,7 +102,7 @@ async function pushToServer(profile: BodyProfile, id?: string): Promise<void> {
       heightCm: profile.heightCm,
       weightKg: profile.weightKg,
       dateOfBirth: profile.birthDate,
-      sex: profile.sex,
+      sex: profile.sex ? sexWords[profile.sex] : null,
     },
   });
 }
@@ -110,7 +127,9 @@ export function saveBodyProfile(patch: Partial<BodyProfile>): BodyProfile {
       if (mine === edition) markUnsynced(false);
     })
     .catch((failure: unknown) => {
-      logger.warn('Профиль тела не ушёл на сервер', { reason: String(failure) });
+      // Ответ сервера уже записан клиентом; отказ без ответа — сеть — здесь
+      // единственная запись, и в релизе она обязана быть видна.
+      reportFailure('Профиль тела не ушёл на сервер', failure);
     });
 
   return next;
@@ -128,16 +147,25 @@ export async function syncBodyProfile(signal?: AbortSignal): Promise<BodyProfile
       markUnsynced(false);
       return bodyProfile();
     }
+    if (Date.now() - syncedAt < SYNC_TTL_MS) return bodyProfile();
 
+    const before = edition;
     const answer = await request<ServerProfile>('/api/profile', { signal });
+    rememberSexWord(answer.profile);
+    // Пока ответ ехал, человек мог поправить профиль: его правка новее всего,
+    // что знает сервер, и уедет своим путём — сводить её с ответом нельзя.
+    if (edition !== before) return bodyProfile();
+
     const { merged, push } = mergeServerProfile(bodyProfile(), answer.profile);
     const next = setBodyProfile(merged);
     if (push && answer.profile) await pushToServer(next, answer.profile.id);
+    syncedAt = Date.now();
     return next;
   } catch (failure) {
     // Профиль на телефоне уже есть, и жить без сервера он умеет: это сверка,
-    // а не загрузка экрана. Ронять из-за неё нечего.
-    logger.warn('Профиль тела не сверился с сервером', { failure });
+    // а не загрузка экрана. Но отказ без ответа сервера нигде больше не
+    // записан — в релизе виден только он.
+    reportFailure('Профиль тела не сверился с сервером', failure);
     return bodyProfile();
   }
 }

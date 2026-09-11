@@ -92,7 +92,7 @@ export function HomeScreen({ activityDevice }: { activityDevice?: ReactNode } = 
           key="a"
           home={state.home}
           band={band}
-          device={date === today ? activityDevice : undefined}
+          device={date === today && bandPaired ? activityDevice : undefined}
           today={today}
           onShift={shift}
         />,
@@ -115,7 +115,7 @@ export function HomeScreen({ activityDevice }: { activityDevice?: ReactNode } = 
           <BandOnly
             key={section.value}
             band={band}
-            device={date === today ? activityDevice : undefined}
+            device={date === today && bandPaired ? activityDevice : undefined}
           />
         ) : (
           <StateCard key={section.value} query={home} />

@@ -85,6 +85,13 @@ export function enqueue(
     const pending = [...stored.pending];
     // Записи внутри замороженной пачки трогать нельзя: она уже могла уехать.
     const frozen = stored.delivery?.records ?? 0;
+    // Индексы один раз на порцию: перебор очереди на каждую запись превращал
+    // пачку истории в миллионы сравнений под общим замком очереди.
+    const queued = new Set(pending.map((item) => item.eventId));
+    const slots = new Map<string, number>();
+    pending.forEach((item, index) => {
+      if (index >= frozen && item.slot) slots.set(item.slot, index);
+    });
 
     for (const draft of drafts) {
       const slot = `${draft.stream}|${dayKey(draft.at)}`;
@@ -122,7 +129,7 @@ export function enqueue(
 
       // Такое событие уже в очереди — в замороженной пачке или за ней: второй
       // экземпляр приёмник отвергает вместе со всей пачкой как дубль.
-      if (pending.some((item) => item.eventId === record.eventId)) {
+      if (queued.has(record.eventId)) {
         sequence -= 1;
         continue;
       }
@@ -130,22 +137,29 @@ export function enqueue(
       // Снимок в очереди замещает прежний того же дня: отправлять обе версии
       // значит гнать заведомо устаревшую. Замороженный не трогаем — он уже
       // мог уехать, новый встанет следом.
-      const stale = snapshot
-        ? pending.findIndex((item, index) => index >= frozen && item.slot === slot)
-        : -1;
-      if (stale === -1) pending.push(record);
-      else pending[stale] = record;
+      const stale = snapshot ? slots.get(slot) : undefined;
+      const previous = stale === undefined ? undefined : pending[stale];
+      if (stale === undefined || !previous) {
+        pending.push(record);
+        if (snapshot) slots.set(slot, pending.length - 1);
+      } else {
+        queued.delete(previous.eventId);
+        pending[stale] = record;
+      }
+      queued.add(record.eventId);
     }
 
     const coverage = mergeCoverage(stored.coverage, options.coverage ?? []);
     const unchanged = sequence === stored.sequence && coverage.length === stored.coverage.length;
     if (unchanged) return;
 
+    // Поверх сохранённого, а не заново: окно после отказа и счёт повторов
+    // живут в той же записи и не должны сбрасываться каждым чтением.
     await save(account, bandId, {
+      ...stored,
       sequence,
       pending: capped(pending, frozen),
       coverage,
-      delivery: stored.delivery,
       seen,
       snapshots,
     });

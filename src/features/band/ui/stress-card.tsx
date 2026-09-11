@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
 
+import { NO_VALUE } from '@/shared/domain';
+
 import type { BandState } from '../model/band-state';
 import {
   STRESS_ZONES,
@@ -25,7 +27,7 @@ export function StressCard({ state, onOpen }: { state: BandState; onOpen: () => 
   return (
     <MetricCard
       title="Stress"
-      value={String(state.measurement?.stress ?? stress[stress.length - 1]?.value ?? '\u2014')}
+      value={String(state.measurement?.stress ?? stress[stress.length - 1]?.value ?? NO_VALUE)}
       caption={readingsCaption(stress.length)}
       tone="warning"
       series={series}

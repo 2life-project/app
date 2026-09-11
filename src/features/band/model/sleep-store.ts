@@ -1,18 +1,22 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { currentUser } from '@/core/auth';
 import { logger } from '@/core/log/logger';
 
 import type { SleepSegment, SleepSession } from '../api';
+
+import { serial } from './serial';
 
 /**
  * Ночи, которые телефон уже видел.
  *
  * Браслет помнит около четырёх суток, а раздел восстановления должен
  * показывать историю сна целиком: ночь, прочитанная однажды, остаётся на
- * телефоне и после того, как устройство её затёрло.
+ * телефоне и после того, как устройство её затёрло. Ключ — по аккаунту:
+ * телефоном пользуются двое, и ночи одного не должны достаться другому.
  */
 
-const KEY = '2life:band-nights.1';
+const PREFIX = '2life:band-nights.1:';
 
 /** Сколько ночей держать: глубже трёх месяцев историю сна глазами не читают. */
 const NIGHTS_LIMIT = 90;
@@ -27,6 +31,11 @@ type StoredNight = Omit<SleepSession, 'from' | 'to' | 'segments'> & {
 /** Ночь узнаётся по засыпанию: две ночи с одним началом — одна и та же ночь. */
 export function nightKey(night: SleepSession): number {
   return night.from.getTime();
+}
+
+function keyOf(): string | null {
+  const account = currentUser()?.id;
+  return account ? `${PREFIX}${account}` : null;
 }
 
 function pack(night: SleepSession): StoredNight {
@@ -63,24 +72,45 @@ export function mergeNights(
 }
 
 export async function loadNights(): Promise<SleepSession[]> {
+  const key = keyOf();
+  if (!key) return [];
+
+  let raw: string | null = null;
   try {
-    const raw = await AsyncStorage.getItem(KEY);
+    raw = await AsyncStorage.getItem(key);
     return raw === null ? [] : (JSON.parse(raw) as StoredNight[]).map(unpack);
   } catch (failure) {
-    logger.warn('band: история сна не прочиталась', { failure });
+    // Битую историю нельзя затереть следующей записью молча: в ней ночи,
+    // которых на браслете уже нет. Копия — под соседний ключ, для разбора.
+    logger.error('band: история сна не прочиталась, отложена', { failure });
+    if (raw !== null) {
+      await AsyncStorage.setItem(`${key}:broken`, raw).catch((reason: unknown) =>
+        logger.error('band: копия битой истории сна не сохранилась', { reason }),
+      );
+    }
     return [];
   }
 }
 
 /** Запомнить прочитанные ночи. Возвращает историю целиком. */
-export async function rememberNights(fresh: readonly SleepSession[]): Promise<SleepSession[]> {
-  const merged = mergeNights(await loadNights(), fresh);
-  await AsyncStorage.setItem(KEY, JSON.stringify(merged.map(pack))).catch((failure: unknown) =>
-    logger.warn('band: история сна не сохранилась', { failure }),
-  );
-  return merged;
+export function rememberNights(fresh: readonly SleepSession[]): Promise<SleepSession[]> {
+  // Под общим замком: чтение и запись внахлёст теряли бы ночи одного из чтений.
+  return serial(async () => {
+    const key = keyOf();
+    const merged = mergeNights(await loadNights(), fresh);
+    if (!key) return merged;
+
+    await AsyncStorage.setItem(key, JSON.stringify(merged.map(pack))).catch((failure: unknown) =>
+      logger.error('band: история сна не сохранилась', { failure }),
+    );
+    return merged;
+  });
 }
 
-export function clearNights(): Promise<void> {
-  return AsyncStorage.removeItem(KEY).catch(() => undefined);
+export async function clearNights(): Promise<void> {
+  const key = keyOf();
+  if (!key) return;
+  await AsyncStorage.removeItem(key).catch((failure: unknown) =>
+    logger.error('band: история сна не стёрлась', { failure }),
+  );
 }

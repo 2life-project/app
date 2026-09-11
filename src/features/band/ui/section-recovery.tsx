@@ -30,7 +30,7 @@ export function BandRecoverySection() {
   return (
     <Stack gap="md">
       <SleepCard
-        sleep={latest ? [latest] : []}
+        night={latest}
         reading={state.busy}
         onOpen={() => {
           if (latest) setNight(latest);

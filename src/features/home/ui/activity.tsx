@@ -10,18 +10,17 @@ import {
   Card,
   InfoCard,
   LinkCard,
-  ListRow,
   SectionCaption,
   SectionSummary,
   Stack,
   StatTile,
   Text,
+  VitalsList,
 } from '@/shared/ui';
+import { DayPager, type DayProps } from '@/shared/ui';
 
 import type { HomeData } from '../api/contract';
 import { activityOf } from '../model/activity';
-
-import { DayPager, type DayProps } from './day-pager';
 
 /**
  * Активность дня. Истории нагрузки в ответе Главной нет — графики периода
@@ -101,23 +100,7 @@ export function Activity({
 
       {/* То, чего сервер не считает: пульс покоя, ночь, вариабельность. Эти
           числа не спорят с оценкой движения — они про другое. */}
-      {vitals.length > 0 ? (
-        <Stack gap="sm">
-          <SectionCaption>MEASURED ON YOUR WRIST</SectionCaption>
-          <Card>
-            <Stack gap="xs">
-              {vitals.map((vital) => (
-                <ListRow
-                  key={vital.id}
-                  title={vital.title}
-                  subtitle={vital.note}
-                  trailing={vital.value}
-                />
-              ))}
-            </Stack>
-          </Card>
-        </Stack>
-      ) : null}
+      {vitals.length > 0 ? <VitalsList caption="MEASURED ON YOUR WRIST" vitals={vitals} /> : null}
 
       {device}
       <InfoCard

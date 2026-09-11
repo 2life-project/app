@@ -4,6 +4,7 @@ import { currentUser } from '@/core/auth';
 import { logger } from '@/core/log/logger';
 
 import { Band } from './band';
+import type { Recording } from './recorder';
 import { saveRecording, savedSessions } from './storage';
 
 /**
@@ -25,7 +26,19 @@ import { saveRecording, savedSessions } from './storage';
 /** Одна запись за окно: длинная выгрузка всё равно не успеет и начнётся заново. */
 const RECORDINGS_PER_RUN = 1;
 
-type SyncResult = { fetched: number; freed: number };
+export type SyncResult = {
+  fetched: number;
+  freed: number;
+  /** Что осталось на устройстве после качки: экран обновляется без повторного чтения. */
+  remaining: Recording[];
+};
+
+type PullOptions = {
+  /** Сколько записей забрать за заход: фоновое окно короткое. */
+  limit?: number;
+  /** Сессия, которую устройство пишет сейчас: её не качать и тем более не стирать. */
+  skip?: number;
+};
 
 /**
  * Забрать новые записи по уже открытому соединению.
@@ -37,10 +50,17 @@ type SyncResult = { fetched: number; freed: number };
 export async function pullRecordings(
   band: Pick<Band, 'recorder'>,
   account: string,
-  limit = Infinity,
+  { limit = Infinity, skip }: PullOptions = {},
 ): Promise<SyncResult> {
   const known = savedSessions();
-  const fresh = (await band.recorder.list()).filter((item) => !known.has(item.session));
+  const listed = await band.recorder.list();
+  // Пустая запись — та, что ещё пишется или только что началась: качать её
+  // нечего, а стереть значит уничтожить идущую запись. То же — про сессию,
+  // о которой устройство сообщило как об идущей.
+  const fresh = listed.filter(
+    (item) => !known.has(item.session) && item.session !== skip && item.bytes > 0,
+  );
+  const removed = new Set<number>();
 
   let fetched = 0;
   let freed = 0;
@@ -63,10 +83,11 @@ export async function pullRecordings(
     fetched += 1;
 
     await band.recorder.remove(recording.session);
+    removed.add(recording.session);
     freed += recording.bytes;
   }
 
-  return { fetched, freed };
+  return { fetched, freed, remaining: listed.filter((item) => !removed.has(item.session)) };
 }
 
 /**
@@ -77,11 +98,11 @@ export async function syncRecordings(deviceId: string): Promise<SyncResult> {
   // Записи принадлежат аккаунту, и без него им нет места на телефоне. Забрать
   // файл с устройства и стереть его там — значило бы потерять запись совсем.
   const account = currentUser()?.id;
-  if (!account) return { fetched: 0, freed: 0 };
+  if (!account) return { fetched: 0, freed: 0, remaining: [] };
 
   const band = await Band.connect(deviceId);
   try {
-    return await pullRecordings(band, account, RECORDINGS_PER_RUN);
+    return await pullRecordings(band, account, { limit: RECORDINGS_PER_RUN });
   } finally {
     await band.disconnect();
   }

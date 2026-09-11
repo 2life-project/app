@@ -167,9 +167,13 @@ export function bodyProfile(): BodyProfile {
 
 export function markUnsynced(flag: boolean): void {
   unsynced = flag;
+  // Метка на диске — единственное, что после перезапуска отличит правку от
+  // серверного значения: не легла — правку затрёт сверка, и это надо видеть.
   void (
     flag ? AsyncStorage.setItem(UNSYNCED_KEY, '1') : AsyncStorage.removeItem(UNSYNCED_KEY)
-  ).catch(() => undefined);
+  ).catch((failure: unknown) =>
+    logger.error('Метка неотправленного профиля не сохранилась', { failure }),
+  );
 }
 
 export function isUnsynced(): boolean {
@@ -200,7 +204,11 @@ export function clearBodyProfile(): void {
   profile = EMPTY_PROFILE;
   publish();
   markUnsynced(false);
-  void AsyncStorage.removeItem(KEY).catch(() => undefined);
+  // Не стёрлось — следующий вошедший увидит чужой рост и вес, и его браслет
+  // посчитает по чужому телу: такой отказ обязан быть в логе.
+  void AsyncStorage.removeItem(KEY).catch((failure: unknown) =>
+    logger.error('Профиль тела не стёрся при выходе', { failure }),
+  );
 }
 
 export function useBodyProfile(): BodyProfile {

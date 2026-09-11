@@ -53,7 +53,13 @@ export function TimelineRow({
       ) : null}
     </View>
   );
-  return onPress ? <Pressable onPress={onPress}>{row}</Pressable> : row;
+  return onPress ? (
+    <Pressable haptic={false} scaleTo={0.99} onPress={onPress}>
+      {row}
+    </Pressable>
+  ) : (
+    row
+  );
 }
 
 const DOT = 7;

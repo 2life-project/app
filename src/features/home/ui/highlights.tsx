@@ -43,12 +43,12 @@ function HighlightCard({ item }: { item: Highlight }) {
   const open = metric ? () => router.push(to.metric(metric)) : undefined;
 
   return (
-    <Pressable style={styles.cell} onPress={open} disabled={!open}>
+    <Pressable style={styles.cell} haptic={false} scaleTo={0.99} onPress={open} disabled={!open}>
       <Card style={styles.card}>
         <View style={styles.head}>
           <Feather name={item.icon} size={size.icon.sm} color={theme.color[item.tone].solid} />
           <Text variant="caption" tone="muted">
-            {item.title.toUpperCase()}
+            {item.title}
           </Text>
         </View>
         <View style={styles.value}>

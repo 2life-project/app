@@ -2,11 +2,11 @@ import { router } from 'expo-router';
 
 import { to } from '@/shared/nav';
 import { Card, InfoCard, LinkCard, ListRow, Stack, Text, WidgetCard } from '@/shared/ui';
+import { DayPager, type DayProps } from '@/shared/ui';
 
 import type { HomeData } from '../api/contract';
 import { nutritionOf } from '../model/nutrition';
 
-import { DayPager, type DayProps } from './day-pager';
 import { FuelSummary } from './fuel-summary';
 import { MealStrip } from './meal-strip';
 

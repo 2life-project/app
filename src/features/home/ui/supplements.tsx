@@ -15,13 +15,12 @@ import {
   Text,
   WidgetCard,
 } from '@/shared/ui';
+import { DayPager, type DayProps } from '@/shared/ui';
 
 import type { HomeData } from '../api/contract';
 import { markPlanItem } from '../api/home';
 import { intakeRowsOf, planCounts } from '../model/plan';
 import { COURSE_HINT, WHY_COURSES } from '../model/supplements';
-
-import { DayPager, type DayProps } from './day-pager';
 
 /**
  * Приёмы дня приходят пунктами объединённого плана; у каждого — готовое

@@ -1,5 +1,6 @@
 import type { Href } from 'expo-router';
 
+import { clockOf } from '@/shared/lib/day';
 import { to } from '@/shared/nav';
 
 import type { HomeData, PlanItem } from '../api/contract';
@@ -50,10 +51,7 @@ export function titleOf(item: PlanItem): string {
  * курсы, остальное — журнал дня.
  */
 export function planHref(item: PlanItem): Href {
-  const reference = item.reference as { protocolId?: unknown } | null | undefined;
-  const protocolId =
-    reference && typeof reference.protocolId === 'string' ? reference.protocolId : null;
-  if (protocolId) return to.protocol(protocolId);
+  if ('protocolId' in item.reference) return to.protocol(item.reference.protocolId);
   if (item.domain === 'supplements') return to.course('all');
   return to.journal();
 }
@@ -91,9 +89,6 @@ export function planCounts(
  * — «утро», «с едой»; выдумывать ей час нельзя.
  */
 export function timeOf(item: PlanItem): string {
-  if (item.startAt !== null) {
-    const at = new Date(item.startAt);
-    return `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`;
-  }
+  if (item.startAt !== null) return clockOf(item.startAt);
   return item.expectedTime ?? 'any time';
 }

@@ -85,7 +85,10 @@ export function settle(
 
     const sent = new Set(frozen.coverage.map(coverageKey));
     // Снимки уехавшей пачки приёмник получил — принял или отверг, — и второй
-    // раз с тем же содержимым их слать нельзя.
+    // раз с тем же содержимым их слать нельзя: имя снимка считается из
+    // содержимого, тот же снимок дал бы тот же отказ, а изменится содержимое
+    // — изменится и имя, и снимок уедет заново. Отказ по размеру или схеме
+    // при этом записан ошибкой — такую потерю надо видеть.
     const snapshots = { ...stored.snapshots };
     for (const record of stored.pending.slice(0, frozen.records)) {
       if (record.slot) snapshots[record.slot] = record.eventId;

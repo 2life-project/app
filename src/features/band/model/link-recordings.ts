@@ -3,7 +3,7 @@ import { logger } from '@/core/log/logger';
 
 import { pullRecordings, savedRecordings } from '../api';
 
-import { refresh } from './link-refresh';
+import { share } from './link-refresh';
 import { bandRef, patch, stateRef } from './link-store';
 
 /** Не качать поверх идущей качки: две выгрузки спорили бы за один файл. */
@@ -12,22 +12,24 @@ let collecting = false;
 /**
  * Забрать с устройства записи, которых на телефоне ещё нет, и отправить их.
  *
- * По живому соединению, без переподключения: браслет держит одну связь, и
- * рвать её ради качки значило бы терять живые отчёты на всё её время. Во
- * время занятия не качаем — секундный поток застыл бы до самого финиша.
+ * По живому соединению, без переподключения и без повторного чтения всего
+ * устройства: меняется только список записей, и он приходит из самой качки.
+ * Занятие качке не мешает — секундный поток идёт отчётами, а не запросами.
+ * Запись, которую устройство пишет сейчас, не трогается.
  */
 export async function collectRecordings(): Promise<void> {
   const active = bandRef.current;
   const account = currentUser()?.id;
-  if (!active || !account || collecting || stateRef.current.session) return;
+  if (!active || !account || collecting) return;
 
   collecting = true;
   try {
-    await pullRecordings(active, account);
-    patch({ saved: savedRecordings() });
-    // Перечитать устройство: список записей на нём изменился, а отправка
-    // скачанного на сервер — часть общей отправки прочитанного.
-    await refresh();
+    const result = await pullRecordings(active, account, {
+      skip: stateRef.current.recordingSession,
+    });
+    patch({ saved: savedRecordings(), recordings: result.remaining });
+    // Скачанное уезжает на сервер вместе с остальным прочитанным.
+    if (result.fetched > 0) share();
   } catch (error) {
     // Запись осталась на устройстве и заберётся следующим заходом, но причину
     // надо видеть: место на браслете кончается за пятнадцать часов записи.

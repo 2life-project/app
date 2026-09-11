@@ -4,6 +4,8 @@ import type { SleepSession } from '../api';
 
 import { loadNights, mergeNights, rememberNights } from './sleep-store';
 
+jest.mock('@/core/auth', () => ({ currentUser: () => ({ id: 'user-1' }) }));
+
 function night(from: string, asleep: number): SleepSession {
   const start = new Date(from);
   return {

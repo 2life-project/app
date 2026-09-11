@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 
+import { NO_VALUE } from '@/shared/domain';
 import { Button, Stack, Text } from '@/shared/ui';
 
 import type { BandState } from '../model/band-state';
@@ -33,7 +34,7 @@ export function OxygenCard({
   return (
     <MetricCard
       title="Blood oxygen"
-      value={current === undefined ? '—' : String(current)}
+      value={current === undefined ? NO_VALUE : String(current)}
       unit="%"
       caption={readingsCaption(points.length)}
       series={series}

@@ -95,9 +95,15 @@ export function adopt(next: Band | null, hooks: Hooks): void {
         });
         hooks.onFresh();
       }
-      if (recorderEvent.kind === 'started') patch({ recording: true });
+      if (recorderEvent.kind === 'started') {
+        patch({ recording: true, recordingPaused: false, recordingSession: recorderEvent.session });
+      }
+      // Пауза — не финиш: файл открыт, устройство ждёт нажатия. Экран обязан
+      // это показать, иначе человек ждёт запись, которой не будет.
+      if (recorderEvent.kind === 'paused') patch({ recordingPaused: true });
+      if (recorderEvent.kind === 'resumed') patch({ recordingPaused: false });
       if (recorderEvent.kind === 'finished') {
-        patch({ recording: false });
+        patch({ recording: false, recordingPaused: false, recordingSession: undefined });
         hooks.onRecordingFinished();
       }
     }

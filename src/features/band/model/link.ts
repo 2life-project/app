@@ -171,15 +171,20 @@ function syncPoll(): void {
   if (pollTimer) return;
 
   pollTimer = setInterval(() => {
-    void bandRef.current
-      ?.daySummary()
+    // Ссылка берётся в начале тика: пока отказ доедет до `catch`, обрыв мог
+    // уже поднять новое соединение — гасить надо то, что опрашивали, а не его.
+    const active = bandRef.current;
+    if (!active) return;
+    void active
+      .daySummary()
       .then((summary) => patch({ summary }))
       .catch((failure: unknown) => {
+        if (bandRef.current !== active) return;
         // Сама по себе связь не восстановится, а опрос ходил бы в неё до
         // бесконечности — по строке в лог каждые полминуты.
         logger.error('band: связь потеряна на опросе', { reason: String(failure) });
-        void bandRef.current
-          ?.disconnect()
+        void active
+          .disconnect()
           .catch((reason: unknown) => logger.warn('band: связь не закрылась', { reason }));
         release();
         patch({ stage: 'idle' });
@@ -236,13 +241,17 @@ export async function connect(device: FoundBand): Promise<void> {
     // Профиль уезжает при первом подключении и после правок, а не на каждом
     // реконнекте: в плохом покрытии их десятки за час, и каждый стоил бы
     // запроса к серверу и записи по радио ради тех же чисел.
-    void syncBodyProfile().then(async (profile) => {
-      const wanted = JSON.stringify(profile);
-      if (sentProfile === wanted) return;
-      const sent = await sendProfile(connected, profile);
-      if (sent) sentProfile = wanted;
-      patch({ profileSent: sent });
-    });
+    void syncBodyProfile()
+      .then(async (profile) => {
+        const wanted = JSON.stringify(profile);
+        if (sentProfile === wanted) return;
+        const sent = await sendProfile(connected, profile);
+        if (sent) sentProfile = wanted;
+        patch({ profileSent: sent });
+      })
+      .catch((failure: unknown) =>
+        logger.error('band: профиль не записался на устройство', { failure }),
+      );
 
     await refresh();
     patch({ step: undefined });

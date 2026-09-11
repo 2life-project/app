@@ -85,23 +85,27 @@ export function Sheet({ visible, onClose, title, action, children }: SheetProps)
   );
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={close}>
-      <View style={styles.backdrop}>
-        <Pressable accessibilityLabel="Close" style={styles.tapZone} onPress={close} />
+    // Шит живёт вне потока разметки: как обычный ребёнок `Stack` его нулевой
+    // хост получал бы отступ и оставлял мёртвое поле под последней карточкой.
+    <View style={styles.host}>
+      <Modal visible={visible} transparent animationType="slide" onRequestClose={close}>
+        <View style={styles.backdrop}>
+          <Pressable accessibilityLabel="Close" style={styles.tapZone} onPress={close} />
 
-        <Animated.View
-          style={[styles.sheet, dragStyle]}
-          onLayout={(event) => setHeight(event.nativeEvent.layout.height)}>
-          <GestureDetector gesture={drag}>{header}</GestureDetector>
+          <Animated.View
+            style={[styles.sheet, dragStyle]}
+            onLayout={(event) => setHeight(event.nativeEvent.layout.height)}>
+            <GestureDetector gesture={drag}>{header}</GestureDetector>
 
-          <ScrollView
-            contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + space.xl }]}
-            showsVerticalScrollIndicator={false}>
-            {children}
-          </ScrollView>
-        </Animated.View>
-      </View>
-    </Modal>
+            <ScrollView
+              contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + space.xl }]}
+              showsVerticalScrollIndicator={false}>
+              {children}
+            </ScrollView>
+          </Animated.View>
+        </View>
+      </Modal>
+    </View>
   );
 }
 
@@ -111,6 +115,7 @@ const CLOSE = 36;
 const HEADER_HEIGHT = 60;
 
 const styles = StyleSheet.create({
+  host: { position: 'absolute', width: 0, height: 0 },
   backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: theme.color.overlay },
   tapZone: { flex: 1 },
   sheet: {

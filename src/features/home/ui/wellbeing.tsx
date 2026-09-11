@@ -17,12 +17,11 @@ import {
   Text,
   WidgetCard,
 } from '@/shared/ui';
+import { DayPager, type DayProps } from '@/shared/ui';
 
 import { checkinKey, fetchCheckin } from '../api/checkin';
 import type { HomeData } from '../api/contract';
 import { checkinCaption, wellbeingOf } from '../model/wellbeing';
-
-import { DayPager, type DayProps } from './day-pager';
 
 const FORM = 'short';
 

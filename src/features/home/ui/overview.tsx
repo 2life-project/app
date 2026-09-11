@@ -1,3 +1,5 @@
+import { useMemo } from 'react';
+
 import type { Query } from '@/core/http/use-query';
 import type { BandReadings } from '@/shared/domain';
 import { Stack, Text, WidgetCard } from '@/shared/ui';
@@ -35,9 +37,11 @@ export function Overview({
   /** Показания браслета за показанный день: в сводке они главнее серверных. */
   band: BandReadings | null;
 }) {
-  const cells = cellsOf(state.layout);
-  const rings = ringsOf(state.home);
-  const highlights = highlightsOf(state.home, band);
+  // Считается на каждый рендер ленты, а рендеров много: живые показания
+  // браслета, обновление Главной, смена дня. Пересчёт — только по данным.
+  const cells = useMemo(() => cellsOf(state.layout), [state.layout]);
+  const rings = useMemo(() => ringsOf(state.home), [state.home]);
+  const highlights = useMemo(() => highlightsOf(state.home, band), [state.home, band]);
 
   if (cells.length === 0) {
     return (

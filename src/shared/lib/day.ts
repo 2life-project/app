@@ -117,3 +117,10 @@ export function shiftDay(date: string, days: number): string {
   const shifted = new Date(Date.UTC(year ?? 1970, (month ?? 1) - 1, (day ?? 1) + days));
   return shifted.toISOString().slice(0, 10);
 }
+
+/** Часы и минуты момента по часам телефона: `09:05`. Невалидный момент — пусто. */
+export function clockOf(at: Date | number): string {
+  const moment = typeof at === 'number' ? new Date(at) : at;
+  if (Number.isNaN(moment.getTime())) return '';
+  return `${String(moment.getHours()).padStart(2, '0')}:${String(moment.getMinutes()).padStart(2, '0')}`;
+}

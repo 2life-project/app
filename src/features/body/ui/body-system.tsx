@@ -4,8 +4,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { useQuery } from '@/core/http/use-query';
 import { logger } from '@/core/log/logger';
-import { sourceCaption, useBandReadings, vitalsOf, type Vital } from '@/shared/domain';
-import { longDay, shortDay } from '@/shared/lib/day';
+import { sourceCaption, useBandReadings, vitalsOf } from '@/shared/domain';
 import { to } from '@/shared/nav';
 import { space } from '@/shared/theme';
 import {
@@ -14,11 +13,10 @@ import {
   EmptyPanel,
   BarChart,
   Card,
-  DatePager,
+  DayPager,
   InfoCard,
   LineChart,
   LinkCard,
-  ListRow,
   RadioRow,
   SectionCaption,
   SectionSummary,
@@ -26,6 +24,7 @@ import {
   Stack,
   StatTile,
   Text,
+  VitalsList,
   WidgetCard,
 } from '@/shared/ui';
 
@@ -72,19 +71,27 @@ export function BodySystem({
   const vitals = group === null ? [] : vitalsOf(band, group);
 
   const data = query.data;
+  // Карточки устройства, а без них — строки показаний с руки: одно на обе ветки.
+  const wrist =
+    device ??
+    (vitals.length > 0 ? <VitalsList caption={sourceCaption(band)} vitals={vitals} /> : null);
   if (!data) {
     // Сервер не ответил, но рука мерила. Показать «загружается» поверх готовых
     // чисел значит спрятать единственное, что у человека сейчас есть.
     return (
       <Stack gap="md">
-        <DatePager
-          label={pagerLabel(date, today)}
-          onPrev={() => onShift(-1)}
-          onNext={nextOf(date, today, onShift)}
-        />
-        {device ??
-          (vitals.length > 0 ? <BandVitals caption={sourceCaption(band)} vitals={vitals} /> : null)}
-        {fallback}
+        <DayPager date={date} today={today} onShift={onShift} />
+        {wrist}
+        {query.error ? (
+          <Card variant="sunken">
+            <Stack gap="sm">
+              <Text tone="muted">This system did not load.</Text>
+              <Button label="Try again" variant="tonal" onPress={query.refresh} />
+            </Stack>
+          </Card>
+        ) : (
+          fallback
+        )}
       </Stack>
     );
   }
@@ -97,11 +104,7 @@ export function BodySystem({
 
   return (
     <Stack gap="md">
-      <DatePager
-        label={pagerLabel(date, today)}
-        onPrev={() => onShift(-1)}
-        onNext={nextOf(date, today, onShift)}
-      />
+      <DayPager date={date} today={today} onShift={onShift} />
 
       {failed ? (
         <Card variant="sunken">
@@ -109,8 +112,7 @@ export function BodySystem({
         </Card>
       ) : null}
 
-      {device ??
-        (vitals.length > 0 ? <BandVitals caption={sourceCaption(band)} vitals={vitals} /> : null)}
+      {wrist}
 
       {empty && vitals.length === 0 && !device ? (
         <>
@@ -212,36 +214,6 @@ export function BodySystem({
   );
 }
 
-/** Что браслет измерил сам по этой системе. Источник подписан: рядом стоят числа сервера. */
-function BandVitals({ caption, vitals }: { caption: string; vitals: readonly Vital[] }) {
-  return (
-    <Stack gap="sm">
-      <SectionCaption>{caption}</SectionCaption>
-      <Card>
-        <Stack gap="xs">
-          {vitals.map((vital) => (
-            <ListRow
-              key={vital.id}
-              title={vital.title}
-              subtitle={vital.note}
-              trailing={vital.value}
-            />
-          ))}
-        </Stack>
-      </Card>
-    </Stack>
-  );
-}
-
 const styles = StyleSheet.create({
   tiles: { flexDirection: 'row', gap: space.sm },
 });
-
-function pagerLabel(date: string, today: string): string {
-  return date === today ? `Today · ${shortDay(date)}` : longDay(date);
-}
-
-/** Вперёд дальше сегодняшнего дня не ходим: там ещё ничего не измерено. */
-function nextOf(date: string, today: string, onShift: (days: number) => void) {
-  return date < today ? () => onShift(1) : undefined;
-}

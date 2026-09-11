@@ -1,4 +1,13 @@
-import { isoWithOffset, dayIn, dayOf, longDay, shortDay, weekdayOf, shiftDay } from './day';
+import {
+  isoWithOffset,
+  dayIn,
+  dayOf,
+  longDay,
+  shortDay,
+  weekdayOf,
+  shiftDay,
+  clockOf,
+} from './day';
 
 describe('день в часовом поясе', () => {
   // Полночь по Москве — это ещё вчера по UTC. Запрос за «сегодня» обязан
@@ -59,5 +68,12 @@ describe('shiftDay', () => {
     expect(shiftDay('2026-09-11', -1)).toBe('2026-09-10');
     expect(shiftDay('2026-09-30', 1)).toBe('2026-10-01');
     expect(shiftDay('2026-01-01', -1)).toBe('2025-12-31');
+  });
+});
+
+describe('clockOf', () => {
+  it('часы и минуты с ведущим нулём, невалидный момент — пусто', () => {
+    expect(clockOf(new Date(2026, 8, 11, 9, 5))).toBe('09:05');
+    expect(clockOf(new Date(Number.NaN))).toBe('');
   });
 });

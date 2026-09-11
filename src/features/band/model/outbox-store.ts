@@ -96,7 +96,11 @@ export async function load(account: string, bandId: string): Promise<Stored> {
     // чего на браслете уже нет. Откладываем её под соседний ключ — для
     // разбора — и начинаем заново, громко.
     logger.error('band: очередь отправки не прочиталась, отложена', { failure });
-    if (raw !== null) await AsyncStorage.setItem(`${key}:broken`, raw).catch(() => undefined);
+    if (raw !== null) {
+      await AsyncStorage.setItem(`${key}:broken`, raw).catch((reason: unknown) =>
+        logger.error('band: копия битой очереди не сохранилась', { reason }),
+      );
+    }
     return empty();
   }
 }
