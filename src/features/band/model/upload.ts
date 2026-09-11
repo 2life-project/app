@@ -248,7 +248,7 @@ async function recover(account: string, binding: Binding, failure: unknown): Pro
   if (status === 413 || status === 422 || (status === 409 && RECORD_CONFLICTS.has(code ?? ''))) {
     if (await halveDelivery(account, binding.bandId)) return true;
     logger.error('band: запись отвергнута приёмником и отброшена', { status, code });
-    await settle(account, binding.bandId);
+    await settle(account, binding.bandId, 'dropped');
     return true;
   }
 

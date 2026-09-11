@@ -209,6 +209,26 @@ describe('замороженная пачка', () => {
   });
 });
 
+describe('окно после отказа', () => {
+  const WIDE = { ...LIMITS, maxRecordsPerBatch: 8 };
+
+  it('после отказа пачка растёт от одной записи, удваиваясь на приёмах', async () => {
+    const drafts = Array.from({ length: 8 }, (_, i) => minute(`2026-09-10T09:0${i}:00.000Z`, i));
+    await enqueue(ACCOUNT, BAND, drafts, KNOWN);
+    expect((await nextDelivery(ACCOUNT, BAND, WIDE, ENVELOPE))?.records).toHaveLength(8);
+
+    // Приёмник отвергает, пока виновник не останется один: 8 → 4 → 2 → 1.
+    while (await halveDelivery(ACCOUNT, BAND));
+    await settle(ACCOUNT, BAND, 'dropped');
+
+    expect((await nextDelivery(ACCOUNT, BAND, WIDE, ENVELOPE))?.records).toHaveLength(1);
+    await settle(ACCOUNT, BAND);
+    expect((await nextDelivery(ACCOUNT, BAND, WIDE, ENVELOPE))?.records).toHaveLength(2);
+    await settle(ACCOUNT, BAND);
+    expect((await nextDelivery(ACCOUNT, BAND, WIDE, ENVELOPE))?.records).toHaveLength(4);
+  });
+});
+
 describe('эпоха часов', () => {
   // Данные, снятые до сброса часов устройства, лежат на другой шкале времени.
   // Эпоха в пачке одна — в конверте, — поэтому пачка обязана кончиться там,

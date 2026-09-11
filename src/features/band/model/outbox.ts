@@ -85,6 +85,13 @@ type Stored = {
    */
   delivery: { id: string; records: number; coverage: Coverage[]; envelope: Envelope } | null;
   /**
+   * Сколько записей брать в следующую пачку после отказа. Без него каждая
+   * отвергнутая запись стоила бы столько запросов, сколько раз полная пачка
+   * делится пополам: после приёма половины следующая снова бралась целиком.
+   * Растёт вдвое на каждом приёме и снимается, когда перестаёт ограничивать.
+   */
+  window?: number;
+  /**
    * Докуда каждый поток уже поставлен в очередь, по суткам:
    * `поток|YYYY-MM-DD` → время последнего события в миллисекундах.
    *
@@ -305,7 +312,10 @@ export function nextDelivery(
     const sameEpoch = stored.pending.findIndex((record) => record.epoch !== head.epoch);
     const candidates = sameEpoch === -1 ? stored.pending : stored.pending.slice(0, sameEpoch);
 
-    const count = stored.delivery?.records ?? fittingCount(candidates, limits);
+    const fitting = fittingCount(candidates, limits);
+    const window =
+      stored.window !== undefined && stored.window < fitting ? stored.window : undefined;
+    const count = stored.delivery?.records ?? window ?? fitting;
     if (count === 0) return null;
 
     const delivery = stored.delivery ?? {
@@ -314,7 +324,7 @@ export function nextDelivery(
       coverage: stored.coverage,
       envelope: { ...envelope, deviceEpoch: head.epoch },
     };
-    if (!stored.delivery) await save(account, bandId, { ...stored, delivery });
+    if (!stored.delivery) await save(account, bandId, { ...stored, delivery, window });
 
     return {
       deliveryId: delivery.id,
@@ -335,7 +345,11 @@ export function nextDelivery(
  * Только с уехавшими. Пока пачка была в пути, дочитывание суток могло
  * добавить своё окно — оно ещё не отправлялось и обязано дождаться следующей.
  */
-export function settle(account: string, bandId: string): Promise<void> {
+export function settle(
+  account: string,
+  bandId: string,
+  outcome: 'accepted' | 'dropped' = 'accepted',
+): Promise<void> {
   return serial(async () => {
     const stored = await load(account, bandId);
     const frozen = stored.delivery;
@@ -345,8 +359,12 @@ export function settle(account: string, bandId: string): Promise<void> {
     await save(account, bandId, {
       ...stored,
       pending: stored.pending.slice(frozen.records),
-      coverage: stored.coverage.filter((window) => !sent.has(coverageKey(window))),
+      coverage: stored.coverage.filter((range) => !sent.has(coverageKey(range))),
       delivery: null,
+      // Отброшенный виновник — не приём: окно после него не растёт, иначе в
+      // сплошь отвергаемой очереди каждая запись снова стоила бы три запроса.
+      window:
+        stored.window !== undefined && outcome === 'accepted' ? stored.window * 2 : stored.window,
     });
   });
 }
@@ -361,9 +379,11 @@ export function halveDelivery(account: string, bandId: string): Promise<boolean>
     const frozen = stored.delivery;
     if (!frozen || frozen.records <= 1) return false;
 
+    const records = Math.floor(frozen.records / 2);
     await save(account, bandId, {
       ...stored,
-      delivery: { ...frozen, id: requestId(), records: Math.floor(frozen.records / 2) },
+      delivery: { ...frozen, id: requestId(), records },
+      window: records,
     });
     return true;
   });
