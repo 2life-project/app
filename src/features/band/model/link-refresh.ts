@@ -5,8 +5,8 @@ import { logger } from '@/core/log/logger';
 import { uploadRecordings } from './audio-upload';
 import { loadEverything, loadHistory, saveSnapshot } from './band-data';
 import { bandRef, patch, stateRef } from './link-store';
+import { publishToServer } from './publish';
 import { publishReadings } from './publish-readings';
-import { publishToServer } from './upload';
 
 /**
  * Что делать с прочитанным и когда читать.

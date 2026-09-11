@@ -123,8 +123,10 @@ export async function loadEverything(
   await step('память', async () =>
     patch({ storage: (await band.recorder.storage()) ?? undefined }),
   );
-  await step('сон', async () => patch({ sleep: await band.sleep(week, now) }));
-  await step('стресс', async () => patch({ stress: await band.stress(startOfToday(now), now) }));
+  await step('сон', async () => patch({ sleep: await band.history.sleep(week, now) }));
+  await step('стресс', async () =>
+    patch({ stress: await band.history.stress(startOfToday(now), now) }),
+  );
 
   // Тренировки браслет заводит сам, без единой кнопки. Берём только последние:
   // сводка каждой — отдельный обмен по радио, и вычитывать всю неделю значит
@@ -161,7 +163,7 @@ export async function loadHistory(
 ): Promise<void> {
   const now = new Date();
   await step('история', async () => {
-    const today = await band.history(startOfToday(now), now);
+    const today = await band.history.minutes(startOfToday(now), now);
     patch({ today });
     // Сразу в архив, без повторного чтения: сутки уже в руках, а второй заход
     // за теми же минутами — это ещё сотня кадров по радио и заряд браслета.
@@ -217,7 +219,7 @@ export async function backfillHistory(band: Band): Promise<string[]> {
     const to = end > new Date() ? new Date() : end;
 
     try {
-      await rememberDay(day, await band.history(from, to));
+      await rememberDay(day, await band.history.minutes(from, to));
       filled.push(day);
     } catch (failure) {
       // Один непрочитанный день не отменяет остальные: связь могла оборваться

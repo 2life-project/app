@@ -39,15 +39,14 @@ export { toOgg, durationSeconds } from './audio';
 export {
   markUploaded,
   pendingUploads,
-  hashRecording,
-  partFile,
   recordingBytes,
   removeSaved,
   saveRecording,
   savedRecordings,
   savedSessions,
 } from './storage';
-export type { PartFile, RecordingMark, SavedRecording } from './storage';
+export type { RecordingMark, SavedRecording } from './storage';
+export { hashRecording, partFile, type PartFile } from './recording-parts';
 export { marksOf, rememberMark } from './storage';
 export { holdBand, holdsBand, setSyncDevice, syncDevice, syncRecordings } from './sync';
 export { WearHand, type MotionGoal, type UserProfile } from './profile';

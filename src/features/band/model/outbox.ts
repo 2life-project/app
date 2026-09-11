@@ -2,20 +2,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import type { JsonValue } from '@/core/http/client';
 import { logger } from '@/core/log/logger';
-import { requestId } from '@/shared/lib/id';
 
-import type { BandLimits, BandStream, Coverage, IngestionRecord, TimeQuality } from '../api';
+import type { BandStream, Coverage, IngestionRecord, TimeQuality } from '../api';
 import { uuidFrom } from '../api';
 
 import { dayKey } from './history-store';
-import {
-  capped,
-  coverageKey,
-  fittingCount,
-  isSnapshot,
-  mergeCoverage,
-  pruneSeen,
-} from './outbox-pack';
+import { capped, isSnapshot, mergeCoverage, pruneSeen } from './outbox-pack';
+import { keyOf, load, save, type PendingRecord } from './outbox-store';
 import { serial } from './serial';
 
 /**
@@ -29,8 +22,6 @@ import { serial } from './serial';
  * Очередь принадлежит паре «аккаунт и браслет». Отправить накопленное от
  * имени другого человека нельзя: приёмник примет это как его измерения.
  */
-
-const PREFIX = '2life:band-outbox.1:';
 
 /**
  * Сколько раз запись, которую приёмник не смог разобрать «временно»,
@@ -59,81 +50,6 @@ export type Draft = {
   at: Date;
   payload: JsonValue;
 };
-
-/**
- * Запись в очереди помнит эпоху часов, под которой её прочитали. В пачке эпоха
- * одна на всех — она в конверте, — поэтому пачка режется на границе эпох:
- * данные, снятые до сброса часов устройства, нельзя выдать за снятые после.
- * Наружу эпоха не уходит.
- */
-type PendingRecord = IngestionRecord & {
-  epoch: string | null;
-  /** Поток и сутки: по ним свежий снимок замещает в очереди прежний. */
-  slot?: string;
-};
-
-type Stored = {
-  sequence: number;
-  pending: PendingRecord[];
-  coverage: Coverage[];
-  /**
-   * Замороженная пачка: отправленная хоть раз, она обязана повторяться слово
-   * в слово. Изменённая пачка с прежним `deliveryId` отклоняется как конфликт,
-   * поэтому замораживается всё: состав записей, окна покрытия и конверт —
-   * версия привязки, версия модуля, пояс и эпоха часов. Пересчитать их к
-   * моменту повтора значит отправить другую пачку под старым именем.
-   */
-  delivery: { id: string; records: number; coverage: Coverage[]; envelope: Envelope } | null;
-  /**
-   * Сколько записей брать в следующую пачку после отказа. Без него каждая
-   * отвергнутая запись стоила бы столько запросов, сколько раз полная пачка
-   * делится пополам: после приёма половины следующая снова бралась целиком.
-   * Растёт вдвое на каждом приёме и снимается, когда перестаёт ограничивать.
-   */
-  window?: number;
-  /**
-   * Докуда каждый поток уже поставлен в очередь, по суткам:
-   * `поток|YYYY-MM-DD` → время последнего события в миллисекундах.
-   *
-   * По суткам, а не одним числом на поток: сегодняшняя история читается
-   * первой, а пропущенные дни дочитываются после неё — общий курсор отбросил
-   * бы их целиком как «старые».
-   */
-  seen: Record<string, number>;
-  /**
-   * Сколько раз запись уже уезжала заново: `eventId` → счёт. Отдельно от
-   * самой записи, потому что на время пути её в очереди нет, а наружу счёт
-   * уходить не должен.
-   */
-  retries?: Record<string, number>;
-};
-
-/** Функция, а не константа: массивы внутри не должны быть общими между чтениями. */
-const empty = (): Stored => ({ sequence: 0, pending: [], coverage: [], delivery: null, seen: {} });
-
-function keyOf(account: string, bandId: string): string {
-  return `${PREFIX}${account}:${bandId}`;
-}
-
-async function load(account: string, bandId: string): Promise<Stored> {
-  const key = keyOf(account, bandId);
-  let raw: string | null = null;
-  try {
-    raw = await AsyncStorage.getItem(key);
-    return raw === null ? empty() : { ...empty(), ...(JSON.parse(raw) as Stored) };
-  } catch (failure) {
-    // Битую очередь нельзя затереть следующей записью молча: в ней лежит то,
-    // чего на браслете уже нет. Откладываем её под соседний ключ — для
-    // разбора — и начинаем заново, громко.
-    logger.error('band: очередь отправки не прочиталась, отложена', { failure });
-    if (raw !== null) await AsyncStorage.setItem(`${key}:broken`, raw).catch(() => undefined);
-    return empty();
-  }
-}
-
-async function save(account: string, bandId: string, next: Stored): Promise<void> {
-  await AsyncStorage.setItem(keyOf(account, bandId), JSON.stringify(next));
-}
 
 export type EnqueueOptions = {
   timeQuality: TimeQuality;
@@ -271,134 +187,6 @@ export function requeue(
       if (known !== undefined && retries[item.eventId] === undefined) retries[item.eventId] = known;
     }
     await save(account, bandId, { ...stored, sequence, pending, retries });
-  });
-}
-
-/** Что описывает пачку целиком, помимо самих записей. */
-export type Envelope = {
-  bindingVersion: number;
-  clientInstanceId: string;
-  deviceEpoch: string | null;
-  moduleVersion: string;
-  timezone: string;
-};
-
-export type Delivery = {
-  deliveryId: string;
-  envelope: Envelope;
-  records: IngestionRecord[];
-  coverage: Coverage[];
-};
-
-/**
- * Ближайшая пачка к отправке.
- *
- * Однажды выданная, она сохраняется на диске и повторяется такой же: приёмник
- * узнаёт точный повтор и отвечает «уже принято», а изменённую пачку с тем же
- * идентификатором отклоняет как конфликт.
- */
-export function nextDelivery(
-  account: string,
-  bandId: string,
-  limits: BandLimits,
-  envelope: Envelope,
-): Promise<Delivery | null> {
-  return serial(async () => {
-    const stored = await load(account, bandId);
-    const head = stored.pending[0];
-    if (!head) return null;
-
-    // Пачка не пересекает границу эпох: эпоха в ней одна, в конверте.
-    const sameEpoch = stored.pending.findIndex((record) => record.epoch !== head.epoch);
-    const candidates = sameEpoch === -1 ? stored.pending : stored.pending.slice(0, sameEpoch);
-
-    const fitting = fittingCount(candidates, limits);
-    const window =
-      stored.window !== undefined && stored.window < fitting ? stored.window : undefined;
-    const count = stored.delivery?.records ?? window ?? fitting;
-    if (count === 0) return null;
-
-    const delivery = stored.delivery ?? {
-      id: requestId(),
-      records: count,
-      coverage: stored.coverage,
-      envelope: { ...envelope, deviceEpoch: head.epoch },
-    };
-    if (!stored.delivery) await save(account, bandId, { ...stored, delivery, window });
-
-    return {
-      deliveryId: delivery.id,
-      // Конверт и окна замороженной пачки — те, с которыми её отправили в
-      // первый раз. Служебные поля очереди наружу не уходят.
-      envelope: delivery.envelope,
-      records: stored.pending
-        .slice(0, delivery.records)
-        .map(({ epoch: _epoch, slot: _slot, ...record }) => record),
-      coverage: delivery.coverage,
-    };
-  });
-}
-
-/**
- * Пачка принята: убрать её из очереди вместе с уехавшими окнами покрытия.
- *
- * Только с уехавшими. Пока пачка была в пути, дочитывание суток могло
- * добавить своё окно — оно ещё не отправлялось и обязано дождаться следующей.
- */
-export function settle(
-  account: string,
-  bandId: string,
-  outcome: 'accepted' | 'dropped' = 'accepted',
-): Promise<void> {
-  return serial(async () => {
-    const stored = await load(account, bandId);
-    const frozen = stored.delivery;
-    if (!frozen) return;
-
-    const sent = new Set(frozen.coverage.map(coverageKey));
-    await save(account, bandId, {
-      ...stored,
-      pending: stored.pending.slice(frozen.records),
-      coverage: stored.coverage.filter((range) => !sent.has(coverageKey(range))),
-      delivery: null,
-      // Отброшенный виновник — не приём: окно после него не растёт, иначе в
-      // сплошь отвергаемой очереди каждая запись снова стоила бы три запроса.
-      window:
-        stored.window !== undefined && outcome === 'accepted' ? stored.window * 2 : stored.window,
-    });
-  });
-}
-
-/**
- * Пачка не влезла в предел запроса. Режем пополам и берём новый идентификатор:
- * это уже другая доставка, и выдавать её за прежнюю нельзя.
- */
-export function halveDelivery(account: string, bandId: string): Promise<boolean> {
-  return serial(async () => {
-    const stored = await load(account, bandId);
-    const frozen = stored.delivery;
-    if (!frozen || frozen.records <= 1) return false;
-
-    const records = Math.floor(frozen.records / 2);
-    await save(account, bandId, {
-      ...stored,
-      delivery: { ...frozen, id: requestId(), records },
-      window: records,
-    });
-    return true;
-  });
-}
-
-/**
- * Пачка стала неотправимой: сервер отверг её конверт целиком — например,
- * версия привязки на его стороне уже другая. Прежняя доставка мертва, и
- * повторять её нечем: снимаем заморозку, чтобы записи уехали заново под новым
- * именем и с новым конвертом. Состав записей при этом не меняется.
- */
-export function unfreezeDelivery(account: string, bandId: string): Promise<void> {
-  return serial(async () => {
-    const stored = await load(account, bandId);
-    if (stored.delivery) await save(account, bandId, { ...stored, delivery: null });
   });
 }
 

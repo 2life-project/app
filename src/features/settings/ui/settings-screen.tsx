@@ -21,11 +21,8 @@ import {
   BackButton,
   Button,
   Card,
-  IconTile,
-  ListRow,
   Screen,
   RadioRow,
-  SectionCaption,
   Sheet,
   Stack,
   Tag,
@@ -50,6 +47,8 @@ import {
   type SettingsRow,
 } from '../model/settings';
 import { sourceRows } from '../model/sources';
+
+import { Section } from './settings-section';
 
 /**
  * Заголовок экрана стоит в содержимом, как в макете, поэтому в шапке остаётся
@@ -251,41 +250,7 @@ const SETTINGS_NOTICES = {
   languageFailed: 'The language did not save. Try again.',
 } as const;
 
-function Section({
-  caption,
-  rows,
-  onOpen,
-}: {
-  caption: string;
-  rows: readonly SettingsRow[];
-  onOpen: (row: SettingsRow) => void;
-}) {
-  return (
-    <Stack gap="sm">
-      <SectionCaption>{caption}</SectionCaption>
-      <Card>
-        <Stack gap="xs">
-          {rows.map((row) => (
-            <ListRow
-              key={row.id}
-              leading={<IconTile name={row.icon} tone={row.tone} size={ICON_TILE} />}
-              title={row.title}
-              titleTone={row.titleTone}
-              subtitle={row.subtitle}
-              trailing={row.value}
-              trailingSlot={row.connected ? <View style={styles.dot} /> : undefined}
-              onPress={row.opens ? () => onOpen(row) : undefined}
-            />
-          ))}
-        </Stack>
-      </Card>
-    </Stack>
-  );
-}
-
 const AVATAR = 52;
-const ICON_TILE = 32;
-const DOT = 7;
 
 const styles = StyleSheet.create({
   profile: { flexDirection: 'row', alignItems: 'center', gap: space.md },
@@ -298,12 +263,5 @@ const styles = StyleSheet.create({
     backgroundColor: theme.color.highlight.solid,
   },
   identity: { flex: 1 },
-  // Точка связи — состояние источника, а не его тип: цвет здесь значит «на связи».
-  dot: {
-    width: DOT,
-    height: DOT,
-    borderRadius: radius.full,
-    backgroundColor: theme.color.success.solid,
-  },
   version: { textAlign: 'center' },
 });

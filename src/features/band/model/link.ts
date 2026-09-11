@@ -14,8 +14,8 @@ import { adopt, release } from './link-events';
 import { isForeground, refresh, setForeground, shareSoon } from './link-refresh';
 import { bandRef, patch, reset, snapshot, stateRef, update } from './link-store';
 import { sendProfile } from './profile-sync';
+import { publishDays } from './publish';
 import { publishReadings } from './publish-readings';
-import { publishDays } from './upload';
 import { loadOpenSession } from './workout-store';
 
 /**
