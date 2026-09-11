@@ -187,18 +187,23 @@ export function enqueue(
         slot: snapshot ? slot : undefined,
       };
 
-      // Снимок в очереди замещает прежний того же дня: отправлять обе версии
-      // значит гнать заведомо устаревшую. Прежний с тем же содержимым — тот же
-      // eventId, и второй раз он не нужен.
-      const waiting = pending.findIndex(
-        (item, index) =>
-          index >= frozen && (snapshot ? item.slot === slot : item.eventId === record.eventId),
-      );
-      if (waiting === -1) pending.push(record);
-      else if (pending[waiting]?.eventId !== record.eventId) pending[waiting] = record;
-      else sequence -= 1;
-
       seen[slot] = Math.max(seen[slot] ?? 0, at);
+
+      // Такое событие уже в очереди — в замороженной пачке или за ней: второй
+      // экземпляр приёмник отвергает вместе со всей пачкой как дубль.
+      if (pending.some((item) => item.eventId === record.eventId)) {
+        sequence -= 1;
+        continue;
+      }
+
+      // Снимок в очереди замещает прежний того же дня: отправлять обе версии
+      // значит гнать заведомо устаревшую. Замороженный не трогаем — он уже
+      // мог уехать, новый встанет следом.
+      const stale = snapshot
+        ? pending.findIndex((item, index) => index >= frozen && item.slot === slot)
+        : -1;
+      if (stale === -1) pending.push(record);
+      else pending[stale] = record;
     }
 
     const coverage = mergeCoverage(stored.coverage, options.coverage ?? []);
@@ -234,6 +239,10 @@ export function requeue(
     const pending = [...stored.pending];
 
     for (const record of records) {
+      // Пока пачка ездила, свежее чтение могло поставить то же событие заново:
+      // второй экземпляр в одной пачке приёмник не принимает.
+      if (pending.some((item) => item.eventId === record.eventId)) continue;
+
       const tries = (stored.retries?.[record.eventId] ?? 0) + 1;
       if (tries >= MAX_ATTEMPTS) {
         logger.error('band: запись не разбирается приёмником, отброшена', {

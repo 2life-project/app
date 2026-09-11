@@ -35,6 +35,9 @@ import { type BandTransport } from './transport';
 import { decodeWorkoutTick } from './workouts';
 import { BandWorkouts } from './workouts-api';
 
+/** Заголовок одно-кадрового ответа: маркер, команда, режим — дальше поля. */
+const SINGLE_FRAME_HEADER = 3;
+
 /**
  * Потолок кадров истории за один запрос. Сутки по минутам не дают больше сотни
  * кадров, и всё, что выше, — испорченный ответ, а не длинный день.
@@ -144,8 +147,16 @@ export class Band {
     return decodeBattery(await this.transport.request(cmd.readBattery())).level;
   }
 
+  /**
+   * Часы устройства.
+   *
+   * Отвечают одним кадром без номера части и терминатора: `01 a3 aa` и сразу
+   * поля. Через сборщик такой ответ не проходит — он ждёт терминатор до
+   * истечения времени, и часы «не читались» на каждом подключении.
+   */
   async deviceTime(): Promise<Date | undefined> {
-    return decodeTime(await this.transport.request(cmd.readTime(), { field: 0xaa }));
+    const raw = await this.transport.requestRaw(cmd.readTime(), cmd.Cmd.time);
+    return decodeTime(raw.subarray(SINGLE_FRAME_HEADER));
   }
 
   async syncTime(): Promise<void> {

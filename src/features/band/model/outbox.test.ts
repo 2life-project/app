@@ -183,6 +183,19 @@ describe('замороженная пачка', () => {
     expect(await halveDelivery(ACCOUNT, BAND)).toBe(false);
   });
 
+  // Пока пачка ездила, чтение поставило то же событие следом: после снятия
+  // заморозки оба попали бы в одну пачку, а дубль приёмник не принимает.
+  it('событие из замороженной пачки второй раз не ставится', async () => {
+    await enqueue(ACCOUNT, BAND, [summary('2026-09-10', 100)], KNOWN);
+    await nextDelivery(ACCOUNT, BAND, LIMITS, ENVELOPE);
+    await enqueue(ACCOUNT, BAND, [summary('2026-09-10', 100)], KNOWN);
+    await unfreezeDelivery(ACCOUNT, BAND);
+
+    const delivery = await nextDelivery(ACCOUNT, BAND, LIMITS, ENVELOPE);
+
+    expect(delivery?.records).toHaveLength(1);
+  });
+
   it('снятая заморозка отдаёт те же записи под новым конвертом', async () => {
     await enqueue(ACCOUNT, BAND, [minute('2026-09-10T09:00:00.000Z', 10)], KNOWN);
     const first = await nextDelivery(ACCOUNT, BAND, LIMITS, ENVELOPE);
@@ -272,6 +285,19 @@ describe('повторная отправка', () => {
 
     expect(again?.records[0]?.eventId).toBe(first?.records[0]?.eventId);
     expect(again?.records[0]?.sequence).toBeGreaterThan(first?.records[0]?.sequence ?? 0);
+  });
+
+  it('не ставит запись повторно, если свежее чтение уже вернуло её в очередь', async () => {
+    await enqueue(ACCOUNT, BAND, [summary('2026-09-10', 100)], KNOWN);
+    const first = await nextDelivery(ACCOUNT, BAND, LIMITS, ENVELOPE);
+    await settle(ACCOUNT, BAND);
+    await enqueue(ACCOUNT, BAND, [summary('2026-09-10', 100)], KNOWN);
+
+    // Эпоха та же, что у свежей записи: иначе их развела бы граница эпох.
+    await requeue(ACCOUNT, BAND, first?.records ?? [], null);
+    const again = await nextDelivery(ACCOUNT, BAND, LIMITS, ENVELOPE);
+
+    expect(again?.records).toHaveLength(1);
   });
 
   // Причина, которая не проходит трижды, временной не является: гонять
