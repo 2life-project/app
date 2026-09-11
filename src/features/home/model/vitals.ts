@@ -85,7 +85,7 @@ export function ringsOf(data: HomeData | null): readonly RingView[] {
       fill: fuel,
       valueLabel:
         fuel === null ? text(nutrition?.totals.calories, 'kcal') : String(Math.round(fuel * 100)),
-      tone: serverTone(nutrition?.insight.tone),
+      tone: serverTone(nutrition?.insight?.tone),
     },
     {
       // Долю дуги считает сервер против своей шкалы оценки. Без оценки дуги
@@ -101,7 +101,7 @@ export function ringsOf(data: HomeData | null): readonly RingView[] {
       label: 'WELLBEING',
       fill: wellbeing?.ring.percent ?? null,
       valueLabel: text(wellbeing?.score, 'score'),
-      tone: serverTone(wellbeing?.recommendation.tone),
+      tone: serverTone(wellbeing?.recommendation?.tone),
     },
   ];
 }

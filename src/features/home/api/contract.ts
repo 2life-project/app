@@ -133,11 +133,12 @@ export type NutritionData = {
   goals: NutritionAmounts & { provenance: Record<string, string> };
   remainingCalories: number | null;
   completeness: number;
+  /** Подсказки может не быть: без записанной еды серверу не о чем говорить. */
   insight: {
     macroBalance: { protein: number; fat: number; carbs: number };
     text: string;
     tone: string;
-  };
+  } | null;
   meals: readonly unknown[];
   provenance: { source: string; observedAt: string | null };
 };
@@ -151,13 +152,14 @@ export type WellbeingData = {
   };
   score: number | null;
   status: string;
+  /** Рекомендации может не быть: без чек-ина серверу не на чем её строить. */
   recommendation: {
     tone: string;
     text: string;
     focus: string;
     rationale: string;
     actions: readonly string[];
-  };
+  } | null;
   factorBreakdown: readonly { key: string; label: string; value: number; tone: string }[];
   sevenDayProfile: readonly {
     date: string;

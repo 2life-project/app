@@ -96,9 +96,11 @@ export function Wellbeing({
         </WidgetCard>
       ) : null}
 
-      <InfoCard title="Recommendation" text={view.recommendation.text} />
+      {view.recommendation ? (
+        <InfoCard title="Recommendation" text={view.recommendation.text} />
+      ) : null}
 
-      {view.recommendation.actions.length > 0 ? (
+      {view.recommendation && view.recommendation.actions.length > 0 ? (
         <WidgetCard title="What to do today">
           <Stack gap="sm">
             {view.recommendation.actions.map((action) => (
