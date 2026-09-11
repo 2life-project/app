@@ -65,6 +65,30 @@ describe('замороженная пачка', () => {
   });
 });
 
+describe('полученные снимки', () => {
+  it('принятый снимок с тем же содержимым второй раз не ставится, изменённый — ставится', async () => {
+    await enqueue(ACCOUNT, BAND, [summary('2026-09-10', 100)], KNOWN);
+    await nextDelivery(ACCOUNT, BAND, LIMITS, ENVELOPE);
+    await settle(ACCOUNT, BAND);
+
+    await enqueue(ACCOUNT, BAND, [summary('2026-09-10', 100)], KNOWN);
+    expect(await nextDelivery(ACCOUNT, BAND, LIMITS, ENVELOPE)).toBeNull();
+
+    await enqueue(ACCOUNT, BAND, [summary('2026-09-10', 900)], KNOWN);
+    expect((await nextDelivery(ACCOUNT, BAND, LIMITS, ENVELOPE))?.records).toHaveLength(1);
+  });
+
+  // Отвергнутый снимок приёмник тоже уже видел: слать его снова — тот же отказ.
+  it('отвергнутый снимок не ставится заново', async () => {
+    await enqueue(ACCOUNT, BAND, [summary('2026-09-10', 100)], KNOWN);
+    await nextDelivery(ACCOUNT, BAND, LIMITS, ENVELOPE);
+    await settle(ACCOUNT, BAND, 'dropped');
+
+    await enqueue(ACCOUNT, BAND, [summary('2026-09-10', 100)], KNOWN);
+    expect(await nextDelivery(ACCOUNT, BAND, LIMITS, ENVELOPE)).toBeNull();
+  });
+});
+
 describe('окно после отказа', () => {
   const WIDE = { ...LIMITS, maxRecordsPerBatch: 8 };
 

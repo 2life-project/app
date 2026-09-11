@@ -84,11 +84,18 @@ export function settle(
     if (!frozen) return;
 
     const sent = new Set(frozen.coverage.map(coverageKey));
+    // Снимки уехавшей пачки приёмник получил — принял или отверг, — и второй
+    // раз с тем же содержимым их слать нельзя.
+    const snapshots = { ...stored.snapshots };
+    for (const record of stored.pending.slice(0, frozen.records)) {
+      if (record.slot) snapshots[record.slot] = record.eventId;
+    }
     await save(account, bandId, {
       ...stored,
       pending: stored.pending.slice(frozen.records),
       coverage: stored.coverage.filter((range) => !sent.has(coverageKey(range))),
       delivery: null,
+      snapshots,
       // Отброшенный виновник — не приём: окно после него не растёт, иначе в
       // сплошь отвергаемой очереди каждая запись снова стоила бы три запроса.
       window:

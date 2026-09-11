@@ -1,6 +1,13 @@
 import type { BandLimits, Coverage, IngestionRecord } from '../api';
 
-import { capped, fittingCount, isSnapshot, mergeCoverage, pruneSeen } from './outbox-pack';
+import {
+  pruneSnapshots,
+  capped,
+  fittingCount,
+  isSnapshot,
+  mergeCoverage,
+  pruneSeen,
+} from './outbox-pack';
 
 const LIMITS: BandLimits = {
   maxRecordsPerBatch: 3,
@@ -101,5 +108,17 @@ describe('capped', () => {
     expect(kept).toHaveLength(5000);
     expect(kept.slice(0, 2)).toEqual([0, 1]);
     expect(kept[2]).toBe(4);
+  });
+});
+
+describe('pruneSnapshots', () => {
+  it('забывает слоты старше недели, свежие держит', () => {
+    const now = new Date('2026-09-11T12:00:00.000Z');
+    const kept = pruneSnapshots(
+      { 'day_summaries|2026-09-10': 'fresh', 'day_summaries|2026-09-01': 'old', broken: 'x' },
+      now,
+    );
+
+    expect(kept).toEqual({ 'day_summaries|2026-09-10': 'fresh' });
   });
 });

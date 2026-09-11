@@ -7,7 +7,7 @@ import type { BandStream, Coverage, IngestionRecord, TimeQuality } from '../api'
 import { uuidFrom } from '../api';
 
 import { dayKey } from './history-store';
-import { capped, isSnapshot, mergeCoverage, pruneSeen } from './outbox-pack';
+import { capped, isSnapshot, mergeCoverage, pruneSeen, pruneSnapshots } from './outbox-pack';
 import { keyOf, load, save, type PendingRecord } from './outbox-store';
 import { serial } from './serial';
 
@@ -80,6 +80,7 @@ export function enqueue(
     // Момент чтения один на всю порцию: это и есть «когда клиент это получил».
     const capturedAt = now.toISOString();
     const seen = pruneSeen(stored.seen, now);
+    const snapshots = pruneSnapshots(stored.snapshots ?? {}, now);
     let { sequence } = stored;
     const pending = [...stored.pending];
     // Записи внутри замороженной пачки трогать нельзя: она уже могла уехать.
@@ -112,6 +113,13 @@ export function enqueue(
 
       seen[slot] = Math.max(seen[slot] ?? 0, at);
 
+      // Этот снимок приёмник уже получил: содержимое не изменилось, значит и
+      // имя то же, а повтор под принятым именем он считает конфликтом.
+      if (snapshot && snapshots[slot] === record.eventId) {
+        sequence -= 1;
+        continue;
+      }
+
       // Такое событие уже в очереди — в замороженной пачке или за ней: второй
       // экземпляр приёмник отвергает вместе со всей пачкой как дубль.
       if (pending.some((item) => item.eventId === record.eventId)) {
@@ -139,6 +147,7 @@ export function enqueue(
       coverage,
       delivery: stored.delivery,
       seen,
+      snapshots,
     });
   });
 }

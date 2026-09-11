@@ -61,6 +61,19 @@ export function pruneSeen(seen: Record<string, number>, now: Date): Record<strin
   return Object.fromEntries(Object.entries(seen).filter(([, at]) => at >= edge));
 }
 
+/** Память о полученных снимках живёт столько же: сутки — в самом ключе слота. */
+export function pruneSnapshots(
+  snapshots: Record<string, string>,
+  now: Date,
+): Record<string, string> {
+  const edge = now.getTime() - SEEN_DAYS * 24 * 60 * 60 * 1000;
+  return Object.fromEntries(
+    Object.entries(snapshots).filter(
+      ([slot]) => Date.parse(slot.slice(slot.indexOf('|') + 1)) >= edge,
+    ),
+  );
+}
+
 /** Личность окна покрытия: поток и его границы. */
 export function coverageKey(window: Coverage): string {
   return `${window.stream}|${window.from}|${window.to}`;
