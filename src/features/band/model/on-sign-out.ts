@@ -2,6 +2,7 @@ import { onSignOut } from '@/core/auth';
 
 import { clearSnapshot } from './band-data';
 import { clearHistory } from './history-store';
+import { clearNights } from './sleep-store';
 import { clearWorkouts } from './workout-store';
 
 /**
@@ -23,5 +24,6 @@ import { clearWorkouts } from './workout-store';
 onSignOut(() => {
   clearSnapshot();
   void clearHistory().catch(() => undefined);
+  void clearNights();
   void clearWorkouts().catch(() => undefined);
 });

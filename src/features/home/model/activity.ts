@@ -28,6 +28,27 @@ function minutes(value: number | null | undefined): string {
   return value === null || value === undefined ? NO_VALUE : `${formatNumber(value, 'count')} min`;
 }
 
+/**
+ * Полоса оценки движения — словами. Словарь сервера в контракте не назван,
+ * поэтому известные коды переведены, а незнакомый читается по слову, но не
+ * уходит на экран сырым кодом с подчёркиваниями.
+ */
+const BAND_LABELS: Record<string, string> = {
+  almost_still: 'Almost still',
+  light: 'Light day',
+  moderate: 'Moderate day',
+  active: 'Active day',
+  very_active: 'Very active day',
+};
+
+export function bandLabel(band: string | null | undefined): string | undefined {
+  if (!band) return undefined;
+  const known = BAND_LABELS[band];
+  if (known) return known;
+  const words = band.replace(/_/g, ' ').trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
 function amount(value: number | null | undefined, unit: string): string {
   return value === null || value === undefined ? NO_VALUE : formatNumber(value, unit);
 }
@@ -58,7 +79,7 @@ export function activityOf(home: HomeData, band: BandReadings | null = null): Ac
     ring: {
       value: null,
       valueLabel: amount(movement.score, 'score'),
-      note: movement.band ?? undefined,
+      note: bandLabel(movement.band),
       tone: serverTone(movement.band),
     },
     rows: [

@@ -1,18 +1,25 @@
-import { useMemo, useState } from 'react';
+import { router } from 'expo-router';
+import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { to } from '@/shared/nav';
 import { space } from '@/shared/theme';
-import { Banner, Button, Card, SectionCaption, SectionSummary, Stack, Text } from '@/shared/ui';
+import {
+  Banner,
+  Button,
+  Card,
+  LinkCard,
+  SectionCaption,
+  SectionSummary,
+  Stack,
+  Text,
+} from '@/shared/ui';
 
 import type { BandState } from '../model/band-state';
 import { summaryOfBand } from '../model/band-summary';
 
-import { BandDetails, type DetailKind } from './band-details';
-import { BandMetrics } from './band-metrics';
 import { ForgetBand } from './forget-band';
 import { RecordingsCard } from './recordings-card';
-import { SleepCard } from './sleep-card';
-import { WorkoutsCard } from './workouts-card';
 
 /**
  * Всё, что браслет отдаёт, и всё, чем им можно управлять.
@@ -28,8 +35,6 @@ export function BandDashboard({
   onStopRecording,
   onPull,
   onRemoveRecording,
-  onStartWorkout,
-  onStopWorkout,
   onRefresh,
   onReconnect,
   onDisconnect,
@@ -42,8 +47,6 @@ export function BandDashboard({
   onStopRecording: () => void;
   onPull: () => void;
   onRemoveRecording: (session: number) => void;
-  onStartWorkout: (sport: number) => void;
-  onStopWorkout: () => void;
   onRefresh: () => void;
   /** Поднять связь с уже привязанным браслетом: без поиска, по known id. */
   onReconnect: () => void;
@@ -51,7 +54,6 @@ export function BandDashboard({
   onForget: () => void;
 }) {
   const live = state.stage === 'connected';
-  const [detail, setDetail] = useState<DetailKind>(null);
 
   // Шапка пересчитывает три ряда по всем минутам дня. Зависимости перечислены
   // по полям, а не по всему состоянию: во время тренировки состояние меняется
@@ -78,18 +80,6 @@ export function BandDashboard({
       {/* Связи нет, а числа на экране остались: без этой плашки они выдают
           себя за свежие. Подпись под кольцом говорит «LAST KNOWN», но её
           человек читает уже после того, как поверил цифрам. */}
-      {/* Отказы занятия человек обязан увидеть: сессия существует только в
-          памяти приложения, устройство её не хранит, и молчание здесь стоит
-          человеку целой тренировки. */}
-      {WORKOUT_TROUBLE[state.problem ?? ''] ? (
-        <Banner
-          tone={state.problem === 'workout-save-failed' ? 'danger' : 'warning'}
-          checked={false}
-          title={WORKOUT_TROUBLE[state.problem ?? '']?.title ?? ''}
-          subtitle={WORKOUT_TROUBLE[state.problem ?? '']?.subtitle}
-        />
-      ) : null}
-
       {live ? null : (
         <Banner
           tone="warning"
@@ -119,20 +109,19 @@ export function BandDashboard({
         rows={summary.rows}
       />
 
-      <BandMetrics state={state} reading={state.busy} onOpen={setDetail} />
-
-      <SleepCard sleep={state.sleep} reading={state.busy} onOpen={() => setDetail('sleep')} />
-
-      <WorkoutsCard
-        session={state.session}
-        recorded={state.recorded}
-        states={state.states}
-        reading={state.busy}
-        live={live}
-        onStart={onStartWorkout}
-        onStop={onStopWorkout}
-        onOpen={() => setDetail('workouts')}
-      />
+      {/* Показания живут в своих разделах: пульс — в «Сердце», кислород — в
+          «Дыхании», сон и стресс — в «Восстановлении», шаги и занятия — на
+          Главной. Экран устройства — про связь и команды, а не витрина. */}
+      <Card variant="sunken">
+        <Stack gap="sm">
+          <Text variant="subtitle">Where the numbers are</Text>
+          <LinkCard
+            label="Heart, breathing and sleep — in Body"
+            onPress={() => router.push(to.body())}
+          />
+          <LinkCard label="Steps and workouts — on Home" onPress={() => router.push(to.home())} />
+        </Stack>
+      </Card>
 
       <Card variant="sunken">
         <Stack gap="sm">
@@ -170,8 +159,6 @@ export function BandDashboard({
         onRemove={onRemoveRecording}
       />
 
-      <BandDetails kind={detail} state={state} onClose={() => setDetail(null)} />
-
       <View style={styles.footer}>
         {live ? <Button label="Disconnect" variant="plain" onPress={onDisconnect} /> : null}
         <ForgetBand onForget={onForget} />
@@ -179,30 +166,6 @@ export function BandDashboard({
     </Stack>
   );
 }
-
-/**
- * Что пошло не так с занятием — словами о последствии, а не о команде.
- *
- * Три состояния различаются тем, где сейчас находятся данные: не начали вовсе,
- * не записали на диск (единственная копия ещё в памяти), не закрыли на
- * устройстве (браслет продолжает считать и тратить заряд).
- */
-const WORKOUT_TROUBLE: Record<string, { title: string; subtitle: string } | undefined> = {
-  'workout-failed': {
-    title: 'The band did not start the workout',
-    subtitle: 'Nothing is being recorded. Try again while the band is connected.',
-  },
-  'workout-save-failed': {
-    title: 'The workout did not save',
-    subtitle:
-      'It is still running here and exists only in the app — the band keeps no copy. Try finishing it again before closing the app.',
-  },
-  'workout-open': {
-    title: 'The band is still in workout mode',
-    subtitle:
-      'Your workout is saved, but the device keeps counting and draining its battery until it hears otherwise. It closes on the next connection.',
-  },
-};
 
 const styles = StyleSheet.create({
   controls: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },

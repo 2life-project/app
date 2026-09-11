@@ -41,7 +41,7 @@ export function BandDetails({
     <Sheet visible={kind !== null} onClose={onClose} title={kind ? TITLES[kind] : ''}>
       {kind === 'heart' ? <HeartDetail state={state} /> : null}
       {kind === 'walk' ? <WalkDetail state={state} /> : null}
-      {kind === 'sleep' ? <SleepDetail state={state} /> : null}
+      {kind === 'sleep' ? <SleepDetail night={state.sleep[state.sleep.length - 1]} /> : null}
       {kind === 'stress' ? <StressDetail state={state} /> : null}
       {kind === 'measurements' ? <MeasurementsDetail state={state} /> : null}
       {kind === 'workouts' ? (

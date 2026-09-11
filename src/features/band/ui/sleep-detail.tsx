@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { space } from '@/shared/theme';
 import { Card, EmptyState, ProgressBar, Stack, StatTile, SummaryRow, Text } from '@/shared/ui';
 
-import type { BandState } from '../model/band-state';
+import type { SleepSession } from '../api';
 import { clock, duration } from '../model/format';
 
 import { Hypnogram } from './hypnogram';
@@ -17,9 +17,7 @@ const TARGET_MINUTES = 8 * 60;
  * пробуждениями и восемь часов подряд восстанавливают по-разному, и в итоговом
  * числе эта разница не видна.
  */
-export function SleepDetail({ state }: { state: BandState }) {
-  const night = state.sleep[state.sleep.length - 1];
-
+export function SleepDetail({ night }: { night: SleepSession | undefined }) {
   if (!night) {
     return (
       <EmptyState

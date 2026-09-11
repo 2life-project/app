@@ -18,4 +18,8 @@ import { start } from './model/link';
 start();
 
 export { BandPanel } from './ui/band-panel';
+export { BandActivitySection } from './ui/section-activity';
+export { BandBreathingSection } from './ui/section-breathing';
+export { BandHeartSection } from './ui/section-heart';
+export { BandRecoverySection } from './ui/section-recovery';
 export { BandScreen, BandScreenOptions } from './ui/band-screen';

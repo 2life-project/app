@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import type { ReactNode } from 'react';
 import { View, StyleSheet } from 'react-native';
 
 import { sourceCaption, vitalsOf, type BandReadings } from '@/shared/domain';
@@ -14,7 +15,7 @@ import { ActionLink, Card, ListRow, SectionCaption, Stack, StatTile, Text } from
  * прятать единственные данные, которые у человека сейчас есть, — и ровно те,
  * что он собрал своим телом за сегодня.
  */
-export function BandOnly({ band }: { band: BandReadings }) {
+export function BandOnly({ band, device }: { band: BandReadings; device?: ReactNode }) {
   const vitals = vitalsOf(band);
 
   return (
@@ -61,6 +62,7 @@ export function BandOnly({ band }: { band: BandReadings }) {
         </Card>
       ) : null}
 
+      {device}
       <ActionLink label="Open the band" chevron onPress={() => router.push(to.device())} />
     </Stack>
   );

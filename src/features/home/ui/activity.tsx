@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { vitalsOf, type BandReadings } from '@/shared/domain';
@@ -26,7 +27,16 @@ import { activityOf } from '../model/activity';
  * Активность дня. Истории нагрузки в ответе Главной нет — графики периода
  * живут на экране показателя, туда и ведёт ссылка внизу.
  */
-export function Activity({ home, band }: { home: HomeData; band: BandReadings | null }) {
+export function Activity({
+  home,
+  band,
+  device,
+}: {
+  home: HomeData;
+  band: BandReadings | null;
+  /** Шаги и занятия браслета подробно: карточки даёт маршрут, фича фиче не видна. */
+  device?: ReactNode;
+}) {
   const view = activityOf(home, band);
   const vitals = vitalsOf(band);
 
@@ -37,6 +47,7 @@ export function Activity({ home, band }: { home: HomeData; band: BandReadings | 
         <Card variant="sunken">
           <Text tone="muted">Movement data did not load for this day.</Text>
         </Card>
+        {device}
       </Stack>
     );
   }
@@ -106,6 +117,7 @@ export function Activity({ home, band }: { home: HomeData; band: BandReadings | 
         </Stack>
       ) : null}
 
+      {device}
       <InfoCard
         title="How the score is built"
         text={`Steps, active minutes, exercise intensity, energy and stand hours are weighted into one number by ${view.algorithm.name}. Today it rests on ${view.algorithm.coverage} of the day’s data, with ${view.algorithm.confidence} confidence.`}

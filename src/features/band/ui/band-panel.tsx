@@ -90,8 +90,6 @@ export function BandPanel() {
           onStopRecording={band.stopRecording}
           onPull={band.pullRecordings}
           onRemoveRecording={band.removeRecording}
-          onStartWorkout={band.startWorkout}
-          onStopWorkout={band.stopWorkout}
           onRefresh={band.refresh}
           onReconnect={reconnect}
           onDisconnect={band.disconnect}

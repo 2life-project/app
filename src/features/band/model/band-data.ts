@@ -9,6 +9,7 @@ import type { BandState } from './band-state';
 import { startOfToday } from './day-metrics';
 import { dayKey, loadDay, needsRead, recentDays, rememberDay } from './history-store';
 import { reviveDates } from './revive-dates';
+import { rememberNights } from './sleep-store';
 import { loadWorkouts } from './workout-store';
 
 /**
@@ -123,7 +124,12 @@ export async function loadEverything(
   await step('память', async () =>
     patch({ storage: (await band.recorder.storage()) ?? undefined }),
   );
-  await step('сон', async () => patch({ sleep: await band.history.sleep(week, now) }));
+  await step('сон', async () => {
+    const sleep = await band.history.sleep(week, now);
+    patch({ sleep });
+    // Ночь остаётся на телефоне и после того, как устройство её затёрло.
+    await rememberNights(sleep);
+  });
   await step('стресс', async () =>
     patch({ stress: await band.history.stress(startOfToday(now), now) }),
   );

@@ -10,6 +10,7 @@ import { stopBackgroundSync } from './background';
 import { clearSnapshot } from './band-data';
 import type { BandState } from './band-state';
 import { clearHistory } from './history-store';
+import { clearNights } from './sleep-store';
 import { releaseServerBinding } from './upload';
 import { clearOpenSession, rememberWorkout, toRecord } from './workout-store';
 
@@ -69,4 +70,5 @@ export async function forgetBand({
   await clearHistory().catch((failure: unknown) =>
     logger.error('band: архив суток не стёрся', { failure }),
   );
+  await clearNights();
 }

@@ -1,5 +1,6 @@
 import Feather from '@expo/vector-icons/Feather';
 import { router } from 'expo-router';
+import type { ReactNode } from 'react';
 import { StyleSheet } from 'react-native';
 
 import { useBandPaired, useBandReadings } from '@/shared/domain';
@@ -29,7 +30,7 @@ const HEADER_ACTIONS = [
   { icon: 'edit-2', label: 'Настроить виджеты', href: to.widgets(), band: false },
 ] as const;
 
-export function HomeScreen() {
+export function HomeScreen({ activityDevice }: { activityDevice?: ReactNode } = {}) {
   const { date, timeZone } = useToday();
   const home = useHome(date, timeZone);
   const decisions = useDecisions();
@@ -84,7 +85,7 @@ export function HomeScreen() {
   const pages = state
     ? [
         <Overview key="o" state={state} decisions={decisions} />,
-        <Activity key="a" home={state.home} band={band} />,
+        <Activity key="a" home={state.home} band={band} device={activityDevice} />,
         <Nutrition key="n" home={state.home} />,
         <Supplements key="s" home={state.home} />,
         <Wellbeing key="w" home={state.home} date={date} timeZone={timeZone} />,
@@ -94,7 +95,7 @@ export function HomeScreen() {
         // за «сервер не ответил» значит терять единственное, что у человека
         // сейчас есть, — и ровно то, что он собрал своим телом за сегодня.
         section.value === 'activity' && band ? (
-          <BandOnly key={section.value} band={band} />
+          <BandOnly key={section.value} band={band} device={activityDevice} />
         ) : (
           <StateCard key={section.value} query={home} />
         ),

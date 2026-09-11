@@ -45,12 +45,15 @@ export function BodySystem({
   date,
   timeZone,
   fallback,
+  device,
 }: {
   section: Subsystem;
   date: string;
   timeZone: string;
   /** Что показать, пока данных нет: загрузка или ошибка раздела. */
   fallback: React.ReactNode;
+  /** Карточки браслета по этой системе. Есть они — короткие строки показаний не нужны. */
+  device?: React.ReactNode;
 }) {
   const query = useQuery(subsystemKey(section, date, timeZone), (signal) =>
     fetchSubsystem(section, date, timeZone, signal),
@@ -68,13 +71,12 @@ export function BodySystem({
   if (!data) {
     // Сервер не ответил, но рука мерила. Показать «загружается» поверх готовых
     // чисел значит спрятать единственное, что у человека сейчас есть.
-    return vitals.length > 0 ? (
+    return (
       <Stack gap="md">
-        <BandVitals caption={sourceCaption(band)} vitals={vitals} />
+        {device ??
+          (vitals.length > 0 ? <BandVitals caption={sourceCaption(band)} vitals={vitals} /> : null)}
         {fallback}
       </Stack>
-    ) : (
-      <Stack gap="md">{fallback}</Stack>
     );
   }
 
@@ -94,9 +96,10 @@ export function BodySystem({
         </Card>
       ) : null}
 
-      {vitals.length > 0 ? <BandVitals caption={sourceCaption(band)} vitals={vitals} /> : null}
+      {device ??
+        (vitals.length > 0 ? <BandVitals caption={sourceCaption(band)} vitals={vitals} /> : null)}
 
-      {empty && vitals.length === 0 ? (
+      {empty && vitals.length === 0 && !device ? (
         <>
           <EmptyPanel icon="watch" title={NO_DATA.title} text={NO_DATA.text} />
           <Button label={NO_DATA.connect} onPress={() => router.push(to.device())} />
